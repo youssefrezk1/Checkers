@@ -1,0 +1,1411 @@
+{
+  "game_log_id": "game_20260418_103929_381296",
+  "timestamp": "2026-04-18T10:48:26.487943+00:00",
+  "total_turns": 52,
+  "winner": 2,
+  "draw": false,
+  "final_board": [
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
+    ],
+    [
+      2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      0,
+      0
+    ],
+    [
+      2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      0,
+      0
+    ],
+    [
+      4,
+      0,
+      4,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "move_history": [
+    {
+      "turn": 1,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move gains center control without leaving the piece isolated, aligning with DEVELOP_PIECES and CONTROL_CENTER priorities in the opening while maintaining safety with 0 pieces threatened.",
+      "zobrist_before": 17550884452584642524,
+      "zobrist_after": 9422673842495363754
+    },
+    {
+      "turn": 2,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            0
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 9422673842495363754,
+      "zobrist_after": 14487660916888620605
+    },
+    {
+      "turn": 3,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move has the highest minimax_score (-2.0) among safe, quiet opening moves while maintaining back-row discipline and improving development without isolating the moved piece.",
+      "zobrist_before": 14487660916888620605,
+      "zobrist_after": 16732590677067895538
+    },
+    {
+      "turn": 4,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            7
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 16732590677067895538,
+      "zobrist_after": 1288369405350475436
+    },
+    {
+      "turn": 5,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move creates immediate pressure (creates_immediate_threat=true, shot_sequence_available=true) while maintaining safety (our_pieces_threatened_after=0) and reducing opponent mobility (mobility_reduction=1), making it the most active and developmentally sound choice in this opening.",
+      "zobrist_before": 1288369405350475436,
+      "zobrist_after": 11650187586817923858
+    },
+    {
+      "turn": 6,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            6
+          ],
+          [
+            2,
+            7
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 11650187586817923858,
+      "zobrist_after": 917274099511759526
+    },
+    {
+      "turn": 7,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move has the highest minimax_score (+2.0) among equally safe options, indicating better tactical positioning in the OPENING phase while avoiding isolation and maintaining structural integrity.",
+      "zobrist_before": 917274099511759526,
+      "zobrist_after": 13140660251241532533
+    },
+    {
+      "turn": 8,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            3,
+            6
+          ],
+          [
+            4,
+            7
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 13140660251241532533,
+      "zobrist_after": 4599102532488901597
+    },
+    {
+      "turn": 9,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            7
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Both moves are equally safe (our_pieces_threatened_after=0) and quiet, but move 1 has a higher minimax_score (12.0 vs 8.0), indicating better tactical positioning in this opening phase where development and structure matter most.",
+      "zobrist_before": 4599102532488901597,
+      "zobrist_after": 12328212605250618363
+    },
+    {
+      "turn": 10,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 12328212605250618363,
+      "zobrist_after": 14327338982929754812
+    },
+    {
+      "turn": 11,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Move [1] improves development with a higher minimax_score (9.0 vs 8.0) while maintaining safety (0 pieces threatened) and better counterplay_score (7 vs 1), aligning with DEVELOP_PIECES and DEFEND_LEFT_FLANK priorities in this OPENING phase.",
+      "zobrist_before": 14327338982929754812,
+      "zobrist_after": 3202216770436241286
+    },
+    {
+      "turn": 12,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            5
+          ],
+          [
+            1,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 3202216770436241286,
+      "zobrist_after": 11697926745839397904
+    },
+    {
+      "turn": 13,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            1
+          ],
+          [
+            5,
+            0
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Both moves are safe (our_pieces_threatened_after=0), but move 0 avoids weakening the back row (weakens_king_row=false) while improving structural discipline (any_piece_isolated=true is a minor trade-off for maintaining back-row integrity).",
+      "zobrist_before": 11697926745839397904,
+      "zobrist_after": 11166189736506703487
+    },
+    {
+      "turn": 14,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            5
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 11166189736506703487,
+      "zobrist_after": 18069666935237089268
+    },
+    {
+      "turn": 15,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move improves center control while maintaining safety (our_pieces_threatened_after=0) and aligns with DEVELOP_PIECES without isolating the moved piece. It has a higher minimax_score (3.0) than the alternatives, supporting better development in this opening phase.",
+      "zobrist_before": 18069666935237089268,
+      "zobrist_after": 1278553525757774905
+    },
+    {
+      "turn": 16,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 1278553525757774905,
+      "zobrist_after": 17608858910687941781
+    },
+    {
+      "turn": 17,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            0
+          ],
+          [
+            6,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move preserves safety with our_pieces_threatened_after=0 while avoiding the isolation flaw present in move 1 (any_piece_isolated=true). It also aligns with HOLD_ADVANTAGE and DEVELOP_PIECES by advancing a piece without weakening structure.",
+      "zobrist_before": 17608858910687941781,
+      "zobrist_after": 3736414805971693482
+    },
+    {
+      "turn": 18,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 3736414805971693482,
+      "zobrist_after": 1856874730892443449
+    },
+    {
+      "turn": 19,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            6
+          ],
+          [
+            6,
+            7
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move maintains safety with our_pieces_threatened_after=0 and improves structural development without isolation, aligning with DEVELOP_PIECES and MAINTAIN_BACK_ROW priorities in the OPENING phase.",
+      "zobrist_before": 1856874730892443449,
+      "zobrist_after": 14653450352253937811
+    },
+    {
+      "turn": 20,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            4
+          ],
+          [
+            2,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 14653450352253937811,
+      "zobrist_after": 4009990114894318716
+    },
+    {
+      "turn": 21,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "[All moves expose a piece] Move 0 is the safer choice with our_pieces_threatened_after=2 versus 4 for move 1, despite both being unsafe_simple_move=true, and it creates immediate threat while blocking opponent landing.",
+      "zobrist_before": 4009990114894318716,
+      "zobrist_after": 5112451197750231306
+    },
+    {
+      "turn": 22,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            3,
+            0
+          ],
+          [
+            5,
+            2
+          ],
+          [
+            7,
+            0
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            1
+          ],
+          [
+            6,
+            1
+          ]
+        ]
+      },
+      "promotion": true,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 5112451197750231306,
+      "zobrist_after": 14474700099043901650
+    },
+    {
+      "turn": 23,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "captured": [
+          [
+            3,
+            2
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "This forced jump captures a regular piece (net_gain=1) despite leaving 2 of our pieces threatened (our_pieces_threatened_after=2), as it avoids a trade (AVOID_TRADES) and creates counterplay (counterplay_score=11) in a clearly losing position (winning_score=-12).",
+      "zobrist_before": 14474700099043901650,
+      "zobrist_after": 2950381437806649689
+    },
+    {
+      "turn": 24,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            1,
+            0
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": [
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 2950381437806649689,
+      "zobrist_after": 10341510980022119197
+    },
+    {
+      "turn": 25,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "[All moves expose a piece] All moves are unsafe (unsafe_simple_move=true), but index 1 leaves only 2 pieces threatened (same as index 0) and has a significantly better minimax_score (-15.5 vs -33.3), indicating a more resilient tactical line despite the shared safety flaw.",
+      "zobrist_before": 10341510980022119197,
+      "zobrist_after": 7286838195130586663
+    },
+    {
+      "turn": 26,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            2,
+            5
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": [
+          [
+            3,
+            4
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 7286838195130586663,
+      "zobrist_after": 610408807703697442
+    },
+    {
+      "turn": 27,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            1
+          ],
+          [
+            3,
+            0
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Move 0 leaves 0 pieces threatened (our_pieces_threatened_after=0) while move 1 increases threats to 2 (unsafe_simple_move=true) and worsens safety, violating DEFEND_PIECES priority.",
+      "zobrist_before": 610408807703697442,
+      "zobrist_after": 17431604503668238133
+    },
+    {
+      "turn": 28,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            6
+          ],
+          [
+            2,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 17431604503668238133,
+      "zobrist_after": 14203021135845090132
+    },
+    {
+      "turn": 29,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            5
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "[All moves expose a piece] This move shares the same safety risk (our_pieces_threatened_after=1) as the others but offers the highest minimax_score (-27.4) and creates immediate threat with shot_sequence_available=true, giving the best tactical counterplay in this clearly losing midgame position.",
+      "zobrist_before": 14203021135845090132,
+      "zobrist_after": 3452018848165204174
+    },
+    {
+      "turn": 30,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            2,
+            3
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "captured": [
+          [
+            3,
+            4
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 3452018848165204174,
+      "zobrist_after": 6563538525283294980
+    },
+    {
+      "turn": 31,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            5,
+            6
+          ],
+          [
+            3,
+            4
+          ],
+          [
+            1,
+            6
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            5
+          ],
+          [
+            2,
+            5
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "This forced jump captures 2 opponent pieces (net_gain=2) despite leaving 1 of our pieces threatened (our_pieces_threatened_after=1), which is strategically necessary to avoid further material loss in this clearly losing position (winning_score=-23).",
+      "zobrist_before": 6563538525283294980,
+      "zobrist_after": 3333902091451594116
+    },
+    {
+      "turn": 32,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            0,
+            7
+          ],
+          [
+            2,
+            5
+          ]
+        ],
+        "captured": [
+          [
+            1,
+            6
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 3333902091451594116,
+      "zobrist_after": 2657613360502154055
+    },
+    {
+      "turn": 33,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            7
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move leaves 0 of our pieces threatened (our_pieces_threatened_after=0) while reducing opponent mobility (mobility_reduction=1) and creating counterplay pressure (counterplay_score=7) in a clearly losing position. The alternative does not exist, and the move supports SEEK_COUNTERPLAY by maintaining structural resistance without further material loss.",
+      "zobrist_before": 2657613360502154055,
+      "zobrist_after": 12692386388842992481
+    },
+    {
+      "turn": 34,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 12692386388842992481,
+      "zobrist_after": 11001946379759326723
+    },
+    {
+      "turn": 35,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Both moves are safe (our_pieces_threatened_after=0) and equally isolated, but move [1] gains center_control=true with a higher counterplay_score (5 vs 3) and winning_conversion_score (7 vs 5), aligning with SEEK_COUNTERPLAY and COMPLICATE priorities to create active pressure in this clearly losing midgame position.",
+      "zobrist_before": 11001946379759326723,
+      "zobrist_after": 2945971215944448957
+    },
+    {
+      "turn": 36,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            3
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 2945971215944448957,
+      "zobrist_after": 971288713410336429
+    },
+    {
+      "turn": 37,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "[All moves expose a piece] This move creates immediate tactical pressure with shot_sequence_available=true and two_for_one_potential=true (two_for_one_score=2), offering the highest winning_conversion_score (34) among unsafe moves, which aligns with SEEK_COUNTERPLAY and COMPLICATE priorities despite leaving one piece threatened (our_pieces_threatened_after=1).",
+      "zobrist_before": 971288713410336429,
+      "zobrist_after": 3189161760183192162
+    },
+    {
+      "turn": 38,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            6,
+            1
+          ]
+        ],
+        "captured": [
+          [
+            5,
+            2
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 3189161760183192162,
+      "zobrist_after": 13555022011803002208
+    },
+    {
+      "turn": 39,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            4
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move leaves 0 pieces threatened (our_pieces_threatened_after=0) while restricting the opponent's mobility (restriction_score=3) and freezing 3 enemy pieces (frozen_enemy_pieces=3), aligning with SEEK_COUNTERPLAY and COMPLICATE priorities in a clearly losing midgame position.",
+      "zobrist_before": 13555022011803002208,
+      "zobrist_after": 11398164735981539586
+    },
+    {
+      "turn": 40,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            1
+          ],
+          [
+            7,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": true,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 11398164735981539586,
+      "zobrist_after": 8487835931127564436
+    },
+    {
+      "turn": 41,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Move 0 leaves 0 pieces threatened after (safer) while Move 1 leaves 1 piece threatened and is unsafe_simple_move=true, violating DEFEND priority. Move 0's restriction_score=2 and frozen_enemy_pieces=2 support counterplay despite lower winning_conversion_score=5 vs 30.",
+      "zobrist_before": 8487835931127564436,
+      "zobrist_after": 6121026887691408475
+    },
+    {
+      "turn": 42,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            5
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 6121026887691408475,
+      "zobrist_after": 18262706839267015732
+    },
+    {
+      "turn": 43,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            5
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "[All moves expose a piece] This move leaves only 1 of our pieces threatened after the move (our_pieces_threatened_after=1), which is the lowest among all unsafe options. While all moves are unsafe, minimizing immediate threats is critical in a clearly losing position to avoid compounding losses.",
+      "zobrist_before": 18262706839267015732,
+      "zobrist_after": 461705641274035264
+    },
+    {
+      "turn": 44,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            4,
+            7
+          ],
+          [
+            6,
+            5
+          ]
+        ],
+        "captured": [
+          [
+            5,
+            6
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 461705641274035264,
+      "zobrist_after": 16627208055654584843
+    },
+    {
+      "turn": 45,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "[All moves expose a piece] All moves leave 2 pieces threatened, but this move has the highest minimax_score (-42.5) among the unsafe options, making it the least tactically damaging choice while still creating pressure with forces_exchange_count=2 and restriction_score=7.",
+      "zobrist_before": 16627208055654584843,
+      "zobrist_after": 10908399485857148048
+    },
+    {
+      "turn": 46,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            3,
+            4
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            5
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 10908399485857148048,
+      "zobrist_after": 13459495888739729411
+    },
+    {
+      "turn": 47,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "[All moves expose a piece] All moves leave 2 pieces threatened, but this move has the highest minimax_score (-52.3) among unsafe options, indicating the best tactical counterplay despite equal safety risks. It also avoids creating immediate threats that could backfire, focusing on forcing exchanges to complicate the position.",
+      "zobrist_before": 13459495888739729411,
+      "zobrist_after": 6094018329654612788
+    },
+    {
+      "turn": 48,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            3,
+            2
+          ],
+          [
+            5,
+            0
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            1
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 6094018329654612788,
+      "zobrist_after": 3065410662704744855
+    },
+    {
+      "turn": 49,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            5
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "[All moves expose a piece] Move 1 leaves only 1 piece threatened (vs. 2 in move 0) while maintaining center control and reducing opponent mobility, making it the safer choice despite both being unsafe.",
+      "zobrist_before": 3065410662704744855,
+      "zobrist_after": 13869339054426323469
+    },
+    {
+      "turn": 50,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            2,
+            3
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "captured": [
+          [
+            3,
+            4
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 13869339054426323469,
+      "zobrist_after": 13008538922043930055
+    },
+    {
+      "turn": 51,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            3,
+            0
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This forced move creates_immediate_threat=true and shot_sequence_available=true, providing tactical pressure despite leaving our_pieces_threatened_after=1, as it aligns with SEEK_COUNTERPLAY by forcing exchange and complicating the position in a clearly losing endgame.",
+      "zobrist_before": 13008538922043930055,
+      "zobrist_after": 12624277568632904479
+    },
+    {
+      "turn": 52,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            1,
+            2
+          ],
+          [
+            3,
+            0
+          ]
+        ],
+        "captured": [
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 12624277568632904479,
+      "zobrist_after": 1407872065917587382
+    }
+  ],
+  "final_metrics": {
+    "format_error_count": 0,
+    "ranker_failure_count": 0,
+    "ranker_fallback_count": 0,
+    "ranker_fallback_rate": 0.0,
+    "total_captures_red": 3,
+    "total_captures_black": 12,
+    "total_promotions": 2
+  },
+  "archive_summary": [
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": -3,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": -3,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": -4,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": -4,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": -5,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": -4,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": -4,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": -4,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": -5,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": -6,
+      "game_phase": "MIDGAME"
+    }
+  ]
+}

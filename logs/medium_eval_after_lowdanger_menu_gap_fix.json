@@ -1,0 +1,1062 @@
+{
+  "pipeline": "all_legal",
+  "games": 2,
+  "max_plies": 60,
+  "seed": 42,
+  "wins_red": 2,
+  "wins_black": 0,
+  "draws": 0,
+  "avg_override_triggers_per_game": 1.0,
+  "avg_mismatch_per_game": 8.0,
+  "full_legal_not_best_count": 16,
+  "filtered_not_best_count": 16,
+  "true_error_count": 15,
+  "true_ranker_error_count": 15,
+  "near_tie_count": 0,
+  "justified_count": 1,
+  "proposal_or_filtering_gap_count": 0,
+  "minimax_near_tie_epsilon": 0.5,
+  "games_with_material_deficit": 1,
+  "total_red_pipeline_failures": 0,
+  "red_failure_reasons": [],
+  "suspicious_mismatch_details": [
+    {
+      "classification": "true_ranker_error",
+      "game_index": 1,
+      "turn_number": 0,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": -7.0,
+      "best_minimax": -2.0,
+      "minimax_gap": 5.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": -2.0,
+      "full_legal_best_minimax": -2.0,
+      "full_legal_chosen_minimax": -7.0,
+      "filtered_menu_gap": 5.0,
+      "full_legal_minimax_gap": 5.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 1,
+      "turn_number": 2,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": -9.0,
+      "best_minimax": -9.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 12.0,
+      "full_legal_best_minimax": 12.0,
+      "full_legal_chosen_minimax": -9.0,
+      "filtered_menu_gap": 21.0,
+      "full_legal_minimax_gap": 21.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 1,
+      "turn_number": 4,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            5
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            7
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": -5.0,
+      "best_minimax": -4.0,
+      "minimax_gap": 1.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 2.0,
+      "full_legal_best_minimax": 2.0,
+      "full_legal_chosen_minimax": -5.0,
+      "filtered_menu_gap": 7.0,
+      "full_legal_minimax_gap": 7.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 1,
+      "turn_number": 6,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            6
+          ],
+          [
+            6,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            6
+          ],
+          [
+            6,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": -10.0,
+      "best_minimax": -10.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 4.0,
+      "full_legal_best_minimax": 4.0,
+      "full_legal_chosen_minimax": -10.0,
+      "filtered_menu_gap": 14.0,
+      "full_legal_minimax_gap": 14.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            5
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 1,
+      "turn_number": 8,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 2.0,
+      "best_minimax": 2.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 25.0,
+      "full_legal_best_minimax": 25.0,
+      "full_legal_chosen_minimax": 2.0,
+      "filtered_menu_gap": 23.0,
+      "full_legal_minimax_gap": 23.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 1,
+      "turn_number": 10,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": -5.0,
+      "best_minimax": 4.0,
+      "minimax_gap": 9.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 9.0,
+      "full_legal_best_minimax": 9.0,
+      "full_legal_chosen_minimax": -5.0,
+      "filtered_menu_gap": 14.0,
+      "full_legal_minimax_gap": 14.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": false,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 2,
+      "turn_number": 2,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 10.0,
+      "best_minimax": 10.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 15.0,
+      "full_legal_best_minimax": 15.0,
+      "full_legal_chosen_minimax": 10.0,
+      "filtered_menu_gap": 5.0,
+      "full_legal_minimax_gap": 5.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 2,
+      "turn_number": 4,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            1
+          ],
+          [
+            5,
+            0
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            1
+          ],
+          [
+            5,
+            0
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 1.0,
+      "best_minimax": 1.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 10.0,
+      "full_legal_best_minimax": 10.0,
+      "full_legal_chosen_minimax": 1.0,
+      "filtered_menu_gap": 9.0,
+      "full_legal_minimax_gap": 9.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 2,
+      "turn_number": 10,
+      "chosen_move": {
+        "type": "jump",
+        "path": [
+          [
+            5,
+            0
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            1
+          ]
+        ]
+      },
+      "best_move": {
+        "type": "jump",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      "chosen_minimax": 16.0,
+      "best_minimax": 113.0,
+      "minimax_gap": 97.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 113.0,
+      "full_legal_best_minimax": 113.0,
+      "full_legal_chosen_minimax": 16.0,
+      "filtered_menu_gap": 97.0,
+      "full_legal_minimax_gap": 97.0,
+      "full_legal_best_move": {
+        "type": "jump",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": false,
+      "best_passive_safe": false,
+      "chosen_low_danger": true,
+      "best_low_danger": false
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 2,
+      "turn_number": 14,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            5
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            5
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 114.0,
+      "best_minimax": 114.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 151.0,
+      "full_legal_best_minimax": 151.0,
+      "full_legal_chosen_minimax": 114.0,
+      "filtered_menu_gap": 37.0,
+      "full_legal_minimax_gap": 37.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            0
+          ],
+          [
+            6,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 2,
+      "turn_number": 16,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            3,
+            4
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            3,
+            4
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 137.0,
+      "best_minimax": 137.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 146.0,
+      "full_legal_best_minimax": 146.0,
+      "full_legal_chosen_minimax": 137.0,
+      "filtered_menu_gap": 9.0,
+      "full_legal_minimax_gap": 9.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": false,
+      "best_passive_safe": false,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 2,
+      "turn_number": 20,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            5
+          ],
+          [
+            1,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            5
+          ],
+          [
+            1,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 301.0,
+      "best_minimax": 301.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 312.0,
+      "full_legal_best_minimax": 312.0,
+      "full_legal_chosen_minimax": 301.0,
+      "filtered_menu_gap": 11.0,
+      "full_legal_minimax_gap": 11.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": false,
+      "best_passive_safe": false,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 2,
+      "turn_number": 32,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 555.0,
+      "best_minimax": 555.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 735.0,
+      "full_legal_best_minimax": 735.0,
+      "full_legal_chosen_minimax": 555.0,
+      "filtered_menu_gap": 180.0,
+      "full_legal_minimax_gap": 180.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            6
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 2,
+      "turn_number": 34,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 555.0,
+      "best_minimax": 555.0,
+      "minimax_gap": 0.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 724.0,
+      "full_legal_best_minimax": 724.0,
+      "full_legal_chosen_minimax": 555.0,
+      "filtered_menu_gap": 169.0,
+      "full_legal_minimax_gap": 169.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            5
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    },
+    {
+      "classification": "true_ranker_error",
+      "game_index": 2,
+      "turn_number": 40,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            3,
+            2
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            5
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 964.0,
+      "best_minimax": 10000.0,
+      "minimax_gap": 9036.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 10000.0,
+      "full_legal_best_minimax": 10000.0,
+      "full_legal_chosen_minimax": 964.0,
+      "filtered_menu_gap": 9036.0,
+      "full_legal_minimax_gap": 9036.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            5
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": null,
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": true,
+      "best_passive_safe": false,
+      "chosen_low_danger": true,
+      "best_low_danger": false
+    }
+  ],
+  "per_game": [
+    {
+      "game_index": 1,
+      "winner": "RED",
+      "total_plies": 33,
+      "override_triggers": 1,
+      "chosen_not_best_minimax_count": 7,
+      "full_legal_not_best_count": 7,
+      "filtered_not_best_count": 7,
+      "true_error_count": 6,
+      "near_tie_count": 0,
+      "justified_count": 1,
+      "proposal_or_filtering_gap_count": 0,
+      "first_material_deficit_turn": null,
+      "red_pipeline_failures": 0
+    },
+    {
+      "game_index": 2,
+      "winner": "RED",
+      "total_plies": 51,
+      "override_triggers": 1,
+      "chosen_not_best_minimax_count": 9,
+      "full_legal_not_best_count": 9,
+      "filtered_not_best_count": 9,
+      "true_error_count": 9,
+      "near_tie_count": 0,
+      "justified_count": 0,
+      "proposal_or_filtering_gap_count": 0,
+      "first_material_deficit_turn": 8,
+      "red_pipeline_failures": 0
+    }
+  ]
+}
