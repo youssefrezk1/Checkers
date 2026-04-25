@@ -1,0 +1,152 @@
+{
+  "pipeline": "all_legal",
+  "games": 3,
+  "max_plies": 120,
+  "seed": 42,
+  "wins_red": 3,
+  "wins_black": 0,
+  "draws": 0,
+  "avg_override_triggers_per_game": 4.67,
+  "avg_mismatch_per_game": 0.33,
+  "full_legal_not_best_count": 1,
+  "filtered_not_best_count": 1,
+  "true_error_count": 1,
+  "true_ranker_error_count": 1,
+  "near_tie_count": 0,
+  "justified_count": 0,
+  "proposal_or_filtering_gap_count": 0,
+  "minimax_near_tie_epsilon": 0.5,
+  "games_with_material_deficit": 2,
+  "total_red_pipeline_failures": 0,
+  "red_failure_reasons": [],
+  "suspicious_mismatch_details": [
+    {
+      "classification": "true_ranker_error",
+      "game_index": 1,
+      "turn_number": 28,
+      "llm_idx": 3,
+      "best_idx": 8,
+      "filtered_menu_size": 8,
+      "chosen_minimax_internal": 647.0,
+      "best_minimax_internal": 648.0,
+      "chosen_path_internal": "[(5,",
+      "best_path_internal": "[(6,",
+      "chosen_path_matches_llm_idx": true,
+      "best_idx_is_argmax": true,
+      "best_score_tie_count": 1,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            7
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 647.0,
+      "best_minimax": 648.0,
+      "minimax_gap": 1.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 648.0,
+      "full_legal_best_minimax": 648.0,
+      "full_legal_chosen_minimax": 647.0,
+      "filtered_menu_gap": 1.0,
+      "full_legal_minimax_gap": 1.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            7
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": "gates|LDMD:bs=1,cs=1,ldB=1,ldC=1,g=1.0,th=3.0,gOK=0,cap=1,structBlock=1,defBlock=0;OPNLD:op=0,csss=0,bAccLD=1,g=1.0,th=6.0,gOK=0,structBlock=1;LDAC:csss=0,bAccLD=1,g=1.0,th=8.0,gOK=0,structBlock=1;QSAFE:bs=1,cs=1,bq=1,cq=1,bqs=1,cqs=1,g=1.0,th=2.0,gOK=0,structBlock=1;SVDOM:bs=1,cs=1,g=1.0,th=9.0,gOK=0",
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": false,
+      "best_passive_safe": false,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    }
+  ],
+  "debug_ranker_menu_presence": {
+    "red_decisions_with_ranker_filtered_menu": 64,
+    "red_decisions_missing_ranker_filtered_menu": 0,
+    "chosen_move_unmatched_on_ranker_filtered_menu": 0,
+    "true_error_rows_filtered_menu_gap_null": 0
+  },
+  "per_game": [
+    {
+      "game_index": 1,
+      "winner": "RED",
+      "total_plies": 43,
+      "override_triggers": 6,
+      "chosen_not_best_minimax_count": 1,
+      "full_legal_not_best_count": 1,
+      "filtered_not_best_count": 1,
+      "true_error_count": 1,
+      "near_tie_count": 0,
+      "justified_count": 0,
+      "proposal_or_filtering_gap_count": 0,
+      "first_material_deficit_turn": 10,
+      "red_pipeline_failures": 0
+    },
+    {
+      "game_index": 2,
+      "winner": "RED",
+      "total_plies": 39,
+      "override_triggers": 6,
+      "chosen_not_best_minimax_count": 0,
+      "full_legal_not_best_count": 0,
+      "filtered_not_best_count": 0,
+      "true_error_count": 0,
+      "near_tie_count": 0,
+      "justified_count": 0,
+      "proposal_or_filtering_gap_count": 0,
+      "first_material_deficit_turn": null,
+      "red_pipeline_failures": 0
+    },
+    {
+      "game_index": 3,
+      "winner": "RED",
+      "total_plies": 43,
+      "override_triggers": 2,
+      "chosen_not_best_minimax_count": 0,
+      "full_legal_not_best_count": 0,
+      "filtered_not_best_count": 0,
+      "true_error_count": 0,
+      "near_tie_count": 0,
+      "justified_count": 0,
+      "proposal_or_filtering_gap_count": 0,
+      "first_material_deficit_turn": 6,
+      "red_pipeline_failures": 0
+    }
+  ]
+}

@@ -133,3 +133,4 @@ def test_breakdown_opponent_caged_king_is_bonus():
     assert "caged_king" in bd
     # If caged: value should be positive (opponent caged = bonus for root_player RED)
     assert bd["caged_king"] >= 0.0
+

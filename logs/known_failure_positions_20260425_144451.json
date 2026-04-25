@@ -1,0 +1,2758 @@
+{
+  "meta": {
+    "source_trace": "logs/game_20260425_144451_493544.jsonl",
+    "depth": 6,
+    "n_positions": 11,
+    "target_turns": [
+      35,
+      37,
+      41,
+      43,
+      45,
+      49,
+      51,
+      55,
+      59,
+      61,
+      63
+    ],
+    "description": "Known-failure endgame positions from game_20260425_144451_493544. All positions are board-before-RED-turn snapshots extracted by replaying the full trace. D6 scores use current engine (caged_king evaluator term active)."
+  },
+  "positions": [
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 35,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          2,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 13,
+      "legal_move_count": 10,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            5
+          ],
+          [
+            1,
+            6
+          ]
+        ],
+        "captured": [],
+        "promotion": false
+      },
+      "old_logged_score": 4.0,
+      "old_chosen_d6_score": 26.0,
+      "d6_best_move": [
+        [
+          2,
+          5
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "d6_best_score": 26.0,
+      "gap_d6_best_vs_old_chosen": 0.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              2,
+              5
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": 26.0,
+          "is_old_chosen": true,
+          "is_d6_best": true,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": 2.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              6,
+              5
+            ],
+            [
+              5,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -67.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": -81.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -88.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": -88.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              6,
+              5
+            ],
+            [
+              5,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": -105.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": -106.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              5
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -112.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -157.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        }
+      ],
+      "tags": [],
+      "search_elapsed_s": 1.59
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 37,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          2,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          4,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 13,
+      "legal_move_count": 9,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            5
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": [],
+        "promotion": false
+      },
+      "old_logged_score": 1.0,
+      "old_chosen_d6_score": -36.0,
+      "d6_best_move": [
+        [
+          6,
+          5
+        ],
+        [
+          5,
+          4
+        ]
+      ],
+      "d6_best_score": -36.0,
+      "gap_d6_best_vs_old_chosen": 0.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              6,
+              5
+            ],
+            [
+              5,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -36.0,
+          "is_old_chosen": true,
+          "is_d6_best": true,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          "type": "simple",
+          "score": -92.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": -92.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              6,
+              5
+            ],
+            [
+              5,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": -99.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": -141.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -198.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -259.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": -361.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": -470.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        }
+      ],
+      "tags": [],
+      "search_elapsed_s": 1.08
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 41,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          2,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 11,
+      "legal_move_count": 8,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            6
+          ],
+          [
+            0,
+            7
+          ]
+        ],
+        "captured": [],
+        "promotion": true
+      },
+      "old_logged_score": 3.0,
+      "old_chosen_d6_score": 65.0,
+      "d6_best_move": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "d6_best_score": 65.0,
+      "gap_d6_best_vs_old_chosen": 0.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          "type": "simple",
+          "score": 65.0,
+          "is_old_chosen": true,
+          "is_d6_best": true,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": 65.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": 65.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "score": 33.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": -27.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -32.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": -51.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -105.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        }
+      ],
+      "tags": [
+        "promotion_race",
+        "endgame_conversion"
+      ],
+      "search_elapsed_s": 1.41
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 43,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          2,
+          0,
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 11,
+      "legal_move_count": 8,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": [],
+        "promotion": false
+      },
+      "old_logged_score": 2.0,
+      "old_chosen_d6_score": 35.0,
+      "d6_best_move": [
+        [
+          2,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "d6_best_score": 35.0,
+      "gap_d6_best_vs_old_chosen": 0.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": 35.0,
+          "is_old_chosen": false,
+          "is_d6_best": true,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": 35.0,
+          "is_old_chosen": true,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "score": 31.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": -3.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": -14.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -50.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": -73.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -147.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        }
+      ],
+      "tags": [
+        "endgame_conversion"
+      ],
+      "search_elapsed_s": 3.05
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 45,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          2,
+          0,
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 11,
+      "legal_move_count": 7,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            1
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": [],
+        "promotion": false
+      },
+      "old_logged_score": 1.0,
+      "old_chosen_d6_score": 23.0,
+      "d6_best_move": [
+        [
+          2,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "d6_best_score": 25.0,
+      "gap_d6_best_vs_old_chosen": 2.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": 25.0,
+          "is_old_chosen": false,
+          "is_d6_best": true,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": 23.0,
+          "is_old_chosen": true,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": 8.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": 3.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -137.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -203.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": -233.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        }
+      ],
+      "tags": [
+        "caged_king",
+        "endgame_conversion"
+      ],
+      "search_elapsed_s": 1.77
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 49,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          2,
+          0,
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          4,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 11,
+      "legal_move_count": 9,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": [],
+        "promotion": false
+      },
+      "old_logged_score": 7.0,
+      "old_chosen_d6_score": 33.0,
+      "d6_best_move": [
+        [
+          4,
+          3
+        ],
+        [
+          3,
+          2
+        ]
+      ],
+      "d6_best_score": 33.0,
+      "gap_d6_best_vs_old_chosen": 0.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": 33.0,
+          "is_old_chosen": true,
+          "is_d6_best": true,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": -229.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -249.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": -418.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "score": -419.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -424.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "score": -434.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -493.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -549.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        }
+      ],
+      "tags": [
+        "caged_king",
+        "endgame_conversion"
+      ],
+      "search_elapsed_s": 1.75
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 51,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          2,
+          0,
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 11,
+      "legal_move_count": 8,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": [],
+        "promotion": false
+      },
+      "old_logged_score": 1.0,
+      "old_chosen_d6_score": 4.0,
+      "d6_best_move": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "d6_best_score": 4.0,
+      "gap_d6_best_vs_old_chosen": 0.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": 4.0,
+          "is_old_chosen": true,
+          "is_d6_best": true,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "score": -136.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "score": -161.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": -194.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": -219.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -583.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -592.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -718.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        }
+      ],
+      "tags": [
+        "caged_king",
+        "endgame_conversion"
+      ],
+      "search_elapsed_s": 1.31
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 55,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          2,
+          0,
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          1,
+          0,
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 11,
+      "legal_move_count": 7,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            1
+          ],
+          [
+            3,
+            0
+          ]
+        ],
+        "captured": [],
+        "promotion": false
+      },
+      "old_logged_score": 1.0,
+      "old_chosen_d6_score": -113.0,
+      "d6_best_move": [
+        [
+          4,
+          3
+        ],
+        [
+          3,
+          4
+        ]
+      ],
+      "d6_best_score": -110.0,
+      "gap_d6_best_vs_old_chosen": 3.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -110.0,
+          "is_old_chosen": false,
+          "is_d6_best": true,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": -113.0,
+          "is_old_chosen": true,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -155.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "score": -161.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -187.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": -220.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -296.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        }
+      ],
+      "tags": [
+        "caged_king",
+        "endgame_conversion"
+      ],
+      "search_elapsed_s": 1.06
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 59,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          0,
+          0,
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 10,
+      "legal_move_count": 2,
+      "old_chosen_move": {
+        "type": "jump",
+        "path": [
+          [
+            3,
+            0
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "captured": [
+          [
+            2,
+            1
+          ]
+        ],
+        "promotion": false
+      },
+      "old_logged_score": -2.0,
+      "old_chosen_d6_score": -164.0,
+      "d6_best_move": [
+        [
+          3,
+          0
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "d6_best_score": -164.0,
+      "gap_d6_best_vs_old_chosen": 0.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              3,
+              0
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "jump",
+          "score": -164.0,
+          "is_old_chosen": true,
+          "is_d6_best": true,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "jump",
+          "score": -241.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        }
+      ],
+      "tags": [
+        "caged_king",
+        "endgame_conversion",
+        "tactical"
+      ],
+      "search_elapsed_s": 0.37
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 61,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          0,
+          0,
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 9,
+      "legal_move_count": 5,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            2
+          ],
+          [
+            0,
+            3
+          ]
+        ],
+        "captured": [],
+        "promotion": true
+      },
+      "old_logged_score": -4.0,
+      "old_chosen_d6_score": -139.0,
+      "d6_best_move": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "d6_best_score": -139.0,
+      "gap_d6_best_vs_old_chosen": 0.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "type": "simple",
+          "score": -139.0,
+          "is_old_chosen": true,
+          "is_d6_best": true,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -182.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "type": "simple",
+          "score": -199.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": -237.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -445.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        }
+      ],
+      "tags": [
+        "promotion_race",
+        "caged_king",
+        "endgame_conversion"
+      ],
+      "search_elapsed_s": 0.75
+    },
+    {
+      "source_trace": "logs/game_20260425_144451_493544.jsonl",
+      "turn": 63,
+      "board": [
+        [
+          0,
+          2,
+          0,
+          3,
+          0,
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "side_to_move": "RED",
+      "total_pieces": 9,
+      "legal_move_count": 7,
+      "old_chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            3,
+            2
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "captured": [],
+        "promotion": false
+      },
+      "old_logged_score": 1.0,
+      "old_chosen_d6_score": -88.0,
+      "d6_best_move": [
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "d6_best_score": -88.0,
+      "gap_d6_best_vs_old_chosen": 0.0,
+      "d6_score_table": [
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "type": "simple",
+          "score": -88.0,
+          "is_old_chosen": true,
+          "is_d6_best": true,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -165.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -186.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "score": -186.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 0
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -236.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 1
+        },
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "type": "simple",
+          "score": -366.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 2
+        },
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "score": -402.0,
+          "is_old_chosen": false,
+          "is_d6_best": false,
+          "caged_after": 2
+        }
+      ],
+      "tags": [
+        "caged_king",
+        "endgame_conversion"
+      ],
+      "search_elapsed_s": 1.9
+    }
+  ]
+}

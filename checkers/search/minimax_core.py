@@ -475,6 +475,23 @@ def search_root_all_scores(
     return best_move, best_score, scored, stats
 
 
+def get_d6_top_gap(scored: list[tuple]) -> float:
+    """
+    Return the score difference between rank-1 and rank-2 from a
+    ``search_root_all_scores`` result (already sorted descending by score).
+
+    - Returns ``float('inf')`` when fewer than 2 moves exist (forced/trivial
+      position — selective-D8 should never fire on such positions).
+    - Returns 0.0 when the top two moves are tied.
+
+    Used by the selective-D8 policy in minimax_scorer to decide whether the
+    D6 result is already confident enough to skip a deeper search.
+    """
+    if len(scored) < 2:
+        return float("inf")
+    return float(scored[0][1]) - float(scored[1][1])
+
+
 def search_root_iterative(
     board: list[list[int]],
     current_player: int,

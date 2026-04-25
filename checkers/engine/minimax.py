@@ -1,6 +1,15 @@
 # engine/minimax.py
 #
 # Compatibility wrapper around isolated Phase-1 search core.
+#
+# LEGACY NOTE: score_move_with_minimax is retained for backward compatibility
+# (tests, one-off ablations) but must NOT be used in the live pipeline for
+# ranking candidates.  It scores each move in isolation (no shared TT, no
+# sibling context) so the resulting scores are not directly comparable across
+# moves and produce an incorrect ordering.
+#
+# The canonical multi-move scorer is:
+#   checkers.search.minimax_core.search_root_all_scores
 
 from __future__ import annotations
 
@@ -11,7 +20,8 @@ from checkers.engine.rules import apply_move
 from checkers.search.minimax_core import SearchStats, negamax
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-MINIMAX_DEPTH = int(os.environ.get("MINIMAX_DEPTH", "3"))
+# Default changed from 3 to 6 to match the project's production search depth.
+MINIMAX_DEPTH = int(os.environ.get("MINIMAX_DEPTH", "6"))
 
 
 def _opponent(player: int) -> int:
@@ -43,14 +53,24 @@ def minimax_score(
 
 
 def score_move_with_minimax(
-    
     board: list[list[int]],
     move: dict,
     current_player: int,
     depth: int = MINIMAX_DEPTH,
 ) -> float:
     """
+    **LEGACY / DEBUG ONLY.**
+
     Score a single candidate move using fixed-depth negamax alpha-beta.
+
+    Do NOT use this function to rank multiple moves against each other in the
+    live pipeline.  Each call launches an independent search with no shared
+    transposition table, so scores from different calls are not on a common
+    scale and will produce a different (incorrect) ordering compared to the
+    joint search performed by search_root_all_scores.
+
+    Use search_root_all_scores for any ranking or scoring that affects move
+    selection.
     """
     board_after = apply_move(board, move)
     return float(
@@ -63,6 +83,5 @@ def score_move_with_minimax(
             beta=float("inf"),
             stats=SearchStats(),
             use_tt=False,  # Isolate per-candidate scoring: no cross-call TT contamination.
-       
         )
     )
