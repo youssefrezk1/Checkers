@@ -353,3 +353,90 @@ def test_capture_extension_search_is_deterministic() -> None:
     second_move, second_score, _ = search_root(board=board, current_player=RED, depth=0, use_tactical_extension=True)
     assert first_move == second_move
     assert first_score == second_score
+
+
+# ── Leaf tension penalty tests ────────────────────────────────────────────────
+
+def test_leaf_tension_penalty_applied_when_opponent_has_jumps() -> None:
+    """
+    At depth=0 with extension exhausted, the tension penalty must lower the
+    leaf score when the opponent (BLACK) has pending captures against RED.
+
+    Board: RED at (5,2), BLACK at (4,3) — BLACK can jump RED.
+    We call negamax with current_player=RED, extension_depth at the cap,
+    so the extension branch is skipped and we reach the static-eval branch.
+    With extension ON, the penalty should reduce the score vs extension OFF.
+    """
+    board = _empty_board()
+    board[5][2] = RED
+    board[4][3] = BLACK  # BLACK can jump RED at (5,2) → (3,1) or (3,3) if empty
+
+    # Place a landing square so BLACK has a legal jump
+    # Black at (4,3) jumps RED at (5,2) landing at (6,1) — need (6,1) empty (it is)
+    # Actually: BLACK moves DOWN, so (4,3) + (+1,−1) = (5,2) captured, land (6,1)
+    # (6,1) is EMPTY in _empty_board() — jump is available
+
+    score_no_penalty = negamax(
+        board=board,
+        current_player=RED,
+        root_player=RED,
+        depth=0,
+        alpha=float("-inf"),
+        beta=float("inf"),
+        stats=SearchStats(),
+        use_tt=False,
+        extension_depth=MAX_TACTICAL_EXTENSION_PLIES,  # exhausted → goes to static eval
+        use_tactical_extension=False,  # penalty only fires when extension is ON
+    )
+    score_with_penalty = negamax(
+        board=board,
+        current_player=RED,
+        root_player=RED,
+        depth=0,
+        alpha=float("-inf"),
+        beta=float("inf"),
+        stats=SearchStats(),
+        use_tt=False,
+        extension_depth=MAX_TACTICAL_EXTENSION_PLIES,  # exhausted → goes to static eval
+        use_tactical_extension=True,   # penalty fires here
+    )
+    # Penalty lowers the score when the opponent threatens (bad for root=RED)
+    assert score_with_penalty < score_no_penalty
+
+
+def test_leaf_tension_penalty_absent_when_no_opponent_jumps() -> None:
+    """
+    When the opponent has NO pending captures at the leaf, the penalty must
+    NOT fire, so scores with and without extension are equal at the static
+    evaluation level (with extension exhausted).
+    """
+    board = _empty_board()
+    board[5][2] = RED
+    board[1][6] = BLACK  # far away — BLACK has no jump over RED
+
+    score_no_ext = negamax(
+        board=board,
+        current_player=RED,
+        root_player=RED,
+        depth=0,
+        alpha=float("-inf"),
+        beta=float("inf"),
+        stats=SearchStats(),
+        use_tt=False,
+        extension_depth=MAX_TACTICAL_EXTENSION_PLIES,
+        use_tactical_extension=False,
+    )
+    score_with_ext = negamax(
+        board=board,
+        current_player=RED,
+        root_player=RED,
+        depth=0,
+        alpha=float("-inf"),
+        beta=float("inf"),
+        stats=SearchStats(),
+        use_tt=False,
+        extension_depth=MAX_TACTICAL_EXTENSION_PLIES,
+        use_tactical_extension=True,
+    )
+    # No opponent jumps → no penalty → scores must be identical
+    assert score_with_ext == score_no_ext

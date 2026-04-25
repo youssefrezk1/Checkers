@@ -245,8 +245,10 @@ def _finalize_cleaned_moves(
 ) -> dict:
     """Shared tail: min/max counts, insufficient_proposals, return patch dict."""
     engine_legal_n = len(get_all_legal_moves(board, current_player))
-    max_proposals_forward = 5
-    min_proposals_required = 3
+    # Proposal count rule: min(5, n_legal) — never require more than what exists.
+    n_to_propose = min(5, engine_legal_n)
+    max_proposals_forward = n_to_propose
+    min_proposals_required = n_to_propose
 
     if len(cleaned_moves) > 0:
         truncated = False
@@ -545,8 +547,21 @@ def format_checker(state: CheckersState) -> dict:
     flatten_used = False
     failure_reasons: list[str] = []
 
+    # Full legal move list (always used for n_legal feedback and final validator)
     legal_basis = get_all_legal_moves(board, current_player)
     n_legal = len(legal_basis)
+
+    # ── Phase 8: when symbolic_scored_moves is present, proposal indices map
+    # into the scored list (which is the full legal list, sorted best-first).
+    # index 0 = best symbolic move. Validator still checks all expanded moves
+    # against the full legal list from get_all_legal_moves.
+    if state.symbolic_scored_moves:
+        scored_basis = [entry["move"] for entry in state.symbolic_scored_moves]
+        expansion_basis = scored_basis
+        expansion_n = len(scored_basis)
+    else:
+        expansion_basis = legal_basis
+        expansion_n = n_legal
 
     if isinstance(proposed_moves, list) and len(proposed_moves) == 0:
         return {
@@ -576,12 +591,12 @@ def format_checker(state: CheckersState) -> dict:
         raw_indices = bundle["indices"]
         assert isinstance(raw_indices, list)
         for i in raw_indices:
-            if isinstance(i, int) and (i < 0 or i >= n_legal):
+            if isinstance(i, int) and (i < 0 or i >= expansion_n):
                 index_extra_intervention = True
-        cleaned_moves = _expand_indices_to_engine_moves(raw_indices, legal_basis)
+        cleaned_moves = _expand_indices_to_engine_moves(raw_indices, expansion_basis)
         if len(raw_indices) > 0 and len(cleaned_moves) == 0:
             bump = 1 + (1 if parse_intervention else 0)
-            hi = max(0, n_legal - 1)
+            hi = max(0, expansion_n - 1)
             return {
                 "proposed_moves": [],
                 "feedback": (
@@ -609,9 +624,9 @@ def format_checker(state: CheckersState) -> dict:
     if isinstance(proposed_moves, list) and len(proposed_moves) > 0:
         if all(isinstance(x, int) and not isinstance(x, bool) for x in proposed_moves):
             for i in proposed_moves:
-                if i < 0 or i >= n_legal:
+                if i < 0 or i >= expansion_n:
                     index_extra_intervention = True
-            cleaned_moves = _expand_indices_to_engine_moves(list(proposed_moves), legal_basis)
+            cleaned_moves = _expand_indices_to_engine_moves(list(proposed_moves), expansion_basis)
             return _finalize_cleaned_moves(
                 cleaned_moves=cleaned_moves,
                 board=board,

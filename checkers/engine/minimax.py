@@ -11,7 +11,7 @@ from checkers.engine.rules import apply_move
 from checkers.search.minimax_core import SearchStats, negamax
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-MINIMAX_DEPTH = int(os.environ.get("MINIMAX_DEPTH", "2"))
+MINIMAX_DEPTH = int(os.environ.get("MINIMAX_DEPTH", "3"))
 
 
 def _opponent(player: int) -> int:
@@ -43,6 +43,7 @@ def minimax_score(
 
 
 def score_move_with_minimax(
+    
     board: list[list[int]],
     move: dict,
     current_player: int,
@@ -61,5 +62,7 @@ def score_move_with_minimax(
             alpha=float("-inf"),
             beta=float("inf"),
             stats=SearchStats(),
+            use_tt=False,  # Isolate per-candidate scoring: no cross-call TT contamination.
+       
         )
     )

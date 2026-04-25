@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "games_per_config": 1,
+    "depth": 3,
+    "seed": 42,
+    "max_turns": 120,
+    "track_sharp_drops": true,
+    "sharp_drop_threshold": 120.0,
+    "elapsed_s": 16.070129625
+  },
+  "per_game": [
+    {
+      "config_name": "baseline",
+      "game_index": 1,
+      "winner": 1,
+      "draw": false,
+      "turn_count": 64,
+      "repetition_or_loop_detected": false,
+      "final_material_difference": 375,
+      "capture_count": 21,
+      "promotion_count": 2,
+      "average_nodes_per_move": 101.6875,
+      "average_search_score_per_move": 206.875,
+      "average_depth_searched": 3.0,
+      "sharp_drop_count": 17
+    },
+    {
+      "config_name": "phase7a_only",
+      "game_index": 1,
+      "winner": 1,
+      "draw": false,
+      "turn_count": 84,
+      "repetition_or_loop_detected": false,
+      "final_material_difference": 350,
+      "capture_count": 22,
+      "promotion_count": 5,
+      "average_nodes_per_move": 87.44047619047619,
+      "average_search_score_per_move": 173.53571428571428,
+      "average_depth_searched": 3.0,
+      "sharp_drop_count": 23
+    },
+    {
+      "config_name": "phase7b_only",
+      "game_index": 1,
+      "winner": null,
+      "draw": true,
+      "turn_count": 79,
+      "repetition_or_loop_detected": true,
+      "final_material_difference": 200,
+      "capture_count": 20,
+      "promotion_count": 3,
+      "average_nodes_per_move": 104.76923076923077,
+      "average_search_score_per_move": 16.423076923076923,
+      "average_depth_searched": 3.0,
+      "sharp_drop_count": 13
+    },
+    {
+      "config_name": "full",
+      "game_index": 1,
+      "winner": 1,
+      "draw": false,
+      "turn_count": 72,
+      "repetition_or_loop_detected": false,
+      "final_material_difference": 650,
+      "capture_count": 19,
+      "promotion_count": 3,
+      "average_nodes_per_move": 120.48611111111111,
+      "average_search_score_per_move": 22.48611111111111,
+      "average_depth_searched": 3.0,
+      "sharp_drop_count": 18
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "games": 1,
+      "wins_red": 1,
+      "wins_black": 0,
+      "draws": 0,
+      "loop_or_turncap_games": 0,
+      "avg_turns": 64.0,
+      "avg_captures": 21.0,
+      "avg_promotions": 2.0,
+      "avg_nodes_per_move": 101.6875,
+      "avg_search_score_per_move": 206.875,
+      "sharp_drop_total": 17,
+      "sharp_drop_avg_per_game": 17.0
+    },
+    "phase7a_only": {
+      "games": 1,
+      "wins_red": 1,
+      "wins_black": 0,
+      "draws": 0,
+      "loop_or_turncap_games": 0,
+      "avg_turns": 84.0,
+      "avg_captures": 22.0,
+      "avg_promotions": 5.0,
+      "avg_nodes_per_move": 87.44047619047619,
+      "avg_search_score_per_move": 173.53571428571428,
+      "sharp_drop_total": 23,
+      "sharp_drop_avg_per_game": 23.0
+    },
+    "phase7b_only": {
+      "games": 1,
+      "wins_red": 0,
+      "wins_black": 0,
+      "draws": 1,
+      "loop_or_turncap_games": 1,
+      "avg_turns": 79.0,
+      "avg_captures": 20.0,
+      "avg_promotions": 3.0,
+      "avg_nodes_per_move": 104.76923076923077,
+      "avg_search_score_per_move": 16.423076923076923,
+      "sharp_drop_total": 13,
+      "sharp_drop_avg_per_game": 13.0
+    },
+    "full": {
+      "games": 1,
+      "wins_red": 1,
+      "wins_black": 0,
+      "draws": 0,
+      "loop_or_turncap_games": 0,
+      "avg_turns": 72.0,
+      "avg_captures": 19.0,
+      "avg_promotions": 3.0,
+      "avg_nodes_per_move": 120.48611111111111,
+      "avg_search_score_per_move": 22.48611111111111,
+      "sharp_drop_total": 18,
+      "sharp_drop_avg_per_game": 18.0
+    }
+  }
+}

@@ -1,0 +1,332 @@
+{
+  "depth": 6,
+  "total_ordered_nodes": 30621,
+  "total_unordered_nodes": 39039,
+  "node_reduction_pct": 21.6,
+  "all_correct": true,
+  "results": [
+    {
+      "position_id": "pos_opening_standard",
+      "depth": 6,
+      "legal_moves": 7,
+      "ordered_nodes": 5658,
+      "unordered_nodes": 5661,
+      "ordered_runtime_s": 1.599,
+      "unordered_runtime_s": 1.7541,
+      "node_reduction_pct": 0.1,
+      "runtime_reduction_pct": 8.8,
+      "score_match": true,
+      "move_match": true,
+      "ordered_score": -20.0,
+      "unordered_score": -20.0,
+      "ordered_best_path": [
+        [
+          5,
+          6
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "unordered_best_path": [
+        [
+          5,
+          6
+        ],
+        [
+          4,
+          5
+        ]
+      ]
+    },
+    {
+      "position_id": "pos_mandatory_capture",
+      "depth": 6,
+      "legal_moves": 8,
+      "ordered_nodes": 3026,
+      "unordered_nodes": 3036,
+      "ordered_runtime_s": 0.7745,
+      "unordered_runtime_s": 0.8002,
+      "node_reduction_pct": 0.3,
+      "runtime_reduction_pct": 3.2,
+      "score_match": true,
+      "move_match": true,
+      "ordered_score": 569.0,
+      "unordered_score": 569.0,
+      "ordered_best_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "unordered_best_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          3
+        ]
+      ]
+    },
+    {
+      "position_id": "pos_multi_jump",
+      "depth": 6,
+      "legal_moves": 1,
+      "ordered_nodes": 2,
+      "unordered_nodes": 2,
+      "ordered_runtime_s": 0.0,
+      "unordered_runtime_s": 0.0,
+      "node_reduction_pct": 0.0,
+      "runtime_reduction_pct": 57.7,
+      "score_match": true,
+      "move_match": true,
+      "ordered_score": 10000.0,
+      "unordered_score": 10000.0,
+      "ordered_best_path": [
+        [
+          5,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "unordered_best_path": [
+        [
+          5,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "position_id": "pos_simple_promotion",
+      "depth": 6,
+      "legal_moves": 2,
+      "ordered_nodes": 109,
+      "unordered_nodes": 109,
+      "ordered_runtime_s": 0.0166,
+      "unordered_runtime_s": 0.0166,
+      "node_reduction_pct": 0.0,
+      "runtime_reduction_pct": 0.0,
+      "score_match": true,
+      "move_match": true,
+      "ordered_score": 0.0,
+      "unordered_score": 0.0,
+      "ordered_best_path": [
+        [
+          1,
+          5
+        ],
+        [
+          0,
+          4
+        ]
+      ],
+      "unordered_best_path": [
+        [
+          1,
+          5
+        ],
+        [
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "position_id": "pos_endgame_king_activity",
+      "depth": 6,
+      "legal_moves": 1,
+      "ordered_nodes": 101,
+      "unordered_nodes": 101,
+      "ordered_runtime_s": 0.0136,
+      "unordered_runtime_s": 0.0133,
+      "node_reduction_pct": 0.0,
+      "runtime_reduction_pct": -2.4,
+      "score_match": true,
+      "move_match": true,
+      "ordered_score": -14.0,
+      "unordered_score": -14.0,
+      "ordered_best_path": [
+        [
+          0,
+          7
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "unordered_best_path": [
+        [
+          0,
+          7
+        ],
+        [
+          1,
+          6
+        ]
+      ]
+    },
+    {
+      "position_id": "pos_t37_promo_safety_filter",
+      "depth": 6,
+      "legal_moves": 10,
+      "ordered_nodes": 7925,
+      "unordered_nodes": 8045,
+      "ordered_runtime_s": 2.1139,
+      "unordered_runtime_s": 2.1372,
+      "node_reduction_pct": 1.5,
+      "runtime_reduction_pct": 1.1,
+      "score_match": true,
+      "move_match": true,
+      "ordered_score": 125.0,
+      "unordered_score": 125.0,
+      "ordered_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "unordered_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ]
+    },
+    {
+      "position_id": "pos_t41_promo_tiebreak",
+      "depth": 6,
+      "legal_moves": 8,
+      "ordered_nodes": 3279,
+      "unordered_nodes": 8914,
+      "ordered_runtime_s": 0.9217,
+      "unordered_runtime_s": 2.4224,
+      "node_reduction_pct": 63.2,
+      "runtime_reduction_pct": 62.0,
+      "score_match": true,
+      "move_match": true,
+      "ordered_score": 127.0,
+      "unordered_score": 127.0,
+      "ordered_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "unordered_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ]
+    },
+    {
+      "position_id": "pos_t43_caged_corner",
+      "depth": 6,
+      "legal_moves": 6,
+      "ordered_nodes": 3001,
+      "unordered_nodes": 4137,
+      "ordered_runtime_s": 0.8291,
+      "unordered_runtime_s": 1.1613,
+      "node_reduction_pct": 27.5,
+      "runtime_reduction_pct": 28.6,
+      "score_match": true,
+      "move_match": true,
+      "ordered_score": 112.0,
+      "unordered_score": 112.0,
+      "ordered_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "unordered_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ]
+    },
+    {
+      "position_id": "pos_t49_forced_double_jump",
+      "depth": 6,
+      "legal_moves": 8,
+      "ordered_nodes": 7520,
+      "unordered_nodes": 9034,
+      "ordered_runtime_s": 1.8219,
+      "unordered_runtime_s": 2.2337,
+      "node_reduction_pct": 16.8,
+      "runtime_reduction_pct": 18.4,
+      "score_match": true,
+      "move_match": true,
+      "ordered_score": -8.0,
+      "unordered_score": -8.0,
+      "ordered_best_path": [
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "unordered_best_path": [
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ]
+    }
+  ]
+}

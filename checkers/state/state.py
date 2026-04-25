@@ -79,3 +79,21 @@ class CheckersState(BaseModel):
 
     # ── Logging (set by logger_node on first ply, not reset) ─
     game_log_id: Optional[str] = Field(default=None)
+
+    # ── Phase 8: Symbolic-first decision ─────────────────────────────────────
+    # Written by symbolic_decision node; cleared by state_manager each turn.
+    #
+    # symbolic_scored_moves: full legal move list sorted best-first.
+    # Each entry: {"move": dict, "minimax_score": float, "rank": int}
+    # Proposal reads this as its pre-sorted candidate pool.
+    symbolic_scored_moves: list[dict[str, Any]] = Field(default_factory=list)
+    symbolic_best_move: Optional[dict[str, Any]] = Field(default=None)
+    symbolic_best_score: float = Field(default=0.0)
+    symbolic_second_best_score: Optional[float] = Field(default=None)
+    symbolic_gap: float = Field(default=0.0)
+    # Legacy compat fields — bypass is no longer used; always None/False.
+    symbolic_bypass: bool = Field(default=False)
+    symbolic_bypass_reason: Optional[str] = Field(default=None)
+    # Thesis instrumentation — set by symbolic_decision and ranker_agent.
+    llm_invoked: bool = Field(default=False)
+    llm_agreed_with_symbolic_best: Optional[bool] = Field(default=None)

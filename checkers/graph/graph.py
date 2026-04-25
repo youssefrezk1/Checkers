@@ -12,6 +12,7 @@ from checkers.nodes.ranker_fallback import ranker_fallback
 from checkers.nodes.win_condition import win_condition
 from checkers.nodes.logger_node import logger_node
 from checkers.nodes.minimax_scorer import minimax_scorer
+from checkers.nodes.symbolic_decision import symbolic_decision
 
 #import agents
 from checkers.agents.proposal_agent import proposal_agent
@@ -33,6 +34,7 @@ def build_graph():
     graph.add_node("win_condition", win_condition)
     graph.add_node("logger_node", logger_node)
     graph.add_node("minimax_scorer", minimax_scorer)
+    graph.add_node("symbolic_decision", symbolic_decision)
 
 
     # ── Entry point ──────────────────────────────────────
@@ -49,6 +51,7 @@ def build_graph():
     graph.add_edge("win_condition", "orchestrator")
     graph.add_edge("logger_node", "orchestrator")
     graph.add_edge("minimax_scorer", "orchestrator")
+    graph.add_edge("symbolic_decision", "orchestrator")
 
 
     # ── Orchestrator conditional edge ────────────────────
@@ -62,6 +65,10 @@ def build_graph():
             return "inter_turn_memory"
 
         if node == "inter_turn_memory":
+            return "symbolic_decision"
+
+        if node == "symbolic_decision":
+            # Always proceed to proposal — symbolic engine is support, not decision-maker.
             return "proposal_agent"
 
         if node == "proposal_agent":
@@ -115,6 +122,7 @@ def build_graph():
         orchestrator_routing,
         {
             "inter_turn_memory": "inter_turn_memory",
+            "symbolic_decision": "symbolic_decision",
             "proposal_agent": "proposal_agent",
             "format_checker": "format_checker",
             "validator": "validator",

@@ -237,6 +237,42 @@ def get_all_legal_moves(board, current_player):
     return all_simple_moves
 
 
+def get_all_moves_unfiltered(board, current_player):
+    """
+    Returns all simple moves AND all jump sequences without applying the
+    mandatory capture filter.  Used for positional assessment only (restriction,
+    mobility measurement) — never for legality enforcement.
+    """
+    all_moves = []
+
+    for row in range(BOARD_SIZE):
+        for col in range(BOARD_SIZE):
+            piece = board[row][col]
+
+            if is_own_piece(piece, current_player):
+                simple = get_simple_moves(board, row, col)
+                for move in simple:
+                    all_moves.append({
+                        "type": "simple",
+                        "path": [(move[0], move[1]), (move[2], move[3])],
+                        "captured": []
+                    })
+
+                sequences = get_all_jump_sequences(
+                    board, row, col, current_player,
+                    path_so_far=[(row, col)],
+                    captured_so_far=[]
+                )
+                for sequence in sequences:
+                    if len(sequence["captured"]) > 0:
+                        all_moves.append({
+                            "type": "jump",
+                            "path": sequence["path"],
+                            "captured": sequence["captured"]
+                        })
+
+    return all_moves
+
 
 
 def apply_move(board, move):

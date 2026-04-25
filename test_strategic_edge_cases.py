@@ -234,35 +234,54 @@ def test_king_activity_bonus_only_applies_when_safe():
     unsafe_move = {"type": "simple", "path": [[4, 3], [3, 2]], "captured": []}
     facts = compute_move_facts(board, unsafe_move, RED)
 
-    # The test is indirect: if the move is unsafe, the "approach opponent" bonus
-    # should not be allowed to inflate conversion score just for getting closer.
-    if facts["opponent_can_recapture"] or (
+    # The move must actually be unsafe for this test to be meaningful.
+    assert facts["opponent_can_recapture"] or (
         facts["our_pieces_threatened_after"] > facts["our_pieces_threatened_before"]
-    ):
-        # Safe baseline components only; no extra king-activity reward expected.
-        base_score = 0
-        if facts["mobility_reduction"] > 0:
-            base_score += facts["mobility_reduction"] * 2
-        if not facts["opponent_can_recapture"]:
-            base_score += 2
-        if facts["blocks_opponent_landing"]:
-            base_score += 2
-        if facts["creates_immediate_threat"]:
-            base_score += 2
-        if facts["center_control"]:
-            base_score += 1
-        if facts["results_in_king"]:
-            base_score += 3
-        if facts["leaves_piece_isolated"]:
-            base_score -= 1
-        # King distance bonus is guarded — must not fire when unsafe
-        # so base_score stays as above (no king bonus expected here)
+    ), "Board setup did not produce an unsafe move — fix the test board."
 
-        assert facts["winning_conversion_score"] == base_score, (
-            f"winning_conversion_score={facts['winning_conversion_score']} "
-            f"but expected base_score={base_score}. "
-            f"King activity bonus may have incorrectly fired on an unsafe move."
-        )
+    # Compute the expected winning_conversion_score WITHOUT the king endgame
+    # pressure bonus block (which must be suppressed when the move is unsafe).
+    # All terms below are exposed in the facts dict and match the actual formula
+    # for non-king-endgame contributions.
+    expected = 0
+    if facts["mobility_reduction"] > 0:
+        expected += facts["mobility_reduction"] * 2
+    if not facts["opponent_can_recapture"]:
+        expected += 2
+    if facts["blocks_opponent_landing"]:
+        expected += 2
+    if facts["creates_immediate_threat"]:
+        expected += 5
+    if facts["shot_sequence_available"]:
+        expected += 3
+    if facts["forces_exchange"]:
+        expected += 3
+    expected += min(facts["forces_exchange_count"], 2)
+    if facts["two_for_one_potential"]:
+        expected += 4
+    expected += min(facts["two_for_one_score"], 3)
+    expected += min(facts["restriction_score"], 3)
+    expected += min(facts["frozen_enemy_pieces"], 2)
+    if facts["center_control"]:
+        expected += 1
+    if facts["results_in_king"]:
+        expected += 3
+    if facts["leaves_piece_isolated"]:
+        expected -= 1
+    if facts["weakens_king_row"]:
+        expected -= 3
+    if facts["opens_long_diagonal_risk"]:
+        expected -= 2
+    if facts["creates_forced_capture_risk"]:
+        expected -= 3
+    # King piece + unsafe: king endgame block must NOT fire.
+    # Regular-piece else-branch (simplification) also must NOT fire for king moves.
+
+    assert facts["winning_conversion_score"] == expected, (
+        f"winning_conversion_score={facts['winning_conversion_score']} "
+        f"but expected={expected} (non-king-bonus terms only). "
+        f"King endgame bonus was applied on an unsafe king move."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -514,31 +533,51 @@ def test_king_activity_bonus_blocked_when_threat_count_worsens():
     before_move = {"type": "simple", "path": [[4, 3], [3, 2]], "captured": []}
     facts = compute_move_facts(board, before_move, RED)
 
-    # If this move is unsafe, king bonus must not be added
-    if facts["opponent_can_recapture"] or (
+    # The move must be unsafe for this test to be non-vacuous.
+    assert facts["opponent_can_recapture"] or (
         facts["our_pieces_threatened_after"] > facts["our_pieces_threatened_before"]
-    ):
-        base_score = 0
-        if facts["mobility_reduction"] > 0:
-            base_score += facts["mobility_reduction"] * 2
-        if not facts["opponent_can_recapture"]:
-            base_score += 2
-        if facts["blocks_opponent_landing"]:
-            base_score += 2
-        if facts["creates_immediate_threat"]:
-            base_score += 2
-        if facts["center_control"]:
-            base_score += 1
-        if facts["results_in_king"]:
-            base_score += 3
-        if facts["leaves_piece_isolated"]:
-            base_score -= 1
+    ), "Board setup did not produce an unsafe move — fix the test board."
 
-        assert facts["winning_conversion_score"] == base_score, (
-            f"winning_conversion_score={facts['winning_conversion_score']} "
-            f"but expected base_score={base_score}. "
-            "King activity bonus was applied despite unsafe move — guard conditions failed."
-        )
+    # Compute expected score WITHOUT the king endgame pressure block.
+    # All terms below match the actual formula for non-king-endgame contributions.
+    expected = 0
+    if facts["mobility_reduction"] > 0:
+        expected += facts["mobility_reduction"] * 2
+    if not facts["opponent_can_recapture"]:
+        expected += 2
+    if facts["blocks_opponent_landing"]:
+        expected += 2
+    if facts["creates_immediate_threat"]:
+        expected += 5
+    if facts["shot_sequence_available"]:
+        expected += 3
+    if facts["forces_exchange"]:
+        expected += 3
+    expected += min(facts["forces_exchange_count"], 2)
+    if facts["two_for_one_potential"]:
+        expected += 4
+    expected += min(facts["two_for_one_score"], 3)
+    expected += min(facts["restriction_score"], 3)
+    expected += min(facts["frozen_enemy_pieces"], 2)
+    if facts["center_control"]:
+        expected += 1
+    if facts["results_in_king"]:
+        expected += 3
+    if facts["leaves_piece_isolated"]:
+        expected -= 1
+    if facts["weakens_king_row"]:
+        expected -= 3
+    if facts["opens_long_diagonal_risk"]:
+        expected -= 2
+    if facts["creates_forced_capture_risk"]:
+        expected -= 3
+    # King piece + unsafe: king endgame block must NOT fire.
+
+    assert facts["winning_conversion_score"] == expected, (
+        f"winning_conversion_score={facts['winning_conversion_score']} "
+        f"but expected={expected} (non-king-bonus terms only). "
+        "King endgame bonus was applied despite unsafe move — guard conditions failed."
+    )
 
 
 # ---------------------------------------------------------------------------

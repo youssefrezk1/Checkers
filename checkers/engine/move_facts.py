@@ -4,7 +4,7 @@ from checkers.engine.board import (
     RED, BLACK, RED_KING, BLACK_KING,
     BOARD_SIZE, in_bounds, is_king, is_own_piece, is_opponent_piece
 )
-from checkers.engine.rules import apply_move, get_all_legal_moves
+from checkers.engine.rules import apply_move, get_all_legal_moves, get_all_moves_unfiltered
 
 
 def count_pieces(board, player):
@@ -121,17 +121,19 @@ def _shot_sequence_available(board_after, current_player):
     return any(m.get("type") == "jump" for m in our_moves_after)
 
 
-def _forces_exchange_profile(board_after, current_player, opponent):
+def _forces_exchange_profile(board_after, current_player, opponent,
+                             opp_moves_unfiltered=None):
     """
     Heuristic forcing-exchange detector.
 
     Returns:
         (forces_exchange: bool, forces_exchange_count: int)
 
-    True when opponent has very few replies and at least one jump reply,
-    or when all replies are jumps.
+    Uses the unfiltered move list so that mandatory capture alone does not
+    make positions with many simple moves look "forced."
     """
-    opp_moves = get_all_legal_moves(board_after, opponent)
+    opp_moves = (opp_moves_unfiltered if opp_moves_unfiltered is not None
+                 else get_all_moves_unfiltered(board_after, opponent))
     if not opp_moves:
         return False, 0
 
@@ -165,17 +167,20 @@ def _two_for_one_profile(board_after, current_player):
     return two_for_one_potential, two_for_one_score
 
 
-def _restriction_profile(board_after, current_player, opponent):
+def _restriction_profile(board_after, current_player, opponent,
+                         opp_moves_unfiltered=None):
     """
     Structural restriction detector.
 
     Returns:
         (restriction_score: int, frozen_enemy_pieces: int)
 
-    Counts how many opponent pieces have no legal move starting from their
-    current square on the resulting board.
+    Counts how many opponent pieces have no move (simple OR jump) starting
+    from their current square.  Uses the unfiltered move list so that pieces
+    temporarily blocked only by mandatory capture are NOT counted as frozen.
     """
-    opp_moves = get_all_legal_moves(board_after, opponent)
+    opp_moves = (opp_moves_unfiltered if opp_moves_unfiltered is not None
+                 else get_all_moves_unfiltered(board_after, opponent))
 
     movable_starts = set()
     for m in opp_moves:
@@ -582,7 +587,8 @@ def _bridge_potential_score(board_after, current_player, final_row, final_col):
 
     return min(score, 3)
 
-def _opponent_safe_reply_count(board_after, current_player, opponent):
+def _opponent_safe_reply_count(board_after, current_player, opponent,
+                               opp_moves_unfiltered=None):
     """
     Counts how many opponent replies after our move are genuinely comfortable.
 
@@ -591,11 +597,11 @@ def _opponent_safe_reply_count(board_after, current_player, opponent):
     - and the opponent does not leave any immediate forced jump reply for us
     - and the opponent does not leave multiple of their own pieces threatened
 
-    This is stronger than "moved piece not threatened" and helps distinguish
-    a real trap from a move that merely blocks one square while the opponent
-    still has easy escape/re-route options.
+    Uses the unfiltered move list so that simple-move escapes are counted
+    even when mandatory capture forces the opponent to jump first.
     """
-    opp_moves = get_all_legal_moves(board_after, opponent)
+    opp_moves = (opp_moves_unfiltered if opp_moves_unfiltered is not None
+                 else get_all_moves_unfiltered(board_after, opponent))
     safe_count = 0
 
     for opp_move in opp_moves:
@@ -881,7 +887,8 @@ def compute_move_facts(board, move, current_player):
         opponent = RED
     
     opponent_moves_before = get_all_legal_moves(board, opponent)
-    opponent_mobility_before = len(opponent_moves_before)
+    opponent_moves_before_unfiltered = get_all_moves_unfiltered(board, opponent)
+    opponent_mobility_before = len(opponent_moves_before_unfiltered)
     board_after = apply_move(board, move)
 
     our_before = count_pieces(board, current_player)
@@ -1026,20 +1033,24 @@ def compute_move_facts(board, move, current_player):
                     opponent_near_promotion = True
     
     opponent_moves_after = get_all_legal_moves(board_after, opponent)
-    opponent_mobility_after = len(opponent_moves_after)
+    opponent_moves_after_unfiltered = get_all_moves_unfiltered(board_after, opponent)
+    opponent_mobility_after = len(opponent_moves_after_unfiltered)
     mobility_reduction = opponent_mobility_before - opponent_mobility_after
 
     forces_exchange, forces_exchange_count = _forces_exchange_profile(
-        board_after, current_player, opponent
+        board_after, current_player, opponent,
+        opp_moves_unfiltered=opponent_moves_after_unfiltered,
     )
     two_for_one_potential, two_for_one_score = _two_for_one_profile(
         board_after, current_player
     )
     restriction_score, frozen_enemy_pieces = _restriction_profile(
-        board_after, current_player, opponent
+        board_after, current_player, opponent,
+        opp_moves_unfiltered=opponent_moves_after_unfiltered,
     )
     opponent_safe_reply_count = _opponent_safe_reply_count(
-        board_after, current_player, opponent
+        board_after, current_player, opponent,
+        opp_moves_unfiltered=opponent_moves_after_unfiltered,
     )
     creates_immediate_threat = _creates_immediate_threat(board_after, current_player)
     shot_sequence_available = _shot_sequence_available(board_after, current_player)
@@ -1172,16 +1183,24 @@ def compute_move_facts(board, move, current_player):
         winning_conversion_score -= 2
     if creates_forced_capture_risk:
         winning_conversion_score -= 3
-    # King endgame pressure + targeted conversion signals
+    # King endgame pressure + targeted conversion signals.
+    # Guard: only apply when the king move is safe.
+    # An unsafe king "approach" (walking into recapture danger) must NOT
+    # receive conversion bonuses — it is a liability, not a conversion.
     if piece_type_moving == "king":
-        winning_conversion_score += min(king_escape_reduction, 3) * endgame_weight
-        winning_conversion_score += min(corner_trap_pressure, 2) * endgame_weight
-        winning_conversion_score += king_dist_pressure * endgame_weight
-        # Endgame conversion (targeted — not everything)
-        winning_conversion_score += exchange_pressure * endgame_weight
-        winning_conversion_score += min(simplification, 3) * endgame_weight
-        winning_conversion_score += min(dc_smokeout, 3) * endgame_weight
-        winning_conversion_score += min(edge_conf_delta, 2)  # light, no endgame_weight
+        _king_move_safe = (
+            not opponent_can_recapture
+            and our_pieces_threatened_after <= our_pieces_threatened_before
+        )
+        if _king_move_safe:
+            winning_conversion_score += min(king_escape_reduction, 3) * endgame_weight
+            winning_conversion_score += min(corner_trap_pressure, 2) * endgame_weight
+            winning_conversion_score += king_dist_pressure * endgame_weight
+            # Endgame conversion (targeted — not everything)
+            winning_conversion_score += exchange_pressure * endgame_weight
+            winning_conversion_score += min(simplification, 3) * endgame_weight
+            winning_conversion_score += min(dc_smokeout, 3) * endgame_weight
+            winning_conversion_score += min(edge_conf_delta, 2)  # light, no endgame_weight
     else:
         # Regular pieces: simplification still matters when ahead
         winning_conversion_score += min(simplification, 2)

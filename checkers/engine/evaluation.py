@@ -17,7 +17,7 @@ from checkers.engine.board import (
     RED_KING,
     is_own_piece,
 )
-from checkers.engine.rules import get_all_legal_moves
+from checkers.engine.rules import get_all_legal_moves, get_all_moves_unfiltered
 
 # ── Terminal rewards ──────────────────────────────────────────────────────────
 WIN_SCORE = 10_000
@@ -34,16 +34,25 @@ VULNERABLE_MAN_PENALTY = 12
 VULNERABLE_KING_PENALTY = 20
 STRUCTURE_WEIGHT = 4
 ENDGAME_MODEST_WEIGHT = 16
-BACK_ROW_GUARD_WEIGHT = 8
+BACK_ROW_GUARD_WEIGHT = 4
 PROMOTION_PROXIMITY_WEIGHT = 2
-SIMPLIFICATION_AHEAD_WEIGHT = 1
+SIMPLIFICATION_AHEAD_WEIGHT = 3
 ISOLATION_PENALTY_WEIGHT = 6
 CONNECTIVITY_SUPPORT_WEIGHT = 3
 FROZEN_RESTRICTION_WEIGHT = 4
-ENDGAME_FEATURE_PIECE_THRESHOLD = 10
+ENDGAME_FEATURE_PIECE_THRESHOLD = 14
 KING_CENTRALIZATION_WEIGHT = 4
 KING_MOBILITY_WEIGHT = 3
-KING_CHASE_PRESSURE_WEIGHT = 2
+KING_CHASE_PRESSURE_WEIGHT = 6
+# Column centrality: applied only in opening/early-midgame (>= threshold pieces)
+# Penalises edge-column pieces (col 0 / col 7) relative to centre columns.
+# Weight 6 (was 3): depth-3 tactical artifacts produce 20–40 pt score spreads;
+# weight 3 was too small to overcome them. At weight 6, col-0 vs col-3 = 36 pts,
+# col-1 vs col-3 = 18 pts — enough to meaningfully bias development without
+# approaching MAN_VALUE=100 and causing material captures to be skipped.
+COLUMN_CENTRALITY_WEIGHT = 6
+COLUMN_CENTRALITY_OPENING_THRESHOLD = 16
+
 
 _CENTER_SQUARES = frozenset((r, c) for r in (3, 4) for c in (2, 3, 4, 5))
 
@@ -106,9 +115,11 @@ def _promotion_proximity(board: list[list[int]], player: int) -> int:
         for c in range(BOARD_SIZE):
             p = board[r][c]
             if player == RED and p == RED:
-                score += (7 - r)
+                if r <= 2:
+                    score += (2 - r + 1)
             elif player == BLACK and p == BLACK:
-                score += r
+                if r >= 5:
+                    score += (r - 4)
     return score
 
 
@@ -124,6 +135,33 @@ def _back_row_guard(board: list[list[int]], player: int) -> int:
         home_row = 0
         man = BLACK
     return sum(1 for c in range(BOARD_SIZE) if board[home_row][c] == man)
+
+
+def _column_centrality(board: list[list[int]], player: int) -> int:
+    """
+    Non-linear column centrality for regular men of *player*.
+    Kings excluded — they roam freely.
+
+    Weight per column:
+        col:  0  1  2  3  4  5  6  7
+        wt:   0  3  5  6  6  5  3  0
+
+    Key property: the delta between col-0 and col-1 is 3 (was 1).
+    This breaks the "equal delta" artifact in the linear formula where
+    moving col-4→col-5 and col-1→col-0 both produced a delta of −1,
+    causing the evaluator to score edge moves identically to center moves
+    and letting structural terms (back_row_guard, connectivity) flip
+    the ranking in favour of passive edge moves in the opening.
+    """
+    man = RED if player == RED else BLACK
+    _WT = (0, 3, 5, 6, 6, 5, 3, 0)
+    score = 0
+    for r in range(BOARD_SIZE):
+        for c in range(BOARD_SIZE):
+            if board[r][c] == man:
+                score += _WT[c]
+    return score
+
 
 
 def _isolation_count(board: list[list[int]], player: int) -> int:
@@ -178,17 +216,38 @@ def _support_connectivity(board: list[list[int]], player: int) -> int:
 
 def _frozen_piece_count(board: list[list[int]], player: int) -> int:
     """
-    Count pieces with no legal move in the current position.
-    Uses legal move starts as the movable-piece set; robust and deterministic.
+    Count structurally frozen pieces: pieces with no empty adjacent diagonal
+    move square. This intentionally ignores mandatory-capture filtering and
+    ignores jump availability.
     """
-    movable_starts = {tuple(m["path"][0]) for m in get_all_legal_moves(board, player)}
     frozen = 0
+
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
-            if is_own_piece(board[r][c], player) and (r, c) not in movable_starts:
-                frozen += 1
-    return frozen
+            piece = board[r][c]
 
+            if not is_own_piece(piece, player):
+                continue
+
+            if piece in (RED_KING, BLACK_KING):
+                directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+            elif player == RED:
+                directions = [(-1, -1), (-1, 1)]
+            else:
+                directions = [(1, -1), (1, 1)]
+
+            has_empty_step = False
+            for dr, dc in directions:
+                rr, cc = r + dr, c + dc
+                if 0 <= rr < BOARD_SIZE and 0 <= cc < BOARD_SIZE:
+                    if board[rr][cc] == 0:
+                        has_empty_step = True
+                        break
+
+            if not has_empty_step:
+                frozen += 1
+
+    return frozen
 
 def _king_positions(board: list[list[int]], player: int) -> list[tuple[int, int]]:
     king = RED_KING if player == RED else BLACK_KING
@@ -229,7 +288,7 @@ def _king_mobility_count(board: list[list[int]], player: int) -> int:
     """
     king = RED_KING if player == RED else BLACK_KING
     count = 0
-    for move in get_all_legal_moves(board, player):
+    for move in get_all_moves_unfiltered(board, player):
         sr, sc = move["path"][0]
         if board[sr][sc] == king:
             count += 1
@@ -247,7 +306,7 @@ def _king_chase_pressure(board: list[list[int]], player: int) -> int:
     score = 0
     for kr, kc in _king_positions(board, player):
         nearest = min(abs(kr - or_) + abs(kc - oc) for or_, oc in opponents)
-        score += max(0, 12 - nearest)
+        score += max(0, 6 - nearest)
     return score
 
 
@@ -317,15 +376,23 @@ def _modest_endgame_adjustment(
 def _simplification_bonus_when_ahead(material_edge: int, total_pieces: int) -> int:
     """
     When materially ahead, prefer simpler positions slightly.
+    Symmetric: rewards the player who is ahead.
     Conservative by design: small weight and capped advantage scale.
     """
-    if material_edge <= 0:
+    if material_edge == 0:
         return 0
-    advantage_units = min(4, material_edge // MAN_VALUE)
+        
+    is_positive = material_edge > 0
+    abs_edge = abs(material_edge)
+    
+    advantage_units = min(4, abs_edge // MAN_VALUE)
     if advantage_units <= 0:
         return 0
+        
     pieces_removed = max(0, 24 - total_pieces)
-    return advantage_units * pieces_removed * SIMPLIFICATION_AHEAD_WEIGHT
+    bonus = advantage_units * pieces_removed * SIMPLIFICATION_AHEAD_WEIGHT
+    
+    return bonus if is_positive else -bonus
 
 
 def evaluate_board_breakdown(
@@ -340,13 +407,16 @@ def evaluate_board_breakdown(
     """
     opp = _opponent(root_player)
 
-    our_moves = get_all_legal_moves(board, root_player)
-    opp_moves = get_all_legal_moves(board, opp)
+    our_legal_moves = get_all_legal_moves(board, root_player)
+    opp_legal_moves = get_all_legal_moves(board, opp)
 
-    if current_player == root_player and not our_moves:
+    if current_player == root_player and not our_legal_moves:
         return {"terminal": float(LOSS_SCORE), "total": float(LOSS_SCORE)}
-    if current_player == opp and not opp_moves:
+    if current_player == opp and not opp_legal_moves:
         return {"terminal": float(WIN_SCORE), "total": float(WIN_SCORE)}
+
+    our_moves = get_all_moves_unfiltered(board, root_player)
+    opp_moves = get_all_moves_unfiltered(board, opp)
 
     our_men, our_kings = _count_material(board, root_player)
     opp_men, opp_kings = _count_material(board, opp)
@@ -397,6 +467,14 @@ def evaluate_board_breakdown(
 
     structure = (_structure_score(board, root_player) - _structure_score(board, opp)) * STRUCTURE_WEIGHT
 
+    # Column centrality — opening/early-midgame only
+    col_centrality = 0.0
+    if total_pieces >= COLUMN_CENTRALITY_OPENING_THRESHOLD:
+        col_centrality = float(
+            (_column_centrality(board, root_player) - _column_centrality(board, opp))
+            * COLUMN_CENTRALITY_WEIGHT
+        )
+
     endgame = _modest_endgame_adjustment(
         our_mobility=our_mob,
         opp_mobility=opp_mob,
@@ -405,6 +483,20 @@ def evaluate_board_breakdown(
         total_pieces=total_pieces,
     )
     simplification = _simplification_bonus_when_ahead(material, total_pieces)
+
+    # Confinement bonus: reward forcing the opponent into low-mobility positions.
+    # Must be symmetric: penalty applies if WE are confined.
+    confinement_bonus = 0.0
+    if total_pieces <= ENDGAME_FEATURE_PIECE_THRESHOLD:
+        if opp_mob <= 4:
+            confinement_bonus += 20.0
+        elif opp_mob <= 6:
+            confinement_bonus += 10.0
+
+        if our_mob <= 4:
+            confinement_bonus -= 20.0
+        elif our_mob <= 6:
+            confinement_bonus -= 10.0
 
     total = float(
         material
@@ -423,6 +515,8 @@ def evaluate_board_breakdown(
         + structure
         + endgame
         + simplification
+        + confinement_bonus
+        + col_centrality
     )
     return {
         "material": float(material),
@@ -441,6 +535,8 @@ def evaluate_board_breakdown(
         "structure": float(structure),
         "endgame": float(endgame),
         "simplification_when_ahead": float(simplification),
+        "confinement_bonus": float(confinement_bonus),
+        "column_centrality": float(col_centrality),
         "total": total,
     }
 

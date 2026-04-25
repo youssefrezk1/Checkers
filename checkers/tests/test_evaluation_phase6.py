@@ -48,13 +48,14 @@ def test_frozen_restriction_rewards_opponent_restriction() -> None:
     restricted_opp = _empty_board()
     restricted_opp[5][2] = RED
     restricted_opp[2][3] = BLACK
-    restricted_opp[1][2] = BLACK
-    restricted_opp[1][4] = BLACK
+
+    # Block both forward diagonals for BLACK structurally.
     restricted_opp[3][2] = RED
     restricted_opp[3][4] = RED
 
     free_breakdown = evaluate_board_breakdown(free_opp, RED, RED)
     restricted_breakdown = evaluate_board_breakdown(restricted_opp, RED, RED)
+
     assert restricted_breakdown["frozen_restriction"] > free_breakdown["frozen_restriction"]
 
 

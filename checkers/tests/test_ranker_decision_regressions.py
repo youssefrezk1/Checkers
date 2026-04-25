@@ -539,7 +539,6 @@ def test_no_override_when_llm_already_best(monkeypatch, capsys):
 def test_integration_trace_turn5_opening_override(monkeypatch, capsys):
     log_path = "/Users/youssefrezk/Desktop/bachelor_project/logs/game_20260419_191038_610610.jsonl"
     board, turn_entry = _reconstruct_board_before_turn(log_path, turn=5)
-    expected_path = [tuple(p) for p in turn_entry["path"]]
     current_player = RED if turn_entry["player_who_moved"] == 1 else BLACK
     state = _state_from_real_pipeline(
         board=board,
@@ -547,20 +546,45 @@ def test_integration_trace_turn5_opening_override(monkeypatch, capsys):
         turn_number=5,
         strategic_priorities=turn_entry.get("strategic_priorities", []),
     )
-    wrong_idx = _pick_wrong_llm_index(state, expected_path)
+    best_path = max(
+        state.legal_moves,
+        key=lambda m: m.get("facts", {}).get("minimax_score", float("-inf")),
+    )["path"]
+    wrong_idx = _pick_wrong_llm_index(state, best_path)
 
     _patch_ranker_choice(monkeypatch, chosen_index=wrong_idx)
     patch = ranker_module.ranker_agent(state)
     chosen_path = patch["chosen_move"]["path"]
-    assert chosen_path == expected_path
+
     out = capsys.readouterr().out
     assert "override_triggered=True" in out
 
+    best_score = max(
+        m.get("facts", {}).get("minimax_score", float("-inf"))
+        for m in state.legal_moves
+    )
+    chosen_score = next(
+        (
+            m.get("facts", {}).get("minimax_score", float("-inf"))
+            for m in state.legal_moves
+            if m["path"] == chosen_path
+        ),
+        float("-inf"),
+    )
+    assert chosen_score == best_score, (
+        f"Override should pick best minimax. "
+        f"chosen_score={chosen_score:.1f}, best={best_score:.1f}, path={chosen_path}"
+    )
+
 
 def test_integration_trace_turn59_hard_cap_override(monkeypatch, capsys):
+    # Phase 8 NOTE: Originally pinned to a depth-2 historical path [(6,7),(5,6)].
+    # After upgrading PIPELINE_SCORER_DEPTH to 3, the engine evaluates
+    # [(6,1),(7,0)] as the stronger move.  The meaningful invariants are:
+    #   (a) the override fires, and
+    #   (b) the chosen move has the best minimax score in the candidate pool.
     log_path = "/Users/youssefrezk/Desktop/bachelor_project/logs/game_20260419_191038_610610.jsonl"
     board, turn_entry = _reconstruct_board_before_turn(log_path, turn=59)
-    expected_path = [tuple(p) for p in turn_entry["path"]]
     current_player = RED if turn_entry["player_who_moved"] == 1 else BLACK
     state = _state_from_real_pipeline(
         board=board,
@@ -568,11 +592,31 @@ def test_integration_trace_turn59_hard_cap_override(monkeypatch, capsys):
         turn_number=59,
         strategic_priorities=turn_entry.get("strategic_priorities", []),
     )
-    wrong_idx = _pick_wrong_llm_index(state, expected_path)
+    wrong_idx = _pick_wrong_llm_index(state, [tuple(p) for p in turn_entry["path"]])
 
     _patch_ranker_choice(monkeypatch, chosen_index=wrong_idx)
     patch = ranker_module.ranker_agent(state)
     chosen_path = patch["chosen_move"]["path"]
-    assert chosen_path == expected_path
+
+    # Invariant 1: override must fire regardless of depth.
     out = capsys.readouterr().out
     assert "override_triggered=True" in out
+
+    # Invariant 2: chosen move must be best minimax in the pool.
+    # (At depth=3 this is [(6,1),(7,0)], not the depth-2 historical path.)
+    best_score = max(
+        m.get("facts", {}).get("minimax_score", float("-inf"))
+        for m in state.legal_moves
+    )
+    chosen_score = next(
+        (
+            m.get("facts", {}).get("minimax_score", float("-inf"))
+            for m in state.legal_moves
+            if m["path"] == chosen_path
+        ),
+        float("-inf"),
+    )
+    assert chosen_score == best_score, (
+        f"Override should pick best minimax. "
+        f"chosen_score={chosen_score:.1f}, best={best_score:.1f}, path={chosen_path}"
+    )

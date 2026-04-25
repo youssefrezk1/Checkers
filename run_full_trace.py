@@ -328,6 +328,65 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
                         print("  (none)")
                     print()
 
+                    # ── TRACE DIAGNOSTIC (READ-ONLY) ─────────────────────────
+                    # Scores all legal moves with minimax (read-only, never sent
+                    # to Ranker) and reports whether the best legal move overall
+                    # was missing from the proposal shortlist.
+                    _all_legal = get_all_legal_moves(acc["board"], RED)
+                    _proposal_paths = frozenset(
+                        tuple(tuple(sq) for sq in m.get("path", []))
+                        for m in lm
+                    )
+                    # Find best proposed (from scored list)
+                    _best_prop_score = float("-inf")
+                    _best_prop_path  = None
+                    for _m in lm:
+                        _s = _m.get("facts", {}).get("minimax_score")
+                        _s = float(_s) if _s is not None else float("-inf")
+                        if _s > _best_prop_score:
+                            _best_prop_score = _s
+                            _best_prop_path  = _m.get("path")
+
+                    # Score all legal moves with minimax (read-only shallow pass)
+                    from checkers.engine.minimax import score_move_with_minimax as _mm_score
+                    _best_legal_score = float("-inf")
+                    _best_legal_path  = None
+                    _best_legal_missing = False
+                    for _alm in _all_legal:
+                        try:
+                            _raw = _mm_score(acc["board"], _alm, RED)
+                            _s = float(_raw) if _raw is not None else float("-inf")
+                        except Exception:
+                            _s = float("-inf")
+                        if _s > _best_legal_score:
+                            _best_legal_score = _s
+                            _best_legal_path  = _alm.get("path")
+                            _p = tuple(tuple(sq) for sq in _alm.get("path", []))
+                            _best_legal_missing = _p not in _proposal_paths
+
+                    _chosen_move_now = acc.get("chosen_move")
+                    _chosen_path = (_chosen_move_now or {}).get("path")
+                    _chosen_score_diag = float("-inf")
+                    for _m in lm:
+                        if _m.get("path") == _chosen_path:
+                            _v = _m.get("facts", {}).get("minimax_score")
+                            _chosen_score_diag = float(_v) if _v is not None else float("-inf")
+                            break
+
+                    _gap_diag = _best_legal_score - _chosen_score_diag if _chosen_score_diag > float("-inf") else "n/a"
+
+                    print("── TRACE DIAGNOSTIC (READ-ONLY) ──")
+                    print(f"best_legal_overall:              path={_best_legal_path}  minimax_score={_best_legal_score:.1f}")
+                    print(f"best_proposed:                   path={_best_prop_path}  minimax_score={_best_prop_score:.1f}")
+                    print(f"best_legal_missing_from_proposal: {_best_legal_missing}")
+                    print(f"legal_count: {len(_all_legal)}  proposal_count: {len(lm)}")
+                    if isinstance(_gap_diag, float):
+                        print(f"gap_best_legal_vs_chosen:        {_gap_diag:.1f}  (computed at scoring time, chosen not yet final)")
+                    else:
+                        print(f"gap_best_legal_vs_chosen:        {_gap_diag}")
+                    print()
+                    # ── END TRACE DIAGNOSTIC ─────────────────────────────────
+
                 elif node_name == "ranker_agent":
                     cm = acc.get("chosen_move")
                     lm = acc.get("legal_moves") or []

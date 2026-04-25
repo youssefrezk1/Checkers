@@ -106,7 +106,17 @@ def state_manager(state: CheckersState) -> dict:
         "insufficient_proposals": False,
         "feedback": None,
         "move_history": state.move_history + [move_record],
-        "last_completed_node": "state_manager"
+        # ── Phase 8: clear per-turn symbolic fields ────────────────────────
+        "symbolic_scored_moves": [],
+        "symbolic_best_move": None,
+        "symbolic_best_score": 0.0,
+        "symbolic_second_best_score": None,
+        "symbolic_gap": 0.0,
+        "symbolic_bypass": False,
+        "symbolic_bypass_reason": None,
+        "llm_invoked": False,
+        "llm_agreed_with_symbolic_best": None,
+        "last_completed_node": "state_manager",
     }
 
 

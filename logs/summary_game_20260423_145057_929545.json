@@ -1,0 +1,1564 @@
+{
+  "game_log_id": "game_20260423_145057_929545",
+  "timestamp": "2026-04-23T15:00:08.037042+00:00",
+  "total_turns": 57,
+  "winner": 1,
+  "draw": false,
+  "final_board": [
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      3,
+      0,
+      0
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      3
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ]
+  ],
+  "move_history": [
+    {
+      "turn": 1,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "All moves are equally safe (our_pieces_threatened_after=0, opponent_can_recapture=false, moved_piece_is_threatened=false), but move 0 has the highest minimax_score (0.0) among OPENING-SAFE candidates, indicating better immediate tactical potential while maintaining center control and avoiding isolation.",
+      "zobrist_before": 17858234754132131904,
+      "zobrist_after": 12446509021751312476
+    },
+    {
+      "turn": 2,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            0
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 12446509021751312476,
+      "zobrist_after": 6518600813384994083
+    },
+    {
+      "turn": 3,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            7
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Move 3 (6,7)→(5,6) has the highest minimax_score (27.0) among safe, non-isolating options, indicating superior tactical development for the opening. It also reduces opponent_safe_reply_count to 5, offering better counterplay potential than alternatives.",
+      "zobrist_before": 6518600813384994083,
+      "zobrist_after": 5382346922471669375
+    },
+    {
+      "turn": 4,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 5382346922471669375,
+      "zobrist_after": 11772310980708491368
+    },
+    {
+      "turn": 5,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move gains a strong minimax_score (+22.0) while maintaining safety (our_pieces_threatened_after=0, opponent_can_recapture=false) and improving center control without leaving the moved piece isolated, aligning with DEVELOP_PIECES and CONTROL_CENTER priorities in the OPENING.",
+      "zobrist_before": 11772310980708491368,
+      "zobrist_after": 1638208281486575724
+    },
+    {
+      "turn": 6,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 1638208281486575724,
+      "zobrist_after": 9349666389212500991
+    },
+    {
+      "turn": 7,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move maintains perfect safety (our_pieces_threatened_after=0) while achieving the highest minimax_score (16.0) among safe options, making it the strongest developmental choice in this opening without creating isolation or weakening structure.",
+      "zobrist_before": 9349666389212500991,
+      "zobrist_after": 1636160427235641054
+    },
+    {
+      "turn": 8,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            5
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 1636160427235641054,
+      "zobrist_after": 10984768284584979760
+    },
+    {
+      "turn": 9,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "All moves are equally safe (our_pieces_threatened_after=0, opponent_can_recapture=false, moved_piece_is_threatened=false), so minimax_score decides. Move 0 has the highest minimax_score (24.0) among safe options, making it the best choice in this OPENING position.",
+      "zobrist_before": 10984768284584979760,
+      "zobrist_after": 2183184743380020565
+    },
+    {
+      "turn": 10,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 2183184743380020565,
+      "zobrist_after": 6174971796248678108
+    },
+    {
+      "turn": 11,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "LLM safe choice overridden: best move is unsafe but minimax gap is large: chosen=27.0 (safe), best=365.0 (unsafe), gap=338.0 (threshold=18.0).",
+      "zobrist_before": 6174971796248678108,
+      "zobrist_after": 14836013683380648874
+    },
+    {
+      "turn": 12,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            3,
+            0
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            1
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 14836013683380648874,
+      "zobrist_after": 16066352782552537095
+    },
+    {
+      "turn": 13,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        "captured": [
+          [
+            5,
+            2
+          ],
+          [
+            3,
+            2
+          ],
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      "promotion": true,
+      "last_move_reasoning": "This move gains 3 pieces (net +2) and promotes a king, achieving a decisive material advantage while eliminating all opponent threats (our_pieces_threatened_after=0, opponent_can_recapture=false).",
+      "zobrist_before": 16066352782552537095,
+      "zobrist_after": 1813730456259244813
+    },
+    {
+      "turn": 14,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            6
+          ],
+          [
+            2,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 1813730456259244813,
+      "zobrist_after": 8830814749927372120
+    },
+    {
+      "turn": 15,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move creates a real trap (creates_real_trap=true) with opponent_safe_reply_count=0, despite leaving 1 piece threatened (our_pieces_threatened_after=1) and being unsafe_simple_move=true. The minimax_score of 386.0 is significantly higher than all safe alternatives, indicating strong tactical justification for the risk in this clearly winning position.",
+      "zobrist_before": 8830814749927372120,
+      "zobrist_after": 10087052929407109789
+    },
+    {
+      "turn": 16,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            2,
+            1
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": [
+          [
+            3,
+            2
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 10087052929407109789,
+      "zobrist_after": 2557625989756941706
+    },
+    {
+      "turn": 17,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            5,
+            4
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            3
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "This forced jump captures an opponent piece (net_gain=1, material_advantage=+2) while maintaining our_pieces_threatened_after at 1 (low risk) and forcing opponent into a tactical reply (forced_opponent_jump_reply=true). It also creates a real trap (creates_real_trap=true) and improves center_control.",
+      "zobrist_before": 2557625989756941706,
+      "zobrist_after": 16826317700846662013
+    },
+    {
+      "turn": 18,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            3,
+            6
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            5
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 16826317700846662013,
+      "zobrist_after": 2551490884348119577
+    },
+    {
+      "turn": 19,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            6,
+            5
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": [
+          [
+            5,
+            4
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move gains material (net_gain=1) while maintaining safety (our_pieces_threatened_after=0, moved_piece_is_threatened=false) and blocking opponent promotion (opponent_near_promotion=false), aligning with HOLD_ADVANTAGE and TRADE_WHEN_AHEAD priorities.",
+      "zobrist_before": 2551490884348119577,
+      "zobrist_after": 4023199443135007968
+    },
+    {
+      "turn": 20,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            7
+          ],
+          [
+            1,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 4023199443135007968,
+      "zobrist_after": 8304636964859547584
+    },
+    {
+      "turn": 21,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            6
+          ],
+          [
+            6,
+            7
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "All moves are equally safe (our_pieces_threatened_after=0, opponent_can_recapture=false, moved_piece_is_threatened=false), but move 0 has the highest minimax_score (291.0) among safe options, indicating superior tactical positioning despite similar structural benefits.",
+      "zobrist_before": 8304636964859547584,
+      "zobrist_after": 4231611631603884214
+    },
+    {
+      "turn": 22,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            7
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 4231611631603884214,
+      "zobrist_after": 9387788386802467754
+    },
+    {
+      "turn": 23,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            7
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move leaves 0 pieces threatened, improves trade conversion, and has the highest minimax_score (257.0) among safe options, making it the strongest conversion choice in this clearly winning midgame position.",
+      "zobrist_before": 9387788386802467754,
+      "zobrist_after": 2438535372583476395
+    },
+    {
+      "turn": 24,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            6
+          ],
+          [
+            2,
+            7
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 2438535372583476395,
+      "zobrist_after": 8378175403718300172
+    },
+    {
+      "turn": 25,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            7
+          ],
+          [
+            5,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move maintains safety with our_pieces_threatened_after=0 and opponent_can_recapture=false while achieving the highest minimax_score (304.0) among all candidates, demonstrating superior tactical positioning in this clearly winning midgame position.",
+      "zobrist_before": 8378175403718300172,
+      "zobrist_after": 7242362999191560528
+    },
+    {
+      "turn": 26,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            5
+          ],
+          [
+            1,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 7242362999191560528,
+      "zobrist_after": 3445677891404510985
+    },
+    {
+      "turn": 27,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Move 0 creates a real trap (creates_real_trap=true) while leaving only 1 piece threatened (our_pieces_threatened_after=1) and forcing a jump reply (forced_opponent_jump_reply=true), which is acceptable given its high minimax_score (599.0) and strong counterplay (counterplay_score=9). The safer alternatives (indices 1-4) have lower minimax scores (480.0-496.0) despite being fully safe, making th...",
+      "zobrist_before": 3445677891404510985,
+      "zobrist_after": 9167684862540335743
+    },
+    {
+      "turn": 28,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            2,
+            5
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": [
+          [
+            3,
+            4
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 9167684862540335743,
+      "zobrist_after": 11636377472991925737
+    },
+    {
+      "turn": 29,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            4,
+            7
+          ],
+          [
+            2,
+            5
+          ],
+          [
+            0,
+            7
+          ]
+        ],
+        "captured": [
+          [
+            3,
+            6
+          ],
+          [
+            1,
+            6
+          ]
+        ]
+      },
+      "promotion": true,
+      "last_move_reasoning": "This move achieves a net material gain of 2 (promoting to king) while leaving no pieces threatened after the jump, directly supporting the TRADE_WHEN_AHEAD priority by converting material advantage into a king advantage.",
+      "zobrist_before": 11636377472991925737,
+      "zobrist_after": 16507705071683093283
+    },
+    {
+      "turn": 30,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 16507705071683093283,
+      "zobrist_after": 10035247565803355900
+    },
+    {
+      "turn": 31,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Move 0 is the safest option (our_pieces_threatened_after=0) with the highest minimax_score (627.0), maintaining material advantage while improving center control without creating immediate threats for the opponent.",
+      "zobrist_before": 10035247565803355900,
+      "zobrist_after": 15000240881589927648
+    },
+    {
+      "turn": 32,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            4
+          ],
+          [
+            2,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 15000240881589927648,
+      "zobrist_after": 8193769712183799698
+    },
+    {
+      "turn": 33,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            5
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "LLM safe choice overridden: best move is unsafe but minimax gap is large: chosen=642.0 (safe), best=755.0 (unsafe), gap=113.0 (threshold=18.0).",
+      "zobrist_before": 8193769712183799698,
+      "zobrist_after": 9623393592950529361
+    },
+    {
+      "turn": 34,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            2,
+            5
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "captured": [
+          [
+            3,
+            4
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 9623393592950529361,
+      "zobrist_after": 6614580708762305223
+    },
+    {
+      "turn": 35,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            1
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "LLM safe choice overridden: best move is unsafe but minimax gap is large: chosen=617.0 (safe), best=720.0 (unsafe), gap=103.0 (threshold=18.0).",
+      "zobrist_before": 6614580708762305223,
+      "zobrist_after": 8596405780959958199
+    },
+    {
+      "turn": 36,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            4,
+            3
+          ],
+          [
+            6,
+            1
+          ]
+        ],
+        "captured": [
+          [
+            5,
+            2
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 8596405780959958199,
+      "zobrist_after": 3560301719267172765
+    },
+    {
+      "turn": 37,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            7,
+            0
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        "captured": [
+          [
+            6,
+            1
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move achieves a net material gain of 1 (net_gain: 1) while leaving no pieces threatened (our_pieces_threatened_after: 0), directly aligning with the TRADE_WHEN_AHEAD and HOLD_ADVANTAGE priorities in a slightly winning position.",
+      "zobrist_before": 3560301719267172765,
+      "zobrist_after": 2161803679290666487
+    },
+    {
+      "turn": 38,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            4
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 2161803679290666487,
+      "zobrist_after": 9654371131062620101
+    },
+    {
+      "turn": 39,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            7
+          ],
+          [
+            1,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This king move maximizes king activity (king_activity_score=1) and maintains safety (our_pieces_threatened_after=0) while offering the highest minimax_score (598.0), which is 22 points better than the next best safe option. The move's tactical pressure (creates_immediate_threat=true, shot_sequence_available=true) aligns with CONVERT_ADVANTAGE priorities in this clearly winning endgame.",
+      "zobrist_before": 9654371131062620101,
+      "zobrist_after": 2949717374028100193
+    },
+    {
+      "turn": 40,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            3
+          ],
+          [
+            7,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": true,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 2949717374028100193,
+      "zobrist_after": 13525113858486717655
+    },
+    {
+      "turn": 41,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            6
+          ],
+          [
+            2,
+            5
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This king move maintains safety (our_pieces_threatened_after=0) while delivering the highest minimax_score (621.0) and strongest winning_conversion_score (11) among safe candidates, directly converting the material advantage in this stable endgame position.",
+      "zobrist_before": 13525113858486717655,
+      "zobrist_after": 224282239943320574
+    },
+    {
+      "turn": 42,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            2
+          ],
+          [
+            6,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 224282239943320574,
+      "zobrist_after": 1370810810076559054
+    },
+    {
+      "turn": 43,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "Both moves leave 0 pieces threatened and are safe, but move 0 has a higher minimax_score (575.0 vs 571.0) while achieving the same conversion quality (winning_conversion_score=3) and structural benefits (double_corner_smokeout_pressure=2).",
+      "zobrist_before": 1370810810076559054,
+      "zobrist_after": 10039626232622564280
+    },
+    {
+      "turn": 44,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            1
+          ],
+          [
+            7,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 10039626232622564280,
+      "zobrist_after": 11189541221255714440
+    },
+    {
+      "turn": 45,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            4,
+            1
+          ],
+          [
+            3,
+            0
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "LLM low-danger choice overridden by minimax dominance guardrail: chosen=609.0, best=620.0, gap=11.0 (threshold=3.0).",
+      "zobrist_before": 11189541221255714440,
+      "zobrist_after": 12502161370606153885
+    },
+    {
+      "turn": 46,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            2
+          ],
+          [
+            6,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 12502161370606153885,
+      "zobrist_after": 13662319485249906093
+    },
+    {
+      "turn": 47,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            3,
+            0
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move maintains perfect safety (our_pieces_threatened_after=0) while offering the highest minimax_score (640.0) and strongest conversion signals (winning_conversion_score=8, mobility_reduction=1, improves_trade_conversion=true) among all candidates, making it the optimal choice to convert the material advantage in this stable endgame position.",
+      "zobrist_before": 13662319485249906093,
+      "zobrist_after": 9723829010789281722
+    },
+    {
+      "turn": 48,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            6,
+            1
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 9723829010789281722,
+      "zobrist_after": 15105535434424425707
+    },
+    {
+      "turn": 49,
+      "player": 1,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "LLM safe choice overridden: best move is unsafe but minimax gap is large: chosen=619.0 (safe), best=854.0 (unsafe), gap=235.0 (threshold=18.0).",
+      "zobrist_before": 15105535434424425707,
+      "zobrist_after": 1143321379208353583
+    },
+    {
+      "turn": 50,
+      "player": 2,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            5,
+            2
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "captured": [
+          [
+            4,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 1143321379208353583,
+      "zobrist_after": 11957761509674114585
+    },
+    {
+      "turn": 51,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            0,
+            1
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        "captured": [
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move gains material (net_gain=1) by capturing an opponent piece while leaving no pieces threatened (our_pieces_threatened_after=0) and the moved king is safe (moved_piece_is_threatened=false), aligning with TRADE_WHEN_AHEAD and DEFEND priorities in the endgame.",
+      "zobrist_before": 11957761509674114585,
+      "zobrist_after": 8277121698211831309
+    },
+    {
+      "turn": 52,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            2,
+            7
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 8277121698211831309,
+      "zobrist_after": 14569027988283145489
+    },
+    {
+      "turn": 53,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            2,
+            5
+          ],
+          [
+            4,
+            7
+          ]
+        ],
+        "captured": [
+          [
+            3,
+            6
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move achieves a net material gain of 1 (net_gain: 1) while preserving all our pieces (our_pieces_threatened_after: 0) and avoiding any threat to the moved piece (moved_piece_is_threatened: false), directly supporting the HOLD_ADVANTAGE and TRADE_WHEN_AHEAD priorities in a SLIGHTLY_WINNING endgame.",
+      "zobrist_before": 14569027988283145489,
+      "zobrist_after": 1258152480333480024
+    },
+    {
+      "turn": 54,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            3
+          ],
+          [
+            1,
+            4
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 1258152480333480024,
+      "zobrist_after": 7793683915171638631
+    },
+    {
+      "turn": 55,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            2,
+            3
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "captured": [
+          [
+            1,
+            4
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move gains material (net_gain=1) while eliminating an opponent piece, maintaining safety (opponent_can_recapture=false, our_pieces_threatened_after=0), and aligns with TRADE_WHEN_AHEAD and PLAY_SAFE priorities in a clearly winning endgame.",
+      "zobrist_before": 7793683915171638631,
+      "zobrist_after": 9950173188444049265
+    },
+    {
+      "turn": 56,
+      "player": 2,
+      "move": {
+        "type": "simple",
+        "path": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "captured": []
+      },
+      "promotion": false,
+      "last_move_reasoning": "BLACK human move",
+      "zobrist_before": 9950173188444049265,
+      "zobrist_after": 7203590889091535206
+    },
+    {
+      "turn": 57,
+      "player": 1,
+      "move": {
+        "type": "jump",
+        "path": [
+          [
+            3,
+            2
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "captured": [
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      "promotion": false,
+      "last_move_reasoning": "This move converts a material advantage (+1 net gain) while eliminating all threatened pieces (our_pieces_threatened_after=0), securing the win in the endgame (winning_conversion_score=5). It also removes the opponent's last piece, ensuring no recapture risk (opponent_can_recapture=false).",
+      "zobrist_before": 7203590889091535206,
+      "zobrist_after": 16160326094841017906
+    }
+  ],
+  "final_metrics": {
+    "format_error_count": 0,
+    "ranker_failure_count": 0,
+    "ranker_fallback_count": 0,
+    "ranker_fallback_rate": 0.0,
+    "total_captures_red": 12,
+    "total_captures_black": 8,
+    "total_promotions": 3
+  },
+  "archive_summary": [
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 0,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": -1,
+      "game_phase": "OPENING"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 2,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 2,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 2,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 5,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 5,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 4,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "MIDGAME"
+    },
+    {
+      "material_advantage": 4,
+      "game_phase": "ENDGAME"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "ENDGAME"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "ENDGAME"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "ENDGAME"
+    },
+    {
+      "material_advantage": 3,
+      "game_phase": "ENDGAME"
+    }
+  ]
+}

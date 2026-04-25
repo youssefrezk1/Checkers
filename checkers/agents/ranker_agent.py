@@ -37,6 +37,12 @@ _include = os.environ.get("RANKER_INCLUDE_STRATEGIC_CONTEXT", "true").lower()
 RANKER_INCLUDE_STRATEGIC_CONTEXT = _include in ("1", "true", "yes", "on")
 
 MINIMAX_ALL_UNSAFE_MARGIN = float(os.environ.get("MINIMAX_ALL_UNSAFE_MARGIN", "3.0"))
+# Minimum minimax advantage over the best safe move required for an unsafe move
+# to pass through the safety filter in non-losing (equal/winning) positions.
+# Lowered from 20.0 → 14.0 to fix the T5-class bug: when a dominant unsafe move
+# (gap=17pt) was rejected by the filter, the override logic never saw it.
+# At 14.0, an unsafe move must still be meaningfully better (+14pt) to survive.
+SAFETY_FILTER_LARGE_GAP = float(os.environ.get("SAFETY_FILTER_LARGE_GAP", "14.0"))
 # ── Utility helpers ───────────────────────────────────────────────────────────
 
 def _current_player_label(current_player: int) -> str:
@@ -146,11 +152,20 @@ def _apply_safety_filter(
     """
     Context-aware soft symbolic pre-filter.
 
-    In equal/winning positions: keep only safe moves (conservative).
+    In equal/winning positions: keep safe moves, plus any unsafe move whose
+    minimax_score exceeds the best safe score by SAFETY_FILTER_LARGE_GAP.
+    This prevents a tactically dominant move from being invisible to the ranker
+    just because it carries a small recapture risk.
     In losing/counterplay positions: also allow unsafe moves through
     if they have meaningfully better minimax_score AND real tactical action.
     This gives the ranker visibility into active counterplay continuations
     without opening the gate to every flashy unsafe move.
+
+    PROMOTION EXEMPTION: Any move with results_in_king=True is always kept in
+    the candidate set regardless of opponent_can_recapture. The King's enhanced
+    mobility means a corner threat is rarely immediately fatal. The ranker and
+    minimax override are trusted to evaluate the position correctly once the
+    promotion move is visible.
     """
     priorities = strategic_priorities or []
 
@@ -160,6 +175,38 @@ def _apply_safety_filter(
         or "COMPLICATE" in priorities
         or "CREATE_THREATS" in priorities
     )
+
+    # ── Promotion exemption pass ──────────────────────────────────────────────
+    # Identify promotion moves before any filtering. They will be added back
+    # unconditionally at the end of each path so the ranker always sees them.
+    promotion_moves: list[tuple[int, dict]] = [
+        (i, m) for i, m in enumerate(legal)
+        if (m.get("facts") or {}).get("results_in_king", False)
+    ]
+    if promotion_moves:
+        promo_paths = [m.get("path") for _, m in promotion_moves]
+        promo_scores = [_get_minimax_score(m) for _, m in promotion_moves]
+        print(
+            f"[SAFETY_FILTER][PROMOTION] {len(promotion_moves)} promotion move(s) detected: "
+            f"paths={promo_paths} scores={promo_scores}. "
+            "These will survive the safety filter unconditionally."
+        )
+
+    def _merge_promotions(
+        kept: list[tuple[int, dict]],
+    ) -> list[tuple[int, dict]]:
+        """Add any promotion moves not already in kept, then sort by original index."""
+        kept_indices = {idx for idx, _ in kept}
+        for i, m in promotion_moves:
+            if i not in kept_indices:
+                kept.append((i, m))
+                print(
+                    f"[SAFETY_FILTER][PROMOTION] Promotion move {m.get('path')} "
+                    f"(score={_get_minimax_score(m):.1f}) added back after safety filter."
+                )
+        kept.sort(key=lambda x: x[0])
+        return kept
+    # ─────────────────────────────────────────────────────────────────────────
 
     safe = [
         (i, m) for i, m in enumerate(legal)
@@ -195,10 +242,30 @@ def _apply_safety_filter(
             return True
         return False
 
+    pre_filter_size = len(legal)
+
     if len(safe) >= 2:
         if not losing_mode:
-            # Normal mode: keep only safe moves
-            return [m for _, m in safe], [i for i, _ in safe]
+            # Normal mode: keep safe moves, plus any unsafe move that is
+            # tactically dominant (minimax gap above SAFETY_FILTER_LARGE_GAP).
+            kept = list(safe)
+            for i, m in enumerate(legal):
+                if any(i == si for si, _ in safe):
+                    continue
+                score = _get_minimax_score(m)
+                if score > best_safe_score + SAFETY_FILTER_LARGE_GAP:
+                    kept.append((i, m))
+            kept = _merge_promotions(kept)
+            post_filter_size = len(kept)
+            print(
+                f"[SAFETY_FILTER] pre={pre_filter_size} post={post_filter_size} "
+                f"mode=normal safe_count={len(safe)}"
+            )
+            if len(kept) == len([k for k in kept if any(k[0] == si for si, _ in safe)]):
+                # No dominant unsafe moves and no promotions added — fast path.
+                return [m for _, m in kept], [i for i, _ in kept]
+            kept.sort(key=lambda x: x[0])
+            return [m for _, m in kept], [i for i, _ in kept]
         # Losing mode: keep safe moves + qualifying unsafe moves
         kept = list(safe)
         for i, m in enumerate(legal):
@@ -206,6 +273,12 @@ def _apply_safety_filter(
                 continue
             if _unsafe_qualifies(m):
                 kept.append((i, m))
+        kept = _merge_promotions(kept)
+        post_filter_size = len(kept)
+        print(
+            f"[SAFETY_FILTER] pre={pre_filter_size} post={post_filter_size} "
+            f"mode=losing safe_count={len(safe)}"
+        )
         kept.sort(key=lambda x: x[0])
         return [m for _, m in kept], [i for i, _ in kept]
 
@@ -217,6 +290,18 @@ def _apply_safety_filter(
             continue
         if _unsafe_qualifies(m):
             kept.append((i, m))
+    kept = _merge_promotions(kept)
+    post_filter_size = len(kept)
+    print(
+        f"[SAFETY_FILTER] pre={pre_filter_size} post={post_filter_size} "
+        f"mode={'losing' if losing_mode else 'normal'} safe_count=1"
+    )
+    if post_filter_size == 1 and not losing_mode:
+        print(
+            f"[WARNING][SAFETY_FILTER] Collapsed to 1 candidate in non-losing mode. "
+            f"best_safe_score={best_safe_score:.1f}. "
+            "Consider reviewing SAFETY_FILTER_LARGE_GAP."
+        )
     return [m for _, m in kept], [i for i, _ in kept]
 
     
@@ -231,6 +316,29 @@ TACTICAL_MINIMAX_MAX_GAP = float(os.environ.get("TACTICAL_MINIMAX_MAX_GAP", "8.0
 LOW_DANGER_ACTIVE_MINIMAX_GAP = float(os.environ.get("LOW_DANGER_ACTIVE_MINIMAX_GAP", "8.0"))
 OPENING_LOW_DANGER_GAP = float(os.environ.get("OPENING_LOW_DANGER_GAP", "6.0"))
 LOW_DANGER_MINIMAX_GAP = float(os.environ.get("LOW_DANGER_MINIMAX_GAP", "3.0"))
+# Minimax gap above which structural exceptions (isolation, weakens_king_row)
+# can no longer suppress an override.  When the minimax gap is this large,
+# the search has already priced in the structural risk — letting isolation
+# cancel a 15+ pt gap is wrong.  Previous value was 50.0 (too permissive),
+# which caused the T5-class bug where a 17 pt gap was vetoed by isolation.
+STRUCTURE_EXCEPTION_FLOOR = float(os.environ.get("STRUCTURE_EXCEPTION_FLOOR", "15.0"))
+# Gap at which the override fires even when the best move is unsafe (threat_after=1)
+# but the chosen move is fully safe. Prevents the LLM's safety-first bias from
+# ignoring a tactically dominant move that was explicitly shown in the filtered menu.
+# Lowered from 18.0 → 15.0: the T5-class gap is 17pt which was 1pt below threshold.
+# At depth-4 minimax, 15pt already accounts for structural risk; letting the LLM
+# absorb a 15+ pt penalty for safety bias is no longer acceptable.
+SAFE_VS_UNSAFE_OVERRIDE_GAP = float(os.environ.get("SAFE_VS_UNSAFE_OVERRIDE_GAP", "15.0"))
+# Fallback gap threshold for the unsafe-vs-unsafe blind spot.
+# When BOTH chosen and best are unsafe (no branch covers them), this fires if
+# the gap is large enough to be unambiguous.
+# TWO TIERS:
+#   Tier-1 (gap ≥ 35): fires when best_threat < chosen_threat — best is safer
+#     despite both being "unsafe". Confirmed at T11 (gap=42, best_th=1 < chosen_th=2).
+#   Tier-2 (gap ≥ 150): fires when threat exposure is equal — conservative to
+#     avoid false positives from noise in deep-game scores.
+UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP", "35.0"))
+UNSAFE_VS_UNSAFE_FALLBACK_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_FALLBACK_GAP", "150.0"))
 
 
 def _get_minimax_score(move: dict[str, Any]) -> float:
@@ -277,7 +385,8 @@ def _override_if_llm_chose_much_worse_minimax(
     game_phase: str = "MIDGAME",
     score_state: str = "EQUAL",
     strategic_priorities: Optional[list[str]] = None,
-) -> tuple[int, Optional[str], dict[str, Any]]:
+    comparison_moves: Optional[list[dict[str, Any]]] = None,
+) -> tuple[dict[str, Any], Optional[str], dict[str, Any]]:
     """
     Override the LLM only in a narrow case:
     - the LLM chose a clearly worse minimax move
@@ -287,11 +396,13 @@ def _override_if_llm_chose_much_worse_minimax(
     This prevents shallow minimax from hijacking strategy in normal positions,
     while still protecting against catastrophic blunders.
     """
-    best_idx, best_score, _ = _best_and_second_best_minimax(filtered)
-    if best_idx is None or best_score is None:
-        return llm_idx, None, {}
+    moves_for_best = comparison_moves if comparison_moves is not None else filtered
 
-    best_move = filtered[best_idx]
+    best_idx, best_score, _ = _best_and_second_best_minimax(moves_for_best)
+    if best_idx is None or best_score is None:
+        return filtered[llm_idx], None, {}
+
+    best_move = moves_for_best[best_idx]
     chosen_move = filtered[llm_idx]
 
     best_facts = best_move.get("facts", {}) or {}
@@ -470,13 +581,16 @@ def _override_if_llm_chose_much_worse_minimax(
         best_weakens_back = bool(best_facts.get("weakens_king_row", False))
         chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
         best_uniquely_worse_structure = (
-            (best_isolated and not chosen_isolated)
-            or (best_weakens_back and not chosen_weakens_back)
+            gap < STRUCTURE_EXCEPTION_FLOOR
+            and (
+                (best_isolated and not chosen_isolated)
+                or (best_weakens_back and not chosen_weakens_back)
+            )
         )
         if not best_uniquely_worse_structure and not _chosen_has_concrete_defensive_advantage_over_best():
             debug_info["override_branch_triggered"] = True
             debug_info["override_branch_name"] = "low_danger_minimax_dominance"
-            return best_idx, (
+            return best_move, (
                 "LLM low-danger choice overridden by minimax dominance guardrail: "
                 f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
                 f"gap={gap:.1f} (threshold={LOW_DANGER_MINIMAX_GAP:.1f})."
@@ -503,20 +617,41 @@ def _override_if_llm_chose_much_worse_minimax(
         chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
 
         best_uniquely_worse_structure = (
-            (best_isolated and not chosen_isolated)
-            or (best_weakens_back and not chosen_weakens_back)
+            gap < STRUCTURE_EXCEPTION_FLOOR
+            and (
+                (best_isolated and not chosen_isolated)
+                or (best_weakens_back and not chosen_weakens_back)
+            )
         )
 
         if not best_uniquely_worse_structure:
             debug_info["override_branch_triggered"] = True
             debug_info["override_branch_name"] = "quiet_safe_minimax_primary"
-            return best_idx, (
+            return best_move, (
                 "LLM quiet-safe choice overridden by minimax guardrail: "
                 f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
                 f"gap={gap:.1f} (threshold={QUIET_MINIMAX_MARGIN:.1f})."
             ), debug_info
         debug_info["override_block_reason"] = "best_uniquely_worse_structure"
         debug_info["best_move_rejected_reason"] = "best_uniquely_worse_structure"
+
+    # Safe-chosen vs unsafe-best: override when the gap is large enough to
+    # justify accepting the risk. This fires only when the best move was
+    # explicitly shown to the LLM (survived _apply_safety_filter) but the LLM
+    # still chose a safe-but-weaker move due to Step 1 safety bias.
+    # Does NOT modify any existing branch.
+    if (
+        chosen_safe
+        and not best_safe
+        and gap >= SAFE_VS_UNSAFE_OVERRIDE_GAP
+    ):
+        debug_info["override_branch_triggered"] = True
+        debug_info["override_branch_name"] = "safe_vs_unsafe_large_gap"
+        return best_move, (
+            "LLM safe choice overridden: best move is unsafe but minimax gap is large: "
+            f"chosen={chosen_score:.1f} (safe), best={best_score:.1f} (unsafe), "
+            f"gap={gap:.1f} (threshold={SAFE_VS_UNSAFE_OVERRIDE_GAP:.1f})."
+        ), debug_info
 
     priorities = strategic_priorities or []
 
@@ -575,7 +710,10 @@ def _override_if_llm_chose_much_worse_minimax(
     best_weakens_back = bool(best_facts.get("weakens_king_row", False))
     chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
     best_uniquely_worse_structure = (
-        (best_isolated and not chosen_isolated) or (best_weakens_back and not chosen_weakens_back)
+        gap < STRUCTURE_EXCEPTION_FLOOR
+        and (
+            (best_isolated and not chosen_isolated) or (best_weakens_back and not chosen_weakens_back)
+        )
     )
 
     low_danger_minimax_dominance_gate = _gate_kv(
@@ -645,13 +783,16 @@ def _override_if_llm_chose_much_worse_minimax(
         best_weakens_back = bool(best_facts.get("weakens_king_row", False))
         chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
         best_uniquely_worse_structure = (
-            (best_isolated and not chosen_isolated)
-            or (best_weakens_back and not chosen_weakens_back)
+            gap < STRUCTURE_EXCEPTION_FLOOR
+            and (
+                (best_isolated and not chosen_isolated)
+                or (best_weakens_back and not chosen_weakens_back)
+            )
         )
         if not best_uniquely_worse_structure:
             debug_info["override_branch_triggered"] = True
             debug_info["override_branch_name"] = "opening_low_danger_minimax_guardrail"
-            return best_idx, (
+            return best_move, (
                 "LLM opening structural-safe choice overridden by low-danger minimax guardrail: "
                 f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
                 f"gap={gap:.1f} (threshold={OPENING_LOW_DANGER_GAP:.1f})."
@@ -669,13 +810,16 @@ def _override_if_llm_chose_much_worse_minimax(
         best_weakens_back = bool(best_facts.get("weakens_king_row", False))
         chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
         best_uniquely_worse_structure = (
-            (best_isolated and not chosen_isolated)
-            or (best_weakens_back and not chosen_weakens_back)
+            gap < STRUCTURE_EXCEPTION_FLOOR
+            and (
+                (best_isolated and not chosen_isolated)
+                or (best_weakens_back and not chosen_weakens_back)
+            )
         )
         if not best_uniquely_worse_structure:
             debug_info["override_branch_triggered"] = True
             debug_info["override_branch_name"] = "low_danger_active_minimax_guardrail"
-            return best_idx, (
+            return best_move, (
                 "LLM structural-safe choice overridden by low-danger active minimax guardrail: "
                 f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
                 f"gap={gap:.1f} (threshold={LOW_DANGER_ACTIVE_MINIMAX_GAP:.1f})."
@@ -750,7 +894,7 @@ def _override_if_llm_chose_much_worse_minimax(
         ):
             debug_info["override_branch_triggered"] = True
             debug_info["override_branch_name"] = "tactical_pressure_hard_cap"
-            return best_safe_idx, (
+            return safe_move, (
                 "LLM tactical-pressure choice overridden by minimax hard cap: "
                 f"chosen={chosen_score:.1f}, best_safe={safe_score:.1f}, "
                 f"gap={tactical_gap_vs_best_safe:.1f} "
@@ -769,7 +913,7 @@ def _override_if_llm_chose_much_worse_minimax(
         if not chosen_safe:
             debug_info["override_branch_triggered"] = True
             debug_info["override_branch_name"] = "unsafe_chosen_vs_safe_best"
-            return best_idx, (
+            return best_move, (
                 f"LLM choice overridden by minimax guardrail ({game_phase}): "
                 f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
                 f"safe_best=true, chosen_safe=false, gap={gap:.1f} "
@@ -790,7 +934,7 @@ def _override_if_llm_chose_much_worse_minimax(
             if not chosen_bad_danger:
                 debug_info["override_branch_triggered"] = True
                 debug_info["override_branch_name"] = "losing_mode_small_safety_gap"
-                return best_idx, (
+                return best_move, (
                     f"LLM choice overridden in losing mode: "
                     f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
                     f"gap={gap:.1f}, small_safety_gap=true."
@@ -826,13 +970,17 @@ def _override_if_llm_chose_much_worse_minimax(
                 # Hard override when minimax difference is meaningful and the better move
                 # does not lose on back-row discipline or isolation.
                 if gap >= 2.0:
-                    if not (
-                        (best_isolated and not chosen_isolated) or
-                        (best_weakens_back and not chosen_weakens_back)
-                    ):
+                    structure_blocks = (
+                        gap < STRUCTURE_EXCEPTION_FLOOR
+                        and (
+                            (best_isolated and not chosen_isolated) or
+                            (best_weakens_back and not chosen_weakens_back)
+                        )
+                    )
+                    if not structure_blocks:
                         debug_info["override_branch_triggered"] = True
                         debug_info["override_branch_name"] = "opening_minimax_guardrail"
-                        return best_idx, (
+                        return best_move, (
                             f"LLM opening choice overridden by minimax guardrail: "
                             f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
                             f"both_opening_safe=true, gap={gap:.1f}."
@@ -851,7 +999,7 @@ def _override_if_llm_chose_much_worse_minimax(
                     if best_dev_better and best_score >= chosen_score:
                         debug_info["override_branch_triggered"] = True
                         debug_info["override_branch_name"] = "opening_development_guardrail"
-                        return best_idx, (
+                        return best_move, (
                             f"LLM opening choice overridden by development guardrail: "
                             f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
                             f"best_center=true, chosen_center=false."
@@ -861,7 +1009,7 @@ def _override_if_llm_chose_much_worse_minimax(
                 debug_info["best_move_rejected_reason"]
                 or "opening_safe_lane_preserved"
             )
-            return llm_idx, None, debug_info
+            return chosen_move, None, debug_info
 
         # Protect active king / counterplay moves from shallow override
         chosen_simplification = chosen_facts.get("simplification_value", 0)
@@ -886,7 +1034,7 @@ def _override_if_llm_chose_much_worse_minimax(
             <= best_facts.get("our_pieces_threatened_after", 0)
         ):
             debug_info["best_move_rejected_reason"] = "protect_endgame_activity"
-            return llm_idx, None, debug_info
+            return chosen_move, None, debug_info
         elif (
             chosen_safe
             and "ACTIVATE_KINGS" in priorities
@@ -895,7 +1043,7 @@ def _override_if_llm_chose_much_worse_minimax(
             and gap < 10.0
         ):
             debug_info["best_move_rejected_reason"] = "protect_king_activation"
-            return llm_idx, None, debug_info
+            return chosen_move, None, debug_info
         elif (
             chosen_active_counterplay
             and game_phase != "OPENING"
@@ -903,12 +1051,12 @@ def _override_if_llm_chose_much_worse_minimax(
             and gap < 12.0
         ):
             debug_info["best_move_rejected_reason"] = "protect_losing_mode_counterplay"
-            return llm_idx, None, debug_info
+            return chosen_move, None, debug_info
 
         if chosen_safe:
             debug_info["override_branch_triggered"] = True
             debug_info["override_branch_name"] = "safe_vs_safe_dominance"
-            return best_idx, (
+            return best_move, (
                 f"LLM choice overridden by minimax guardrail ({game_phase}): "
                 f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
                 f"both_safe=true, gap={gap:.1f} "
@@ -932,7 +1080,49 @@ def _override_if_llm_chose_much_worse_minimax(
             f"QSAFE:{quiet_safe_minimax_primary_gate};"
             f"SVDOM:{safe_vs_safe_dominance_gate}"
         )
-    return llm_idx, None, debug_info
+
+    # ── Unsafe-vs-unsafe fallback ──────────────────────────────────────────────
+    # All existing branches require at least one of {passive_safe, low_danger} to
+    # be true on either the chosen or best move.  When the position is dangerous
+    # enough that BOTH moves are fully unsafe (bs=0, cs=0), every branch is skipped
+    # regardless of how large the gap is.  This was confirmed in Turn 11 where
+    # gap=42 was detected (gOK=1) but no branch fired because 42 < 150.
+    #
+    # TIER-1: best_threat < chosen_threat AND gap >= UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP (35)
+    #   Best move leaves fewer pieces hanging. A 35pt gap is unambiguous.
+    #   Confirmed miss at T11: gap=42, best_threat=1, chosen_threat=2.
+    # TIER-2: equal threats AND gap >= UNSAFE_VS_UNSAFE_FALLBACK_GAP (150)
+    #   Conservative threshold to avoid false positives on noise.
+    #   Conditions (all must hold):
+    #   1. No normal branch has already fired.
+    #   2. Both chosen and best are fully unsafe: not passive_safe AND not low_danger.
+    #   3. No infinity/sentinel scores (|score| < 1000).
+    _best_threat = best_facts.get("threat_after", 0)
+    _chosen_threat = chosen_facts.get("threat_after", 0)
+    _both_fully_unsafe = (
+        not chosen_safe
+        and not best_safe
+        and not _is_low_danger_active(chosen_facts)
+        and not _is_low_danger_active(best_facts)
+        and abs(best_score) < 1000.0
+        and abs(chosen_score) < 1000.0
+    )
+    if _both_fully_unsafe:
+        _tier1 = _best_threat < _chosen_threat and gap >= UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP
+        _tier2 = _best_threat >= _chosen_threat and gap >= UNSAFE_VS_UNSAFE_FALLBACK_GAP
+        if _tier1 or _tier2:
+            _tier_name = "tier1_lower_threat" if _tier1 else "tier2_equal_threat"
+            debug_info["override_branch_triggered"] = True
+            debug_info["override_branch_name"] = f"unsafe_vs_unsafe_fallback_{_tier_name}"
+            return best_move, (
+                f"Unsafe-vs-unsafe fallback override ({_tier_name}): "
+                f"chosen={chosen_score:.1f} (threat={_chosen_threat}), "
+                f"best={best_score:.1f} (threat={_best_threat}), "
+                f"gap={gap:.1f}."
+            ), debug_info
+
+    return chosen_move, None, debug_info
+
 # ── Strategic context formatter ───────────────────────────────────────────────
 
 _PRIORITY_GUIDANCE: dict[str, str] = {
@@ -1170,6 +1360,40 @@ STEP 3 — BLOCK OPPONENT THREATS
   Among remaining candidates, prefer moves where blocks_opponent_landing=true.
   This means our piece physically lands on the square the opponent would have
   used to complete a capture — it removes a threat without us having to jump.
+
+MINIMAX DOMINANCE RULE (applies between Steps 3 and 4):
+  If all remaining candidate moves are equally safe after applying Steps 1–3
+  — meaning they share the same our_pieces_threatened_after value and none is
+  disqualified by an immediate safety constraint (opponent_can_recapture,
+  moved_piece_is_threatened, or forced_opponent_jump_reply) —
+  AND one move has a minimax_score that is better than all other remaining
+  moves by 15.0 or more, then that move MUST be chosen immediately.
+
+  In this equal-safety, large-gap case:
+    - minimax_score overrides center_control
+    - minimax_score overrides quiet_move_role (STRUCTURAL_RESTRICTION,
+      KING_ACTIVATION, TACTICAL_PRESSURE, etc.)
+    - minimax_score overrides restriction_score and frozen_enemy_pieces
+    - minimax_score overrides general strategic-priority preferences from Step 4
+
+  Do NOT proceed to Step 4 if the minimax dominance condition is met.
+
+  This rule applies only when safety is genuinely equal. If moves differ in
+  our_pieces_threatened_after, or one has opponent_can_recapture=true while
+  another does not, resolve that safety difference first using Step 1 before
+  applying this rule.
+
+  When the minimax gap is below 15.0, proceed normally to Step 4.
+
+UNSAFE BEST EXCEPTION (applies alongside the MINIMAX DOMINANCE RULE):
+  If the move with the highest minimax_score has opponent_can_recapture=true
+  or our_pieces_threatened_after=1 (but NOT >= 2),
+  AND its minimax_score exceeds all fully safe candidates by 25.0 or more,
+  THEN safety alone is NOT sufficient reason to reject it.
+  A 25+ point minimax advantage at depth-3 means the engine already accounts
+  for the opponent's best recapture — the net result is still favorable.
+  Prefer the higher-minimax move in this case.
+  Do NOT apply this exception if our_pieces_threatened_after >= 2.
 
 STEP 4 — STRATEGIC PRIORITIES
   Apply the strategic_priorities list in the order given.
@@ -2074,28 +2298,32 @@ def ranker_agent(state: CheckersState) -> dict:
 
         # ── Post-LLM minimax override only in clearly safe positions ─────────
         llm_idx_before_override = idx
-        idx, override_reason, override_debug = _override_if_llm_chose_much_worse_minimax(
-            filtered, idx, game_phase, score_state, priorities
+        chosen_after_override, override_reason, override_debug = _override_if_llm_chose_much_worse_minimax(
+            filtered,
+            idx,
+            game_phase,
+            score_state,
+            priorities,
+            comparison_moves=legal,
         )
         if override_reason:
             reasoning = override_reason
 
-        best_idx, _, _ = _best_and_second_best_minimax(filtered)
-        best_move = filtered[best_idx] if best_idx is not None else None
+        best_idx, _, _ = _best_and_second_best_minimax(legal)
+        best_move = legal[best_idx] if best_idx is not None else None
         chosen_before_override = filtered[llm_idx_before_override]
-        chosen_after_override = filtered[idx]
         # Override-time invariants for diagnosis (instrumentation only).
-        filtered_scores = [_get_minimax_score(m) for m in filtered]
-        filtered_best_score = max(filtered_scores) if filtered_scores else None
-        filtered_best_idxs = (
-            [i for i, s in enumerate(filtered_scores) if filtered_best_score is not None and s == filtered_best_score]
-            if filtered_scores
+        legal_scores = [_get_minimax_score(m) for m in legal]
+        legal_best_score = max(legal_scores) if legal_scores else None
+        legal_best_idxs = (
+            [i for i, s in enumerate(legal_scores) if legal_best_score is not None and s == legal_best_score]
+            if legal_scores
             else []
         )
         best_idx_is_argmax = (
             best_idx is not None
-            and filtered_best_score is not None
-            and _get_minimax_score(filtered[best_idx]) == filtered_best_score
+            and legal_best_score is not None
+            and _get_minimax_score(legal[best_idx]) == legal_best_score
         )
         chosen_path_internal = chosen_after_override.get("path")
         best_path_internal = best_move.get("path") if best_move else None
@@ -2120,7 +2348,7 @@ def ranker_agent(state: CheckersState) -> dict:
             f"best_path_internal={best_path_internal} "
             f"chosen_path_matches_llm_idx={chosen_path_matches_llm_idx} "
             f"best_idx_is_argmax={best_idx_is_argmax} "
-            f"best_score_tie_count={len(filtered_best_idxs)} "
+            f"best_score_tie_count={len(legal_best_idxs)} "
             f"chosen_passive_safe={override_debug.get('is_passive_safe_structural', {}).get('chosen')} "
             f"best_passive_safe={override_debug.get('is_passive_safe_structural', {}).get('best')} "
             f"chosen_low_danger={override_debug.get('is_low_danger_active', {}).get('chosen')} "
@@ -2150,8 +2378,55 @@ def ranker_agent(state: CheckersState) -> dict:
             f"llm_choice_path={chosen_before_override.get('path')}"
         )
 
-        original_idx = index_map[idx]
-        chosen = legal[original_idx]
+        chosen = chosen_after_override
+
+        # ── Promotion tie-break ───────────────────────────────────────────────
+        # When scores are tied or near-tied and the chosen move is NOT an
+        # actual promotion, but a real promotion exists in the full legal set,
+        # prefer the promotion deterministically.
+        #
+        # Conditions (all must hold):
+        #   1. chosen move does NOT actually crown a King
+        #   2. a legal move with results_in_king=True exists (engine fact only)
+        #   3. promotion_score >= chosen_score - PROMOTION_TIEBREAK_MARGIN
+        #
+        # Explicitly does NOT fire if the promotion is clearly worse.
+        PROMOTION_TIEBREAK_MARGIN = float(
+            os.environ.get("PROMOTION_TIEBREAK_MARGIN", "3.0")
+        )
+        chosen_facts_tb = chosen.get("facts", {}) or {}
+        chosen_actually_promotes = chosen_facts_tb.get("results_in_king", False)
+        if not chosen_actually_promotes:
+            chosen_score_tb = _get_minimax_score(chosen)
+            promo_candidate = None
+            promo_score_tb = float("-inf")
+            for _m in legal:
+                _mf = _m.get("facts", {}) or {}
+                if _mf.get("results_in_king", False):
+                    _ms = _get_minimax_score(_m)
+                    if _ms >= chosen_score_tb - PROMOTION_TIEBREAK_MARGIN:
+                        if _ms > promo_score_tb:
+                            promo_score_tb = _ms
+                            promo_candidate = _m
+            if promo_candidate is not None:
+                print(
+                    f"[TIE_BREAK][PROMOTION] "
+                    f"chosen={chosen.get('path')} "
+                    f"replacement={promo_candidate.get('path')} "
+                    f"chosen_score={chosen_score_tb:.1f} "
+                    f"promotion_score={promo_score_tb:.1f} "
+                    f"gap={promo_score_tb - chosen_score_tb:.1f} "
+                    f"reason=results_in_king_near_tie"
+                )
+                chosen = promo_candidate
+                if not reasoning or reasoning.startswith("Fallback"):
+                    reasoning = (
+                        f"Promotion tie-break: chose {promo_candidate.get('path')} "
+                        f"(score={promo_score_tb:.1f}) over "
+                        f"{chosen.get('path')} (score={chosen_score_tb:.1f}) — "
+                        f"immediate King creation preferred within tie window."
+                    )
+        # ── End promotion tie-break ───────────────────────────────────────────
 
         if all_unsafe and reasoning:
             reasoning = f"[All moves expose a piece] {reasoning}"
@@ -2212,11 +2487,21 @@ def ranker_agent(state: CheckersState) -> dict:
     if len(reasoning) > 400:
         reasoning = reasoning[:397] + "..."
 
+    # ── Phase 8: thesis instrumentation ──────────────────────────────────────
+    # Compare chosen path to the symbolic engine's top-1 path.
+    llm_agreed: bool | None = None
+    if state.symbolic_best_move is not None:
+        sym_path = state.symbolic_best_move.get("path")
+        chosen_path = chosen.get("path")
+        if sym_path is not None and chosen_path is not None:
+            llm_agreed = (sym_path == chosen_path)
+
     out = {
         "chosen_move": chosen,
         "last_move_reasoning": reasoning,
         "ranker_retry_count": 0,
         "last_completed_node": "ranker_agent",
         "ranker_filtered_menu": ranker_filtered_menu_snapshot,
+        "llm_agreed_with_symbolic_best": llm_agreed,
     }
     return out

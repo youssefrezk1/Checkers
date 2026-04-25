@@ -226,6 +226,35 @@ def negamax(
             return best
 
         value = float(evaluate_board(board, current_player, root_player, use_phase7a=use_phase7a))
+        # Leaf tension penalty: discount positions where the opponent has
+        # pending captures that the tactical extension could not resolve.
+        # ~50 points per opponent jump (≈ half a man) — conservative.
+        if use_tactical_extension:
+            # Refined leaf tension: distinguishes free captures from even exchanges.
+            # For each opponent jump, simulate it and check whether current_player
+            # has any legal recapture in the resulting board.
+            #   - No recapture → FREE_CAPTURE_PENALTY (≈ MAN_VALUE when added to
+            #     the existing VULNERABLE_MAN_PENALTY=12 in evaluate_board)
+            #   - Recapture exists → small EXCHANGE_PENALTY (uncertainty only)
+            # This prevents positional bonuses from masking a genuine material loss
+            # (T13-class failures) while preserving intentional sacrifices where a
+            # recapture line exists (T23, T5, T9).
+            FREE_CAPTURE_PENALTY = 85
+            EXCHANGE_PENALTY = 25
+            opp = _opponent(current_player)
+            opp_jump_moves = [m for m in get_all_legal_moves(board, opp)
+                              if m.get("type") == "jump"]
+            total_penalty = 0
+            for opp_move in opp_jump_moves:
+                post_board = apply_move(board, opp_move)
+                recaptures = [m for m in get_all_legal_moves(post_board, current_player)
+                              if m.get("type") == "jump"]
+                total_penalty += FREE_CAPTURE_PENALTY if not recaptures else EXCHANGE_PENALTY
+            if total_penalty > 0:
+                if current_player == root_player:
+                    value -= total_penalty   # opponent threatens us with free/exchange capture
+                else:
+                    value += total_penalty   # we threaten opponent (good for root)
         if use_tt:
             existing = _TT.get(key)
             if existing is None or depth >= existing.depth:
@@ -317,6 +346,7 @@ def search_root(
     use_tt: bool = True,
     use_tactical_extension: bool = True,
     use_phase7a: bool = True,
+    pv_move: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, float, SearchStats]:
     """
     Search the current position and choose the best move in legal move order.
@@ -343,7 +373,11 @@ def search_root(
     alpha = float("-inf")
     beta = float("inf")
 
-    for move in order_moves(board, root_legal, current_player):
+    ordered = order_moves(board, root_legal, current_player)
+    if pv_move is not None and pv_move in ordered:
+        ordered = [pv_move] + [m for m in ordered if m != pv_move]
+
+    for move in ordered:
         child = apply_move(board, move)
         score = negamax(
             board=child,
@@ -376,6 +410,71 @@ def search_root(
     return best_move, float(best_score), stats
 
 
+def search_root_all_scores(
+    board: list[list[int]],
+    current_player: int,
+    depth: int,
+    legal_moves: list[dict[str, Any]] | None = None,
+    use_tt: bool = True,
+    use_tactical_extension: bool = True,
+    use_phase7a: bool = True,
+) -> tuple[dict[str, Any] | None, float, list[tuple[dict[str, Any], float]], SearchStats]:
+    """
+    Score every legal move with exact full-window search at root.
+
+    Unlike search_root, this does NOT use progressive alpha narrowing —
+    each root move is searched with alpha=-inf, beta=inf so every score
+    is exact (not an upper bound).  TT is shared across root moves so
+    subtree caches from scoring move 1 can speed up scoring move 5.
+
+    Returns (best_move, best_score, all_scored, stats).
+    all_scored is sorted descending by score (best first).
+    """
+    root_legal = legal_moves if legal_moves is not None else get_all_legal_moves(board, current_player)
+    stats = SearchStats(nodes=1)
+    started = time.perf_counter()
+
+    if not root_legal:
+        score = float(LOSS_SCORE)
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        logger.info(
+            "search_root_all_scores move=None score=%.2f depth=%d nodes=%d elapsed_ms=%.2f",
+            score, depth, stats.nodes, elapsed_ms,
+        )
+        return None, score, [], stats
+
+    ordered = order_moves(board, root_legal, current_player)
+    scored: list[tuple[dict[str, Any], float]] = []
+
+    for move in ordered:
+        child = apply_move(board, move)
+        score = negamax(
+            board=child,
+            depth=max(0, depth - 1),
+            current_player=_opponent(current_player),
+            root_player=current_player,
+            alpha=float("-inf"),
+            beta=float("inf"),
+            stats=stats,
+            use_tt=use_tt,
+            extension_depth=0,
+            use_tactical_extension=use_tactical_extension,
+            use_phase7a=use_phase7a,
+        )
+        scored.append((move, float(score)))
+
+    scored.sort(key=lambda x: -x[1])
+    best_move, best_score = scored[0]
+
+    elapsed_ms = (time.perf_counter() - started) * 1000.0
+    logger.info(
+        "search_root_all_scores move=%s score=%.2f depth=%d nodes=%d elapsed_ms=%.2f",
+        best_move.get("path") if best_move else None,
+        best_score, depth, stats.nodes, elapsed_ms,
+    )
+    return best_move, best_score, scored, stats
+
+
 def search_root_iterative(
     board: list[list[int]],
     current_player: int,
@@ -403,6 +502,7 @@ def search_root_iterative(
         )
 
     last_result: tuple[dict[str, Any] | None, float, SearchStats] | None = None
+    prev_best_move: dict[str, Any] | None = None
     started = time.perf_counter()
 
     for depth in range(1, target_depth + 1):
@@ -415,7 +515,9 @@ def search_root_iterative(
             use_tt=use_tt,
             use_tactical_extension=use_tactical_extension,
             use_phase7a=use_phase7a,
+            pv_move=prev_best_move,
         )
+        prev_best_move = best_move
         depth_elapsed_ms = (time.perf_counter() - depth_started) * 1000.0
         logger.info(
             "search_root_iterative depth=%d move=%s score=%.2f nodes=%d elapsed_ms=%.2f",
