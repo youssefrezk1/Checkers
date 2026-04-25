@@ -9,6 +9,8 @@ Design goals:
 
 from __future__ import annotations
 
+import os
+
 from checkers.engine.board import (
     BLACK,
     BLACK_KING,
@@ -52,6 +54,11 @@ KING_CHASE_PRESSURE_WEIGHT = 6
 # approaching MAN_VALUE=100 and causing material captures to be skipped.
 COLUMN_CENTRALITY_WEIGHT = 6
 COLUMN_CENTRALITY_OPENING_THRESHOLD = 16
+# Penalty per king whose every legal diagonal destination is immediately
+# recapturable by the opponent (caged corner king).  Applied inside the
+# static evaluator so it propagates through all search nodes.
+# Phase-gated to total_pieces <= ENDGAME_FEATURE_PIECE_THRESHOLD (14).
+CAGED_KING_PENALTY = int(os.environ.get("CAGED_KING_PENALTY", "75"))
 
 
 _CENTER_SQUARES = frozenset((r, c) for r in (3, 4) for c in (2, 3, 4, 5))
@@ -310,6 +317,70 @@ def _king_chase_pressure(board: list[list[int]], player: int) -> int:
     return score
 
 
+def _is_king_caged(board: list[list[int]], kr: int, kc: int, player: int) -> bool:
+    """
+    True iff the king at (kr, kc) has ≥1 legal diagonal destination AND every
+    such destination is immediately recapturable by an opponent piece on the
+    very next ply (mandatory-jump mechanic guarantees the opponent will take it).
+    """
+    opp = _opponent(player)
+    opp_man = BLACK if player == RED else RED
+    opp_king = BLACK_KING if player == RED else RED_KING
+
+    destinations = []
+    for dr, dc in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+        r2, c2 = kr + dr, kc + dc
+        if 0 <= r2 < BOARD_SIZE and 0 <= c2 < BOARD_SIZE and board[r2][c2] == 0:
+            destinations.append((r2, c2))
+
+    if not destinations:
+        return False  # Frozen king — not caged in the "exits all losing" sense
+
+    for r2, c2 in destinations:
+        dest_safe = True
+        for dr, dc in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+            ar, ac = r2 + dr, c2 + dc   # hypothetical attacker square
+            lr, lc = r2 - dr, c2 - dc   # jump landing square
+            if not (0 <= ar < BOARD_SIZE and 0 <= ac < BOARD_SIZE):
+                continue
+            if not (0 <= lr < BOARD_SIZE and 0 <= lc < BOARD_SIZE):
+                continue
+            opp_piece = board[ar][ac]
+            if opp_piece not in (opp_man, opp_king):
+                continue
+            # Landing square empty after king's simulated move:
+            # (kr, kc) was vacated; (r2, c2) now holds the king.
+            if lr == kr and lc == kc:
+                land_empty = True
+            elif lr == r2 and lc == c2:
+                land_empty = False  # king is now here
+            else:
+                land_empty = board[lr][lc] == 0
+            if not land_empty:
+                continue
+            # Men can only jump forward; kings can jump in any direction.
+            if opp_piece == opp_man:
+                jump_row_dir = lr - ar
+                if opp == RED and jump_row_dir >= 0:
+                    continue  # RED man jumping backward — illegal
+                if opp == BLACK and jump_row_dir <= 0:
+                    continue  # BLACK man jumping backward — illegal
+            dest_safe = False
+            break
+        if dest_safe:
+            return False  # At least one safe destination → not caged
+
+    return True  # Every destination leads to immediate capture
+
+
+def _caged_king_count(board: list[list[int]], player: int) -> int:
+    """Count kings of `player` whose every exit is immediately losing."""
+    return sum(
+        1 for kr, kc in _king_positions(board, player)
+        if _is_king_caged(board, kr, kc, player)
+    )
+
+
 def _threatened_squares(board: list[list[int]], attacker: int) -> set[tuple[int, int]]:
     threatened: set[tuple[int, int]] = set()
     for m in get_all_legal_moves(board, attacker):
@@ -445,6 +516,7 @@ def evaluate_board_breakdown(
     king_centralization = 0.0
     king_mobility = 0.0
     king_chase_pressure = 0.0
+    caged_king = 0.0
     if use_phase7a and total_pieces <= ENDGAME_FEATURE_PIECE_THRESHOLD:
         king_centralization = float(
             (_king_centralization(board, root_player) - _king_centralization(board, opp))
@@ -457,6 +529,12 @@ def evaluate_board_breakdown(
         king_chase_pressure = float(
             (_king_chase_pressure(board, root_player) - _king_chase_pressure(board, opp))
             * KING_CHASE_PRESSURE_WEIGHT
+        )
+        # Penalise caged kings: every diagonal exit is immediately recapturable.
+        # Opponent's caged king is a bonus; our caged king is a penalty.
+        caged_king = float(
+            (_caged_king_count(board, opp) - _caged_king_count(board, root_player))
+            * CAGED_KING_PENALTY
         )
 
     our_threatened = _threatened_squares(board, opp)
@@ -517,6 +595,7 @@ def evaluate_board_breakdown(
         + simplification
         + confinement_bonus
         + col_centrality
+        + caged_king
     )
     return {
         "material": float(material),
@@ -537,6 +616,7 @@ def evaluate_board_breakdown(
         "simplification_when_ahead": float(simplification),
         "confinement_bonus": float(confinement_bonus),
         "column_centrality": float(col_centrality),
+        "caged_king": float(caged_king),
         "total": total,
     }
 

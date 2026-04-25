@@ -1,0 +1,2855 @@
+{
+  "meta": {
+    "depth": 4,
+    "position_count": 19,
+    "output": "logs/position_benchmark_stress_d4.json"
+  },
+  "summary": {
+    "depth": 4,
+    "total_positions": 19,
+    "terminal_positions": 0,
+    "positions_with_expected": 12,
+    "exact_expected_matches": 11,
+    "regressions_unexpected": 1,
+    "known_failures_still_failing": 0,
+    "known_failures_now_passing": 3,
+    "avg_score_gap_from_expected": 0.0,
+    "total_nodes_searched": 9883,
+    "total_runtime_s": 2.361,
+    "avg_runtime_per_position_s": 0.1243
+  },
+  "results": [
+    {
+      "position_id": "pos_opening_standard",
+      "category": "opening",
+      "tags": [
+        "opening"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 7,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 4.0,
+          "is_best": true,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -10.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -45.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -47.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              7
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -47.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -49.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -53.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          5,
+          6
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "best_minimax_score": 4.0,
+      "second_best_score": -10.0,
+      "score_gap_top2": 14.0,
+      "expected_best_path": null,
+      "expected_match": null,
+      "expected_score": null,
+      "score_gap_from_expected": null,
+      "eval_breakdown_after_best": {
+        "mobility": 3.0,
+        "center": 6.0,
+        "frozen_restriction": 8.0,
+        "structure": -8.0,
+        "column_centrality": 12.0,
+        "total": 21.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 1117,
+      "tt_hits": 0,
+      "runtime_s": 0.2794,
+      "explanation": "Standard opening position. No clearly forced best move exists at depth 6; benchmark records current engine choice as baseline.",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_mandatory_capture",
+      "category": "midgame_tactical",
+      "tags": [
+        "forced_capture",
+        "mandatory_capture"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 8,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 569.0,
+          "is_best": true,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 568.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 544.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 542.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              7
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 502.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 493.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 475.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 446.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          5,
+          0
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "best_minimax_score": 569.0,
+      "second_best_score": 568.0,
+      "score_gap_top2": 1.0,
+      "expected_best_path": null,
+      "expected_match": null,
+      "expected_score": null,
+      "score_gap_from_expected": null,
+      "eval_breakdown_after_best": {
+        "material": 400.0,
+        "mobility": 3.0,
+        "center": 6.0,
+        "connectivity_support": 12.0,
+        "frozen_restriction": -8.0,
+        "vulnerability": -12.0,
+        "structure": 28.0,
+        "simplification_when_ahead": 24.0,
+        "column_centrality": 114.0,
+        "total": 567.0
+      },
+      "opponent_recaptures_after_best": 1,
+      "nodes_searched": 593,
+      "tt_hits": 0,
+      "runtime_s": 0.144,
+      "explanation": "RED has a piece at (3,2). If BLACK is adjacent and jumpable the engine must capture. Baseline: verify search always picks the capture when available.",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_multi_jump",
+      "category": "midgame_tactical",
+      "tags": [
+        "forced_capture",
+        "double_jump",
+        "multi_jump"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 1,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "jump",
+          "captured": [
+            [
+              4,
+              3
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "score": 10000.0,
+          "is_best": true,
+          "is_expected": true
+        }
+      ],
+      "best_minimax_path": [
+        [
+          5,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "best_minimax_score": 10000.0,
+      "second_best_score": null,
+      "score_gap_top2": null,
+      "expected_best_path": [
+        [
+          5,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": 10000.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "terminal": 10000.0,
+        "total": 10000.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 1,
+      "tt_hits": 0,
+      "runtime_s": 0.0,
+      "explanation": "RED at (5,2) can execute a double-jump: (5,2)\u2192(3,4)\u2192(1,2), capturing BLACK at (4,3) and (2,3). This is the only legal move and must be fully generated.",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_simple_promotion",
+      "category": "midgame_positional",
+      "tags": [
+        "promotion"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 2,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              1,
+              5
+            ],
+            [
+              0,
+              4
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 0.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              1,
+              5
+            ],
+            [
+              0,
+              6
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -4.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          1,
+          5
+        ],
+        [
+          0,
+          4
+        ]
+      ],
+      "best_minimax_score": 0.0,
+      "second_best_score": -4.0,
+      "score_gap_top2": 4.0,
+      "expected_best_path": [
+        [
+          1,
+          5
+        ],
+        [
+          0,
+          4
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": 0.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "material": 75.0,
+        "promotion_threat": -14.0,
+        "promotion_proximity": -4.0,
+        "isolation": 6.0,
+        "king_centralization": 20.0,
+        "king_mobility": 6.0,
+        "endgame": 32.0,
+        "total": 121.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 22,
+      "tt_hits": 0,
+      "runtime_s": 0.0028,
+      "explanation": "RED at (1,5) has two promotion options: (0,4) or (0,6). Both are empty. Either is correct. Expected: promotion happens (any row-0 destination).",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_endgame_king_activity",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "king_activity",
+        "endgame_conversion"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 1,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -14.0,
+          "is_best": true,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          0,
+          7
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "best_minimax_score": -14.0,
+      "second_best_score": null,
+      "score_gap_top2": null,
+      "expected_best_path": null,
+      "expected_match": null,
+      "expected_score": null,
+      "score_gap_from_expected": null,
+      "eval_breakdown_after_best": {
+        "king_centralization": -4.0,
+        "total": -4.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 47,
+      "tt_hits": 0,
+      "runtime_s": 0.0081,
+      "explanation": "Pure endgame King vs King. No material advantage. Baseline: record engine King activation score and chosen direction.",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_t37_promo_safety_filter",
+      "category": "known_failure",
+      "tags": [
+        "promotion",
+        "safety_filter",
+        "known_failure"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 10,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 42.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 29.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 22.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 20.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 16.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -2.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -3.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -14.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -57.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -102.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "best_minimax_score": 42.0,
+      "second_best_score": 29.0,
+      "score_gap_top2": 13.0,
+      "expected_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": 42.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "material": 100.0,
+        "promotion_proximity": 2.0,
+        "back_row_guard": -8.0,
+        "isolation": 12.0,
+        "connectivity_support": 3.0,
+        "frozen_restriction": -4.0,
+        "king_centralization": -4.0,
+        "king_mobility": -3.0,
+        "structure": 16.0,
+        "simplification_when_ahead": 33.0,
+        "total": 147.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 1740,
+      "tt_hits": 0,
+      "runtime_s": 0.4402,
+      "explanation": "RED at (1,6) should promote to (0,7). Before the safety-filter fix this move was filtered out because (0,5) could theoretically reach (1,6). Post-fix the promotion must be present in the candidate set and score highest.",
+      "known_failure": true
+    },
+    {
+      "position_id": "pos_t41_promo_tiebreak",
+      "category": "known_failure",
+      "tags": [
+        "promotion",
+        "ranker_tie",
+        "tie_break",
+        "known_failure"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 8,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 40.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 40.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 40.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 16.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 16.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -26.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -63.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -85.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "best_minimax_score": 40.0,
+      "second_best_score": 40.0,
+      "score_gap_top2": 0.0,
+      "expected_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": 40.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "material": 175.0,
+        "mobility": -3.0,
+        "promotion_threat": -14.0,
+        "promotion_proximity": -2.0,
+        "back_row_guard": -12.0,
+        "isolation": 18.0,
+        "connectivity_support": 3.0,
+        "frozen_restriction": -4.0,
+        "king_centralization": 8.0,
+        "king_mobility": 3.0,
+        "king_chase_pressure": 24.0,
+        "structure": 16.0,
+        "simplification_when_ahead": 39.0,
+        "total": 251.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 914,
+      "tt_hits": 0,
+      "runtime_s": 0.2341,
+      "explanation": "Three moves tie at +96 by depth-6 minimax. The promotion (1,6)\u2192(0,7) must be selected by the tie-break rule (results_in_king=True preferred over near-tie). This verifies the promotion tie-break fix is active.",
+      "known_failure": true
+    },
+    {
+      "position_id": "pos_t43_caged_corner",
+      "category": "known_failure",
+      "tags": [
+        "promotion",
+        "caged_corner",
+        "horizon_effect",
+        "known_failure"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 6,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 134.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -161.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -164.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -176.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -177.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -182.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "best_minimax_score": 134.0,
+      "second_best_score": -161.0,
+      "score_gap_top2": 295.0,
+      "expected_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": 134.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "material": 175.0,
+        "mobility": -9.0,
+        "back_row_guard": -12.0,
+        "isolation": 18.0,
+        "connectivity_support": 3.0,
+        "frozen_restriction": -8.0,
+        "king_centralization": 8.0,
+        "king_mobility": 3.0,
+        "king_chase_pressure": 24.0,
+        "structure": 16.0,
+        "simplification_when_ahead": 39.0,
+        "confinement_bonus": -10.0,
+        "total": 247.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 403,
+      "tt_hits": 0,
+      "runtime_s": 0.1034,
+      "explanation": "RED at (1,6) must promote to (0,7) \u2014 the only free row-0 square. All other moves score -222 to -236. The resulting corner King is caged (BLACK at (0,5) permanently guards exit (1,6)). This is a confirmed horizon effect: no evaluation fix is safe. Expected: promotion is chosen. Benchmark records the caged-corner score as a structural baseline.",
+      "known_failure": true
+    },
+    {
+      "position_id": "pos_t49_forced_double_jump",
+      "category": "known_failure",
+      "tags": [
+        "double_jump_threat",
+        "vulnerability",
+        "backward_move",
+        "known_failure"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 8,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 29.0,
+          "is_best": true,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 27.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 27.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 19.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 14.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -53.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -65.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -168.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "best_minimax_score": 29.0,
+      "second_best_score": 27.0,
+      "score_gap_top2": 2.0,
+      "expected_best_path": [
+        [
+          4,
+          3
+        ],
+        [
+          3,
+          4
+        ]
+      ],
+      "expected_match": false,
+      "expected_score": null,
+      "score_gap_from_expected": null,
+      "eval_breakdown_after_best": {
+        "material": 100.0,
+        "mobility": -9.0,
+        "center": 12.0,
+        "promotion_threat": 14.0,
+        "promotion_proximity": 2.0,
+        "back_row_guard": -12.0,
+        "isolation": 12.0,
+        "connectivity_support": 6.0,
+        "frozen_restriction": -8.0,
+        "king_centralization": -12.0,
+        "king_mobility": -3.0,
+        "king_chase_pressure": 12.0,
+        "structure": 16.0,
+        "simplification_when_ahead": 39.0,
+        "confinement_bonus": -10.0,
+        "total": 159.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 1507,
+      "tt_hits": 0,
+      "runtime_s": 0.4618,
+      "explanation": "T49 position. RED must choose between near-promotion push and backward moves. BLACK has a real immediate double-jump threat through (5,4). The backward move (4,3)\u2192(3,4) or (5,0)\u2192(4,1) scores around -1, breaking the threat. Near-promotion pushes score much lower due to the BLACK King threat. This was confirmed correct \u2014 NOT an evaluation bug.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_winning_endgame_conversion",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "conversion",
+        "king_activity"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 8,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10000.0,
+          "is_best": true,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10000.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10000.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10000.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 442.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 436.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 424.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -14.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "best_minimax_score": 10000.0,
+      "second_best_score": 10000.0,
+      "score_gap_top2": 0.0,
+      "expected_best_path": null,
+      "expected_match": null,
+      "expected_score": null,
+      "score_gap_from_expected": null,
+      "eval_breakdown_after_best": {
+        "material": 175.0,
+        "mobility": 20.0,
+        "center": 6.0,
+        "king_centralization": 40.0,
+        "king_mobility": 12.0,
+        "endgame": 96.0,
+        "simplification_when_ahead": 63.0,
+        "confinement_bonus": 20.0,
+        "total": 432.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 381,
+      "tt_hits": 0,
+      "runtime_s": 0.0496,
+      "explanation": "2K vs 1K. RK(5,2) finds forced win at D4+. RK(3,4)\u2192(2,5) approaches BK directly and scores very low (-66 at D6). Verifies search prefers coordinated conversion over reckless approach.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_promote_vs_retreat",
+      "category": "endgame",
+      "tags": [
+        "promotion",
+        "simplification",
+        "endgame"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 6,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 420.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              2
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 420.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 400.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 382.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 263.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 247.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "best_minimax_score": 420.0,
+      "second_best_score": 420.0,
+      "score_gap_top2": 0.0,
+      "expected_best_path": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": 420.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "material": 250.0,
+        "mobility": 10.0,
+        "center": 6.0,
+        "promotion_threat": -14.0,
+        "promotion_proximity": -4.0,
+        "back_row_guard": -4.0,
+        "isolation": 12.0,
+        "king_centralization": 52.0,
+        "king_mobility": 15.0,
+        "king_chase_pressure": 36.0,
+        "structure": 8.0,
+        "endgame": 96.0,
+        "simplification_when_ahead": 114.0,
+        "confinement_bonus": 10.0,
+        "total": 587.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 428,
+      "tt_hits": 0,
+      "runtime_s": 0.0838,
+      "explanation": "RED up +175 (king). R(1,2) should promote to center (0,3). Verified at D4 and D6: promotion ties with king approach but never loses to king retreat. Tests that simplification bonus does not override active promotion.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_good_simplification_advance",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "simplification",
+        "king_activity"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 8,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10000.0,
+          "is_best": true,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10000.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10000.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10000.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 283.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 277.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 277.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -173.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "best_minimax_score": 10000.0,
+      "second_best_score": 10000.0,
+      "score_gap_top2": 0.0,
+      "expected_best_path": null,
+      "expected_match": null,
+      "expected_score": null,
+      "score_gap_from_expected": null,
+      "eval_breakdown_after_best": {
+        "material": 75.0,
+        "mobility": 20.0,
+        "center": 6.0,
+        "promotion_proximity": -6.0,
+        "isolation": 6.0,
+        "frozen_restriction": 4.0,
+        "king_centralization": 40.0,
+        "king_mobility": 12.0,
+        "king_chase_pressure": 12.0,
+        "endgame": 96.0,
+        "confinement_bonus": 20.0,
+        "total": 285.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 362,
+      "tt_hits": 0,
+      "runtime_s": 0.0449,
+      "explanation": "2K vs 1K+1man. RK(5,2) finds forced win through capturing B(7,0). Verifies simplification when genuinely ahead leads to conversion, not passive waiting.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_active_vs_passive_king",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "king_activity",
+        "balance"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 4,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10.0,
+          "is_best": true,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              2
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              4
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 10.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          4,
+          3
+        ],
+        [
+          3,
+          2
+        ]
+      ],
+      "best_minimax_score": 10.0,
+      "second_best_score": 10.0,
+      "score_gap_top2": 0.0,
+      "expected_best_path": null,
+      "expected_match": null,
+      "expected_score": null,
+      "score_gap_from_expected": null,
+      "eval_breakdown_after_best": {
+        "mobility": 10.0,
+        "center": 6.0,
+        "king_centralization": 16.0,
+        "king_mobility": 6.0,
+        "endgame": 32.0,
+        "total": 70.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 126,
+      "tt_hits": 0,
+      "runtime_s": 0.0209,
+      "explanation": "1K vs 1K, equal material. Static eval = +74 (center king advantage) but D6 search = -10 for all moves. King activity terms inflate the positional advantage beyond what search confirms. The 74-pt static advantage evaporates because both kings equalize mobility within a few plies. Stress-tests king activity term magnitude.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_trapped_caged_king",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "trapped_king",
+        "vulnerability"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 2,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 208.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 189.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "best_minimax_score": 208.0,
+      "second_best_score": 189.0,
+      "score_gap_top2": 19.0,
+      "expected_best_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": 208.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "material": 75.0,
+        "mobility": -5.0,
+        "isolation": -6.0,
+        "connectivity_support": -3.0,
+        "frozen_restriction": -4.0,
+        "king_centralization": 8.0,
+        "king_chase_pressure": 24.0,
+        "structure": -8.0,
+        "endgame": 16.0,
+        "total": 97.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 34,
+      "tt_hits": 0,
+      "runtime_s": 0.0036,
+      "explanation": "RK(0,7) is caged by B(1,6). R(5,2) must advance. king_chase_pressure awards +24 to the caged king even though it cannot move \u2014 Manhattan distance doesn't account for blocked paths. Search correctly prefers advancing R(5,2) over any other option.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_promotion_path_quality",
+      "category": "midgame_positional",
+      "tags": [
+        "promotion",
+        "king_quality",
+        "horizon"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 3,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              1,
+              4
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -199.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -240.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              1,
+              4
+            ],
+            [
+              0,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -256.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          1,
+          4
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "best_minimax_score": -199.0,
+      "second_best_score": -240.0,
+      "score_gap_top2": 41.0,
+      "expected_best_path": [
+        [
+          1,
+          4
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": -199.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "material": -25.0,
+        "mobility": -5.0,
+        "promotion_threat": -14.0,
+        "promotion_proximity": -4.0,
+        "connectivity_support": -3.0,
+        "king_centralization": 20.0,
+        "king_mobility": 6.0,
+        "king_chase_pressure": 12.0,
+        "structure": -8.0,
+        "endgame": 16.0,
+        "total": -5.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 129,
+      "tt_hits": 0,
+      "runtime_s": 0.0236,
+      "explanation": "R(1,4) can promote to (0,3) center king or (0,5) near B(1,6) cage. D4: (0,3)=-199 vs (0,5)=-256. D6: (0,3)=-220 vs (0,5)=-258. Search correctly prefers center promotion. 38-pt gap at D6 shows the engine detects cage risk even without an explicit promotion-quality term.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_centrality_vs_tactics",
+      "category": "opening",
+      "tags": [
+        "opening",
+        "column_centrality",
+        "tactics"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 7,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 36.0,
+          "is_best": true,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -3.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -19.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -23.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -45.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              7
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -65.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -489.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          5,
+          6
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "best_minimax_score": 36.0,
+      "second_best_score": -3.0,
+      "score_gap_top2": 39.0,
+      "expected_best_path": null,
+      "expected_match": null,
+      "expected_score": null,
+      "score_gap_from_expected": null,
+      "eval_breakdown_after_best": {
+        "mobility": 3.0,
+        "center": 6.0,
+        "isolation": -6.0,
+        "frozen_restriction": 4.0,
+        "vulnerability": 24.0,
+        "structure": -8.0,
+        "column_centrality": -6.0,
+        "total": 17.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 1201,
+      "tt_hits": 0,
+      "runtime_s": 0.2844,
+      "explanation": "8R vs 8B. R(5,4)\u2192(4,5) improves column centrality but B(3,6) can jump it. D4: (4,5)=-489 (last). D6: (4,5)=-467 (last). Verifies tactics completely dominate column centrality. Column centrality is -18 in static eval \u2014 negligible vs the tactical loss.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_double_jump_escape",
+      "category": "midgame_tactical",
+      "tags": [
+        "tactics",
+        "double_jump",
+        "vulnerability"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 6,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 133.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 106.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -153.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -389.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -400.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -414.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "best_minimax_score": 133.0,
+      "second_best_score": 106.0,
+      "score_gap_top2": 27.0,
+      "expected_best_path": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": 133.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "material": 200.0,
+        "mobility": 20.0,
+        "center": 6.0,
+        "promotion_threat": -14.0,
+        "promotion_proximity": -4.0,
+        "back_row_guard": 4.0,
+        "isolation": -12.0,
+        "king_centralization": -8.0,
+        "endgame": 64.0,
+        "simplification_when_ahead": 108.0,
+        "confinement_bonus": 20.0,
+        "total": 384.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 127,
+      "tt_hits": 0,
+      "runtime_s": 0.0224,
+      "explanation": "BK(0,3) threatens double-jump through R(1,2) and R(3,2) next turn. R(1,2)\u2192(0,1) escapes AND promotes: 135 at D6. Non-escape moves score -538 to -540. Tests that search sees the double-jump threat and prioritizes escape.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_quiet_trap_reversal",
+      "category": "midgame_tactical",
+      "tags": [
+        "tactics",
+        "trap",
+        "quiet_move"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 5,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -2.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -4.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              7,
+              0
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -8.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              7,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -10.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              7,
+              2
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -29.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          5,
+          4
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "best_minimax_score": -2.0,
+      "second_best_score": -4.0,
+      "score_gap_top2": 2.0,
+      "expected_best_path": [
+        [
+          5,
+          4
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": -2.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "mobility": -5.0,
+        "center": 6.0,
+        "endgame": -16.0,
+        "total": -15.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 539,
+      "tt_hits": 0,
+      "runtime_s": 0.1082,
+      "explanation": "R(5,4)\u2192(4,5) looks like a trap (B(2,5) must go to jumpable squares) but at D6 scores -120 because after BLACK delays with other pieces, R(4,5) advancing to (3,4)/(3,6) gets counter-jumped by B(2,5). R(5,4)\u2192(4,3) scores 0: R can retreat to (3,2) safely. Tests search depth seeing through apparent traps.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_endgame_king_race",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "promotion",
+        "king_race"
+      ],
+      "side_to_move": "RED",
+      "depth": 4,
+      "legal_move_count": 4,
+      "terminal": false,
+      "score_table": [
+        {
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 0.0,
+          "is_best": true,
+          "is_expected": true
+        },
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": 0.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -8.0,
+          "is_best": false,
+          "is_expected": false
+        },
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "type": "simple",
+          "captured": [],
+          "score": -8.0,
+          "is_best": false,
+          "is_expected": false
+        }
+      ],
+      "best_minimax_path": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "best_minimax_score": 0.0,
+      "second_best_score": 0.0,
+      "score_gap_top2": 0.0,
+      "expected_best_path": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "expected_match": true,
+      "expected_score": 0.0,
+      "score_gap_from_expected": 0.0,
+      "eval_breakdown_after_best": {
+        "material": 75.0,
+        "promotion_threat": -14.0,
+        "promotion_proximity": -4.0,
+        "isolation": 6.0,
+        "king_centralization": 20.0,
+        "king_mobility": 6.0,
+        "endgame": 32.0,
+        "total": 121.0
+      },
+      "opponent_recaptures_after_best": 0,
+      "nodes_searched": 212,
+      "tt_hits": 0,
+      "runtime_s": 0.0461,
+      "explanation": "Both sides have 1 man near promotion + 1 king. R(1,2) should promote to center (0,3). D4 and D6 both score promotion and king-advance equally at 0 \u2014 the position is drawn with best play from both sides. R(1,2)\u2192(0,1) edge promotion scores slightly worse (-4 to -8).",
+      "known_failure": false
+    }
+  ]
+}

@@ -1,0 +1,4638 @@
+{
+  "meta": {
+    "depth": 6,
+    "near_margin": 15.0,
+    "position_count": 19,
+    "llm_model": "llama-3.1-8b-instant",
+    "api_key_set": true,
+    "key_prefix": "gsk_",
+    "key_length": 56,
+    "key_sha256_12": "c4ec47952a4b",
+    "env_path": "/Users/youssefrezk/Desktop/bachelor_project/.env",
+    "output": "logs/proposal_coverage_full19_depth6_real_llm_after_mandatory_fix.json"
+  },
+  "summary": {
+    "total_positions": 19,
+    "errored_positions": 0,
+    "fallback_positions": 0,
+    "llm_positions": 19,
+    "best_move_coverage_all_pct": 89.5,
+    "near_best_coverage_all_pct": 100.0,
+    "best_move_coverage_llm_pct": 89.5,
+    "near_best_coverage_llm_pct": 100.0,
+    "avg_score_gap": 0.0,
+    "worst_misses": [
+      {
+        "position_id": "stress_winning_endgame_conversion",
+        "score_gap": 0.0,
+        "best_sym_path": [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "proposed_paths": [
+          [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ]
+        ],
+        "miss_reasons": [
+          "quiet_or_positional"
+        ],
+        "fallback_used": false,
+        "tags": [
+          "endgame",
+          "conversion",
+          "king_activity"
+        ]
+      },
+      {
+        "position_id": "stress_promote_vs_retreat",
+        "score_gap": 0.0,
+        "best_sym_path": [
+          [
+            1,
+            2
+          ],
+          [
+            0,
+            3
+          ]
+        ],
+        "proposed_paths": [
+          [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              2
+            ]
+          ],
+          [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        ],
+        "miss_reasons": [
+          "promotion"
+        ],
+        "fallback_used": false,
+        "tags": [
+          "promotion",
+          "simplification",
+          "endgame"
+        ]
+      }
+    ],
+    "misses_by_tag": {
+      "opening": {
+        "total": 2,
+        "best_covered": 2,
+        "near_best_covered": 2,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "forced_capture": {
+        "total": 2,
+        "best_covered": 2,
+        "near_best_covered": 2,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "mandatory_capture": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "double_jump": {
+        "total": 2,
+        "best_covered": 2,
+        "near_best_covered": 2,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "multi_jump": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "promotion": {
+        "total": 7,
+        "best_covered": 6,
+        "near_best_covered": 7,
+        "fallbacks": 0,
+        "best_pct": 85.7,
+        "near_best_pct": 100.0
+      },
+      "endgame": {
+        "total": 7,
+        "best_covered": 5,
+        "near_best_covered": 7,
+        "fallbacks": 0,
+        "best_pct": 71.4,
+        "near_best_pct": 100.0
+      },
+      "king_activity": {
+        "total": 4,
+        "best_covered": 3,
+        "near_best_covered": 4,
+        "fallbacks": 0,
+        "best_pct": 75.0,
+        "near_best_pct": 100.0
+      },
+      "endgame_conversion": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "safety_filter": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "known_failure": {
+        "total": 3,
+        "best_covered": 3,
+        "near_best_covered": 3,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "ranker_tie": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "tie_break": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "caged_corner": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "horizon_effect": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "double_jump_threat": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "vulnerability": {
+        "total": 3,
+        "best_covered": 3,
+        "near_best_covered": 3,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "defensive_move": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "conversion": {
+        "total": 1,
+        "best_covered": 0,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 0.0,
+        "near_best_pct": 100.0
+      },
+      "simplification": {
+        "total": 2,
+        "best_covered": 1,
+        "near_best_covered": 2,
+        "fallbacks": 0,
+        "best_pct": 50.0,
+        "near_best_pct": 100.0
+      },
+      "balance": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "trapped_king": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "king_quality": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "horizon": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "column_centrality": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "tactics": {
+        "total": 3,
+        "best_covered": 3,
+        "near_best_covered": 3,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "trap": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "quiet_move": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "king_race": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      }
+    },
+    "recommendation": "MARGINAL \u2014 near-best 100.0% acceptable but best-move 89.5% below 90%.",
+    "near_margin_used": 15.0
+  },
+  "results": [
+    {
+      "position_id": "pos_opening_standard",
+      "category": "opening",
+      "tags": [
+        "opening"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 7,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          5,
+          6
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "best_sym_score": 0.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": -15.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": 0.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": -20.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": -25.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": -28.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              7
+            ]
+          ],
+          "score": -36.0
+        }
+      ],
+      "proposed_basis_indices": [
+        2,
+        3,
+        4,
+        5,
+        0
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        -44.0,
+        -44.0,
+        -25.0,
+        0.0,
+        -28.0
+      ],
+      "best_proposed_score": 0.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 2,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 3,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 4,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 0,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 1,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 6,
+          "basis_idx": 6,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              7
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 8472,
+      "sym_time_s": 1.777,
+      "proposal_time_s": 0.522,
+      "explanation": "Standard opening position. No clearly forced best move exists at depth 6; benchmark records current engine choice as baseline.",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_mandatory_capture",
+      "category": "midgame_tactical",
+      "tags": [
+        "forced_capture",
+        "mandatory_capture"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 1,
+      "proposal_count": 1,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          3,
+          2
+        ],
+        [
+          1,
+          4
+        ]
+      ],
+      "best_sym_score": 609.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 594.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "score": 609.0
+        }
+      ],
+      "proposed_basis_indices": [
+        0
+      ],
+      "proposed_paths": [
+        [
+          [
+            3,
+            2
+          ],
+          [
+            1,
+            4
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        609.0
+      ],
+      "best_proposed_score": 609.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              1,
+              4
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 954,
+      "sym_time_s": 0.188,
+      "proposal_time_s": 0.282,
+      "explanation": "RED has a piece at (3,2). BLACK is at (2,3) and (1,4) is empty. The engine must capture. Baseline: verify search always picks the capture when available.",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_multi_jump",
+      "category": "midgame_tactical",
+      "tags": [
+        "forced_capture",
+        "double_jump",
+        "multi_jump"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 1,
+      "proposal_count": 1,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          5,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "best_sym_score": 10000.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 9985.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "score": 10000.0
+        }
+      ],
+      "proposed_basis_indices": [
+        0
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            2
+          ],
+          [
+            3,
+            4
+          ],
+          [
+            1,
+            2
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        10000.0
+      ],
+      "best_proposed_score": 10000.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 2,
+      "sym_time_s": 0.001,
+      "proposal_time_s": 0.299,
+      "explanation": "RED at (5,2) can execute a double-jump: (5,2)\u2192(3,4)\u2192(1,2), capturing BLACK at (4,3) and (2,3). This is the only legal move and must be fully generated.",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_simple_promotion",
+      "category": "midgame_positional",
+      "tags": [
+        "promotion"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 2,
+      "proposal_count": 2,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          1,
+          5
+        ],
+        [
+          0,
+          4
+        ]
+      ],
+      "best_sym_score": 0.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": -15.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              1,
+              5
+            ],
+            [
+              0,
+              4
+            ]
+          ],
+          "score": 0.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              1,
+              5
+            ],
+            [
+              0,
+              6
+            ]
+          ],
+          "score": 0.0
+        }
+      ],
+      "proposed_basis_indices": [
+        0,
+        1
+      ],
+      "proposed_paths": [
+        [
+          [
+            1,
+            5
+          ],
+          [
+            0,
+            4
+          ]
+        ],
+        [
+          [
+            1,
+            5
+          ],
+          [
+            0,
+            6
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        0.0,
+        0.0
+      ],
+      "best_proposed_score": 0.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              1,
+              5
+            ],
+            [
+              0,
+              4
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              1,
+              5
+            ],
+            [
+              0,
+              6
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 91,
+      "sym_time_s": 0.009,
+      "proposal_time_s": 0.348,
+      "explanation": "RED at (1,5) has two promotion options: (0,4) or (0,6). Both are empty. Either is correct. Expected: promotion happens (any row-0 destination).",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_endgame_king_activity",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "king_activity",
+        "endgame_conversion"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 1,
+      "proposal_count": 1,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          0,
+          7
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "best_sym_score": -14.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": -29.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "score": -14.0
+        }
+      ],
+      "proposed_basis_indices": [
+        0
+      ],
+      "proposed_paths": [
+        [
+          [
+            0,
+            7
+          ],
+          [
+            1,
+            6
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        -14.0
+      ],
+      "best_proposed_score": -14.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 66,
+      "sym_time_s": 0.012,
+      "proposal_time_s": 10.522,
+      "explanation": "Pure endgame King vs King. No material advantage. Baseline: record engine King activation score and chosen direction.",
+      "known_failure": false
+    },
+    {
+      "position_id": "pos_t37_promo_safety_filter",
+      "category": "known_failure",
+      "tags": [
+        "promotion",
+        "safety_filter",
+        "known_failure"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 10,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "best_sym_score": 62.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 47.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          "score": 62.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "score": 62.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "score": 39.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 34.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": 22.0
+        }
+      ],
+      "proposed_basis_indices": [
+        9,
+        0,
+        4,
+        5,
+        6
+      ],
+      "proposed_paths": [
+        [
+          [
+            7,
+            4
+          ],
+          [
+            6,
+            5
+          ]
+        ],
+        [
+          [
+            1,
+            6
+          ],
+          [
+            0,
+            7
+          ]
+        ],
+        [
+          [
+            4,
+            1
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        17.0,
+        62.0,
+        15.0,
+        34.0,
+        0.0
+      ],
+      "best_proposed_score": 62.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 9,
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 4,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 6,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 6,
+          "basis_idx": 7,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 7,
+          "basis_idx": 3,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 8,
+          "basis_idx": 8,
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 9,
+          "basis_idx": 2,
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 15538,
+      "sym_time_s": 3.124,
+      "proposal_time_s": 31.111,
+      "explanation": "RED at (1,6) should promote to (0,7). Before the safety-filter fix this move was filtered out because (0,5) could theoretically reach (1,6). Post-fix the promotion must be present in the candidate set and score highest.",
+      "known_failure": true
+    },
+    {
+      "position_id": "pos_t41_promo_tiebreak",
+      "category": "known_failure",
+      "tags": [
+        "promotion",
+        "ranker_tie",
+        "tie_break",
+        "known_failure"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 8,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "best_sym_score": 96.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 81.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          "score": 96.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "score": 96.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 96.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "score": 37.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": 33.0
+        }
+      ],
+      "proposed_basis_indices": [
+        1,
+        0,
+        4,
+        5,
+        6
+      ],
+      "proposed_paths": [
+        [
+          [
+            2,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            1,
+            6
+          ],
+          [
+            0,
+            7
+          ]
+        ],
+        [
+          [
+            4,
+            1
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        96.0,
+        96.0,
+        -11.0,
+        -51.0,
+        96.0
+      ],
+      "best_proposed_score": 96.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 4,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 6,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 7,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 6,
+          "basis_idx": 3,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 7,
+          "basis_idx": 2,
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 7303,
+      "sym_time_s": 1.296,
+      "proposal_time_s": 10.648,
+      "explanation": "Three moves tie at +96 by depth-6 minimax. The promotion (1,6)\u2192(0,7) must be selected by the tie-break rule (results_in_king=True preferred over near-tie). This verifies the promotion tie-break fix is active.",
+      "known_failure": true
+    },
+    {
+      "position_id": "pos_t43_caged_corner",
+      "category": "known_failure",
+      "tags": [
+        "promotion",
+        "caged_corner",
+        "horizon_effect",
+        "known_failure"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 6,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "best_sym_score": 110.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 95.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          "score": 110.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "score": -222.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": -222.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": -226.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": -226.0
+        }
+      ],
+      "proposed_basis_indices": [
+        0,
+        3,
+        4,
+        2,
+        5
+      ],
+      "proposed_paths": [
+        [
+          [
+            1,
+            6
+          ],
+          [
+            0,
+            7
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            4,
+            1
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        110.0,
+        -226.0,
+        -222.0,
+        -222.0,
+        -226.0
+      ],
+      "best_proposed_score": 110.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 3,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 4,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 2,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 1,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 3671,
+      "sym_time_s": 0.725,
+      "proposal_time_s": 30.827,
+      "explanation": "RED at (1,6) must promote to (0,7) \u2014 the only free row-0 square. All other moves score -222 to -236. The resulting corner King is caged (BLACK at (0,5) permanently guards exit (1,6)). This is a confirmed horizon effect: no evaluation fix is safe. Expected: promotion is chosen. Benchmark records the caged-corner score as a structural baseline.",
+      "known_failure": true
+    },
+    {
+      "position_id": "pos_t49_forced_double_jump",
+      "category": "midgame_tactical",
+      "tags": [
+        "double_jump_threat",
+        "vulnerability",
+        "defensive_move"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 8,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "best_sym_score": -8.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": -23.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "score": -8.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": -8.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": -8.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": -15.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "score": -28.0
+        }
+      ],
+      "proposed_basis_indices": [
+        7,
+        1,
+        2,
+        3,
+        5
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            3,
+            2
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            3,
+            2
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        [
+          [
+            3,
+            4
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        -8.0,
+        -28.0,
+        -8.0,
+        -68.0,
+        -15.0
+      ],
+      "best_proposed_score": -8.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 7,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 2,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 3,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 6,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 6,
+          "basis_idx": 4,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 7,
+          "basis_idx": 0,
+          "path": [
+            [
+              0,
+              7
+            ],
+            [
+              1,
+              6
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 9904,
+      "sym_time_s": 1.782,
+      "proposal_time_s": 0.557,
+      "explanation": "T49 position. BLACK at (5,4) threatens sequences, BLACK King at (7,4) is active. King activation (0,7)\u2192(1,6) immediately loses the King to BLACK's jump (D6=-324). Near-promotion (3,4)\u2192(2,5) scores -111 (enters BLACK King range). Three quiet defensive moves tie at D6=-8: (3,2)\u2192(2,3), (5,2)\u2192(4,1), (5,2)\u2192(4,3). The engine correctly selects a defensive move. Previous expected_best_path [[4,3],[3,4]] was wrong \u2014 (4,3) is empty on this board. This is NOT an engine failure; it is a benchmark label correction.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_winning_endgame_conversion",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "conversion",
+        "king_activity"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 8,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "best_sym_score": 10000.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 9985.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "score": 476.0
+        }
+      ],
+      "proposed_basis_indices": [
+        5,
+        2,
+        3,
+        0,
+        7
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            3,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            3,
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        [
+          [
+            3,
+            4
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        10000.0,
+        476.0,
+        476.0,
+        476.0,
+        10000.0
+      ],
+      "best_proposed_score": 10000.0,
+      "score_gap": 0.0,
+      "best_move_covered": false,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 2,
+      "miss_reasons": [
+        "quiet_or_positional"
+      ],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 2,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 3,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 0,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 4,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 6,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 6,
+          "basis_idx": 7,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 7,
+          "basis_idx": 1,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              5
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 1227,
+      "sym_time_s": 0.102,
+      "proposal_time_s": 30.86,
+      "explanation": "2K vs 1K. RK(5,2) finds forced win at D4+. RK(3,4)\u2192(2,5) approaches BK directly and scores very low (-66 at D6). Verifies search prefers coordinated conversion over reckless approach.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_promote_vs_retreat",
+      "category": "endgame",
+      "tags": [
+        "promotion",
+        "simplification",
+        "endgame"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 6,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "best_sym_score": 493.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 478.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "score": 493.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              2
+            ]
+          ],
+          "score": 493.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "score": 468.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": 426.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "score": 319.0
+        }
+      ],
+      "proposed_basis_indices": [
+        4,
+        0,
+        2,
+        3,
+        5
+      ],
+      "proposed_paths": [
+        [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            2
+          ]
+        ],
+        [
+          [
+            1,
+            2
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        493.0,
+        468.0,
+        265.0,
+        319.0,
+        426.0
+      ],
+      "best_proposed_score": 493.0,
+      "score_gap": 0.0,
+      "best_move_covered": false,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 2,
+      "miss_reasons": [
+        "promotion"
+      ],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 4,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              2
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 2,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              2
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 3,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 2689,
+      "sym_time_s": 0.282,
+      "proposal_time_s": 10.601,
+      "explanation": "RED up +175 (king). R(1,2) should promote to center (0,3). Verified at D4 and D6: promotion ties with king approach but never loses to king retreat. Tests that simplification bonus does not override active promotion.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_good_simplification_advance",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "simplification",
+        "king_activity"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 8,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "best_sym_score": 10000.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 9985.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "score": 329.0
+        }
+      ],
+      "proposed_basis_indices": [
+        5,
+        2,
+        3,
+        0,
+        4
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            3,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            3,
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        [
+          [
+            3,
+            4
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            1
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        10000.0,
+        329.0,
+        329.0,
+        329.0,
+        10000.0
+      ],
+      "best_proposed_score": 10000.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 2,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 3,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 0,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 4,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 6,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 6,
+          "basis_idx": 7,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 7,
+          "basis_idx": 1,
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              2,
+              5
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 1258,
+      "sym_time_s": 0.109,
+      "proposal_time_s": 30.861,
+      "explanation": "2K vs 1K+1man. RK(5,2) finds forced win through capturing B(7,0). Verifies simplification when genuinely ahead leads to conversion, not passive waiting.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_active_vs_passive_king",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "king_activity",
+        "balance"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 4,
+      "proposal_count": 4,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          4,
+          3
+        ],
+        [
+          3,
+          2
+        ]
+      ],
+      "best_sym_score": -10.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": -25.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "score": -10.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "score": -10.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              2
+            ]
+          ],
+          "score": -10.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              4
+            ]
+          ],
+          "score": -10.0
+        }
+      ],
+      "proposed_basis_indices": [
+        0,
+        1,
+        3,
+        2
+      ],
+      "proposed_paths": [
+        [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        [
+          [
+            4,
+            3
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            4
+          ]
+        ],
+        [
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            2
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        -10.0,
+        -10.0,
+        -10.0,
+        -10.0
+      ],
+      "best_proposed_score": -10.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              2
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 2,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              2
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 3,
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              4
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 329,
+      "sym_time_s": 0.027,
+      "proposal_time_s": 0.343,
+      "explanation": "1K vs 1K, equal material. Static eval = +74 (center king advantage) but D6 search = -10 for all moves. King activity terms inflate the positional advantage beyond what search confirms. The 74-pt static advantage evaporates because both kings equalize mobility within a few plies. Stress-tests king activity term magnitude.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_trapped_caged_king",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "trapped_king",
+        "vulnerability"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 2,
+      "proposal_count": 2,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "best_sym_score": 240.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 225.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": 240.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 187.0
+        }
+      ],
+      "proposed_basis_indices": [
+        1,
+        0
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            1
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        187.0,
+        240.0
+      ],
+      "best_proposed_score": 240.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 1,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 0,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 98,
+      "sym_time_s": 0.018,
+      "proposal_time_s": 10.569,
+      "explanation": "RK(0,7) is caged by B(1,6). R(5,2) must advance. king_chase_pressure awards +24 to the caged king even though it cannot move \u2014 Manhattan distance doesn't account for blocked paths. Search correctly prefers advancing R(5,2) over any other option.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_promotion_path_quality",
+      "category": "midgame_positional",
+      "tags": [
+        "promotion",
+        "king_quality",
+        "horizon"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 3,
+      "proposal_count": 3,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          1,
+          4
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "best_sym_score": -220.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": -235.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              1,
+              4
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "score": -220.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              1,
+              4
+            ],
+            [
+              0,
+              5
+            ]
+          ],
+          "score": -258.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": -258.0
+        }
+      ],
+      "proposed_basis_indices": [
+        0,
+        1,
+        2
+      ],
+      "proposed_paths": [
+        [
+          [
+            1,
+            4
+          ],
+          [
+            0,
+            3
+          ]
+        ],
+        [
+          [
+            1,
+            4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        -220.0,
+        -258.0,
+        -258.0
+      ],
+      "best_proposed_score": -220.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              1,
+              4
+            ],
+            [
+              0,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              1,
+              4
+            ],
+            [
+              0,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 2,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 729,
+      "sym_time_s": 0.091,
+      "proposal_time_s": 10.537,
+      "explanation": "R(1,4) can promote to (0,3) center king or (0,5) near B(1,6) cage. D4: (0,3)=-199 vs (0,5)=-256. D6: (0,3)=-220 vs (0,5)=-258. Search correctly prefers center promotion. 38-pt gap at D6 shows the engine detects cage risk even without an explicit promotion-quality term.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_centrality_vs_tactics",
+      "category": "opening",
+      "tags": [
+        "opening",
+        "column_centrality",
+        "tactics"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 7,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          5,
+          6
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "best_sym_score": 39.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 24.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": 39.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": -9.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              7
+            ]
+          ],
+          "score": -50.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": -55.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": -59.0
+        }
+      ],
+      "proposed_basis_indices": [
+        5,
+        2,
+        3,
+        6,
+        1
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            6
+          ],
+          [
+            4,
+            7
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            1
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        39.0,
+        -59.0,
+        -9.0,
+        -50.0,
+        -89.0
+      ],
+      "best_proposed_score": 39.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 2,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 3,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 6,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              7
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 0,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 1,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 6,
+          "basis_idx": 4,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 9057,
+      "sym_time_s": 1.717,
+      "proposal_time_s": 30.92,
+      "explanation": "8R vs 8B. R(5,4)\u2192(4,5) improves column centrality but B(3,6) can jump it. D4: (4,5)=-489 (last). D6: (4,5)=-467 (last). Verifies tactics completely dominate column centrality. Column centrality is -18 in static eval \u2014 negligible vs the tactical loss.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_double_jump_escape",
+      "category": "midgame_tactical",
+      "tags": [
+        "tactics",
+        "double_jump",
+        "vulnerability"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 6,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "best_sym_score": 135.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 120.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "score": 135.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "score": 131.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "score": -98.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              5
+            ]
+          ],
+          "score": -538.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": -540.0
+        }
+      ],
+      "proposed_basis_indices": [
+        1,
+        0,
+        3,
+        4,
+        5
+      ],
+      "proposed_paths": [
+        [
+          [
+            3,
+            2
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            1,
+            2
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        [
+          [
+            7,
+            4
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        [
+          [
+            7,
+            4
+          ],
+          [
+            6,
+            5
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        131.0,
+        135.0,
+        -540.0,
+        -540.0,
+        -538.0
+      ],
+      "best_proposed_score": 135.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 2,
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 3,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 4,
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 5,
+          "path": [
+            [
+              7,
+              4
+            ],
+            [
+              6,
+              5
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 683,
+      "sym_time_s": 0.1,
+      "proposal_time_s": 10.629,
+      "explanation": "BK(0,3) threatens double-jump through R(1,2) and R(3,2) next turn. R(1,2)\u2192(0,1) escapes AND promotes: 135 at D6. Non-escape moves score -538 to -540. Tests that search sees the double-jump threat and prioritizes escape.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_quiet_trap_reversal",
+      "category": "midgame_tactical",
+      "tags": [
+        "tactics",
+        "trap",
+        "quiet_move"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 5,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          5,
+          4
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "best_sym_score": 0.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": -15.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 0.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              7,
+              0
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "score": 0.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              7,
+              2
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "score": -10.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              7,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ],
+          "score": -10.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": -120.0
+        }
+      ],
+      "proposed_basis_indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        [
+          [
+            7,
+            0
+          ],
+          [
+            6,
+            1
+          ]
+        ],
+        [
+          [
+            7,
+            2
+          ],
+          [
+            6,
+            1
+          ]
+        ],
+        [
+          [
+            7,
+            2
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        0.0,
+        -120.0,
+        0.0,
+        -10.0,
+        -10.0
+      ],
+      "best_proposed_score": 0.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 2,
+          "path": [
+            [
+              7,
+              0
+            ],
+            [
+              6,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 3,
+          "path": [
+            [
+              7,
+              2
+            ],
+            [
+              6,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 4,
+          "path": [
+            [
+              7,
+              2
+            ],
+            [
+              6,
+              3
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 2580,
+      "sym_time_s": 0.296,
+      "proposal_time_s": 10.554,
+      "explanation": "R(5,4)\u2192(4,5) looks like a trap (B(2,5) must go to jumpable squares) but at D6 scores -120 because after BLACK delays with other pieces, R(4,5) advancing to (3,4)/(3,6) gets counter-jumped by B(2,5). R(5,4)\u2192(4,3) scores 0: R can retreat to (3,2) safely. Tests search depth seeing through apparent traps.",
+      "known_failure": false
+    },
+    {
+      "position_id": "stress_endgame_king_race",
+      "category": "endgame",
+      "tags": [
+        "endgame",
+        "promotion",
+        "king_race"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 4,
+      "proposal_count": 4,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "best_sym_score": 0.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": -15.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "score": 0.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": 0.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "score": -4.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              6,
+              1
+            ]
+          ],
+          "score": -8.0
+        }
+      ],
+      "proposed_basis_indices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        [
+          [
+            1,
+            2
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        [
+          [
+            1,
+            2
+          ],
+          [
+            0,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            1
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        0.0,
+        -4.0,
+        0.0,
+        -8.0
+      ],
+      "best_proposed_score": 0.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 2,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 3,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              6,
+              1
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 1106,
+      "sym_time_s": 0.114,
+      "proposal_time_s": 30.797,
+      "explanation": "Both sides have 1 man near promotion + 1 king. R(1,2) should promote to center (0,3). D4 and D6 both score promotion and king-advance equally at 0 \u2014 the position is drawn with best play from both sides. R(1,2)\u2192(0,1) edge promotion scores slightly worse (-4 to -8).",
+      "known_failure": false
+    }
+  ]
+}

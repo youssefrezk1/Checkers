@@ -1,0 +1,357 @@
+{
+  "meta": {
+    "depth": 6,
+    "near_margin": 15.0,
+    "position_count": 1,
+    "llm_model": "llama-3.1-8b-instant",
+    "api_key_set": true,
+    "key_prefix": "gsk_",
+    "key_length": 56,
+    "key_sha256_12": "c4ec47952a4b",
+    "env_path": "/Users/youssefrezk/Desktop/bachelor_project/.env",
+    "output": "logs/proposal_coverage_depth6.json"
+  },
+  "summary": {
+    "total_positions": 1,
+    "errored_positions": 0,
+    "fallback_positions": 0,
+    "llm_positions": 1,
+    "best_move_coverage_all_pct": 100.0,
+    "near_best_coverage_all_pct": 100.0,
+    "best_move_coverage_llm_pct": 100.0,
+    "near_best_coverage_llm_pct": 100.0,
+    "avg_score_gap": 0.0,
+    "worst_misses": [],
+    "misses_by_tag": {
+      "tactical": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "proposal_miss": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "safety_net_trim": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "opening": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      }
+    },
+    "recommendation": "PASS \u2014 LLM best-move coverage 100.0% \u2265 90%.",
+    "near_margin_used": 15.0
+  },
+  "results": [
+    {
+      "position_id": "trace_t7_proposal_miss",
+      "category": "midgame_tactical",
+      "tags": [
+        "tactical",
+        "proposal_miss",
+        "safety_net_trim",
+        "opening"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 8,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          5,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "best_sym_score": 35.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 20.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": 35.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              7,
+              6
+            ],
+            [
+              6,
+              7
+            ]
+          ],
+          "score": -1.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": -2.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": -2.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": -3.0
+        }
+      ],
+      "proposed_basis_indices": [
+        1,
+        2,
+        3,
+        4,
+        7
+      ],
+      "proposed_paths": [
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        [
+          [
+            7,
+            6
+          ],
+          [
+            6,
+            7
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        35.0,
+        -2.0,
+        -50.0,
+        -2.0,
+        -1.0
+      ],
+      "best_proposed_score": 35.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 3,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 4,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 0,
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 1,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 2,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 7,
+          "path": [
+            [
+              7,
+              6
+            ],
+            [
+              6,
+              7
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 6,
+          "basis_idx": 6,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              7
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 7,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 10657,
+      "sym_time_s": 2.13,
+      "proposal_time_s": 10.788,
+      "explanation": "RED has 8 legal moves. Minimax (depth 6) scores (5,2)\u2192(4,1) at +35.0, far ahead of the next-best at -1.0. The LLM correctly selects this move in presentation space (pres[3] \u2192 basis[1]), but _apply_safety_net trimming displaces it from the final 5-move menu due to critical-injection priority reordering. The ranker never sees the +35.0 move. The paired all-legal run correctly chose (5,2)\u2192(4,1) and produced a divergent winning trajectory.",
+      "known_failure": true
+    }
+  ]
+}

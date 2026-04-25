@@ -306,16 +306,22 @@ def _build_legal_moves_with_facts(
     current_player: int,
     strategic_context: dict | None = None,
     override_moves: list[dict] | None = None,
+    score_by_path: dict[tuple, float] | None = None,
 ) -> tuple[int, str, list[tuple[dict, dict]]]:
     """
     Gets all legal moves from the engine (or uses override_moves if supplied),
-    computes facts per move, pre-sorts by symbolic quality, and returns:
+    computes facts per move, optionally injects minimax_score from score_by_path,
+    pre-sorts by symbolic quality, and returns:
       (n_moves, formatted_block_string, sorted_moves_with_facts)
 
     override_moves: when provided (e.g. from symbolic_scored_moves), skips
     get_all_legal_moves and uses this pre-computed list instead.
-    Pre-sort ensures the LLM sees the strongest candidates first,
-    improving recall without removing any moves.
+
+    score_by_path: optional dict mapping path-key tuple -> minimax_score float.
+    When provided, facts["minimax_score"] is set for each move so the score
+    appears in the LEGAL_MOVES payload shown to the LLM.  If facts already
+    contains minimax_score (e.g. injected by the benchmark harness), that
+    existing value is preserved and score_by_path is not used.
     """
     moves = override_moves if override_moves is not None else get_all_legal_moves(board, current_player)
 
@@ -324,13 +330,30 @@ def _build_legal_moves_with_facts(
     game_phase           = ctx.get("game_phase", "MIDGAME")
     strategic_priorities = ctx.get("strategic_priorities", [])
 
-    # Compute facts for every move first
+    # Compute facts for every move, then optionally inject minimax_score.
     moves_with_facts: list[tuple[dict, dict]] = []
     for m in moves:
         try:
             facts = compute_move_facts(board, m, current_player)
         except Exception:
             facts = {}
+        # Resolve minimax_score from three sources (highest priority first):
+        #   1. score_by_path (built from state.symbolic_scored_moves — real pipeline)
+        #   2. m["facts"]["minimax_score"] (injected by benchmark harness or minimax_scorer)
+        #   3. None (score not available; field omitted from payload)
+        if "minimax_score" not in facts:
+            path_key = tuple(tuple(sq) for sq in m["path"])
+            sc: float | None = None
+            if score_by_path is not None:
+                sc = score_by_path.get(path_key)
+            if sc is None:
+                # Fallback: read from the move dict's own pre-computed facts.
+                pre = m.get("facts", {})
+                v = pre.get("minimax_score")
+                if v is not None and v != float("-inf"):
+                    sc = float(v)
+            if sc is not None:
+                facts["minimax_score"] = sc
         moves_with_facts.append((m, facts))
 
     # Record path -> original index BEFORE sorting so we can translate
@@ -364,6 +387,7 @@ def _build_legal_moves_with_facts(
     # positions 5+ even when they are the minimax-best by 94–192 points.
     # This pin guarantees the minimax-best move is always inside n_slots.
     # It runs only when the list has more moves than the LLM will see (> n_slots).
+    mm_pinned_pres_idx: int | None = None
     if len(moves_with_facts) > n_slots:
         try:
             from checkers.engine.minimax import score_move_with_minimax as _smm
@@ -392,9 +416,13 @@ def _build_legal_moves_with_facts(
                 _insert_at = n_slots - 1
                 moves_with_facts.insert(_insert_at, _pin_item)
                 pinned_positions = pinned_positions | frozenset({_insert_at})
+                # Track the pinned presentation index so _apply_safety_net
+                # can protect the minimax-best from eviction during trim.
+                mm_pinned_pres_idx = _insert_at
         except Exception:
             pass   # never break the pipeline; skip pin silently if minimax unavailable
     # ── End minimax-best pin ────────────────────────────────────────────────
+
 
 
 
@@ -415,6 +443,7 @@ def _build_legal_moves_with_facts(
     lines.append("")
 
     for i, (m, facts) in enumerate(moves_with_facts):
+        mm_sc = facts.get("minimax_score")
         essential = {
             "captures_count":              facts.get("captures_count", 0),
             "results_in_king":             facts.get("results_in_king", False),
@@ -432,6 +461,9 @@ def _build_legal_moves_with_facts(
             "counterplay_score":           facts.get("counterplay_score", 0),
             "quiet_move_role":             facts.get("quiet_move_role", "QUIET_DEFAULT"),
         }
+        # Include minimax_score only when it is a finite numeric value.
+        if mm_sc is not None and mm_sc != float("-inf"):
+            essential["minimax_score"] = round(mm_sc, 1)
 
         payload = {
             "type":     m["type"],
@@ -442,243 +474,34 @@ def _build_legal_moves_with_facts(
         prefix = "★ " if i in pinned_positions else "  "
         lines.append(f"{prefix}[{i}] {json.dumps(payload, ensure_ascii=False)}")
 
-    return n, "\n".join(lines), moves_with_facts, path_to_basis_idx
+    return n, "\n".join(lines), moves_with_facts, path_to_basis_idx, mm_pinned_pres_idx
 
 
-def _apply_safety_net(
+def _postprocess_llm_selection(
     selected_indices: list[int],
-    moves_with_facts: list[tuple[dict, dict]],
-    score_state: str,
-    game_phase: str,
-    strategic_priorities: list[str],
-    active_patterns: list[str],
     n_moves: int,
 ) -> list[int]:
     """
-    After LLM proposes selected_indices, inject missing important move classes
-    using symbolic safety-net logic. Preserves LLM order, deduplicates,
-    and enforces strict count rules.
+    Post-LLM index cleanup — validates, deduplicates, and trims only.
 
-    Protected move classes (checked in priority order):
-      1. Best safe move  — lowest our_pieces_threatened_after
-      2. Best promotion  — results_in_king or near_promotion
-      3. Best conversion — winning_conversion_score (when winning)
-      4. Best counterplay — counterplay_score (when losing)
-      5. Best king activation — KING_ACTIVATION role (endgame)
-      6. Best mobility reduction — when STAGNATION_LOOP_RISK or REDUCE_OPP_MOBILITY
+    After the LLM returns selected_indices this function:
+      1. Keeps only integer indices in [0, n_moves).
+      2. Removes duplicates, preserving LLM order.
+      3. If len > target: trims to target from the already-selected list.
+      4. If len < target: does NOT pad with unselected moves.
+
+    It does NOT add any move the LLM did not select.
+    It does NOT inject safe moves, promotion moves, or any symbolic candidate.
     """
-    if not moves_with_facts:
-        return selected_indices
+    target = min(5, max(1, n_moves))  # same count rule as before
+    seen: set[int] = set()
+    cleaned: list[int] = []
+    for i in selected_indices:
+        if isinstance(i, int) and 0 <= i < n_moves and i not in seen:
+            seen.add(i)
+            cleaned.append(i)
+    return cleaned[:target]
 
-    # Determine target count from strict rules
-    if n_moves >= 5:
-        target = 5
-    elif n_moves == 4:
-        target = 4
-    elif n_moves == 3:
-        target = 3
-    elif n_moves == 2:
-        target = 2
-    else:
-        target = 1
-
-    losing_states  = ("CLEARLY_LOSING", "SLIGHTLY_LOSING")
-    winning_states = ("CLEARLY_WINNING", "SLIGHTLY_WINNING")
-
-    def _best_index(condition_fn, score_fn) -> int | None:
-        """Find index of best move matching condition, scored by score_fn."""
-        best_idx   = None
-        best_score = None
-        for i, (m, f) in enumerate(moves_with_facts):
-            if condition_fn(m, f):
-                s = score_fn(f)
-                if best_score is None or s > best_score:
-                    best_score = s
-                    best_idx   = i
-        return best_idx
-
-    # Build candidate injections — ordered by importance
-    injections: list[int] = []
-
-    # 1. Best safe move (our_pieces_threatened_after == 0)
-    safe_idx = _best_index(
-        lambda m, f: f.get("our_pieces_threatened_after", 99) == 0,
-        lambda f: f.get("winning_conversion_score", 0) + f.get("counterplay_score", 0),
-    )
-    if safe_idx is not None:
-        injections.append(safe_idx)
-
-    # 2. Best promotion move
-    promo_idx = _best_index(
-        lambda m, f: f.get("results_in_king", False) or f.get("near_promotion", False),
-        lambda f: (2 if f.get("results_in_king", False) else 1),
-    )
-    if promo_idx is not None:
-        injections.append(promo_idx)
-
-    # 3. Best conversion move (when winning)
-    if score_state in winning_states:
-        conv_idx = _best_index(
-            lambda m, f: f.get("our_pieces_threatened_after", 99) == 0,
-            lambda f: f.get("winning_conversion_score", 0),
-        )
-        if conv_idx is not None:
-            injections.append(conv_idx)
-
-    # 4. Best counterplay move (when losing) — safe moves only
-    if score_state in losing_states:
-        cp_idx = _best_index(
-            lambda m, f: not f.get("unsafe_simple_move", False),
-            lambda f: f.get("counterplay_score", 0),
-        )
-        if cp_idx is not None:
-            injections.append(cp_idx)
-
-    # 4b. Best UNSAFE counterplay move — losing/seek-counterplay regimes only.
-    # Relaxes the unsafe_simple_move=False constraint for exactly ONE move.
-    # Counterplay_score is used as a proxy for minimax strength (minimax is not
-    # yet computed at proposal stage). This ensures the ranker can at least
-    # consider the strongest aggressive legal option in losing positions.
-    if score_state in losing_states or "SEEK_COUNTERPLAY" in strategic_priorities:
-        unsafe_cp_idx = _best_index(
-            lambda m, f: (
-                f.get("unsafe_simple_move", False)          # only relaxed-unsafe moves
-                and f.get("our_pieces_threatened_after", 99) == 1   # single threat only, not 2+
-            ),
-            lambda f: f.get("counterplay_score", 0),
-        )
-        if unsafe_cp_idx is not None:
-            injections.append(unsafe_cp_idx)
-
-    # 5. Best king activation (endgame or king-heavy positions)
-    if game_phase == "ENDGAME" or "ACTIVATE_KINGS" in strategic_priorities:
-        king_idx = _best_index(
-            lambda m, f: (
-                f.get("quiet_move_role", "") == "KING_ACTIVATION"
-                and f.get("our_pieces_threatened_after", 99) == 0
-            ),
-            lambda f: f.get("winning_conversion_score", 0) + f.get("counterplay_score", 0),
-        )
-        if king_idx is not None:
-            injections.append(king_idx)
-
-    # 6. Best blocker move — prevents opponent capture landing
-    blocker_idx = _best_index(
-        lambda m, f: f.get("blocks_opponent_landing", False),
-        lambda f: (
-            1 if f.get("our_pieces_threatened_after", 99) == 0 else 0,
-            -f.get("our_pieces_threatened_after", 99),
-            f.get("winning_conversion_score", 0),
-            f.get("counterplay_score", 0),
-        ),
-    )
-    if blocker_idx is not None:
-        injections.append(blocker_idx)
-        
-    # 6. Best mobility reduction
-    # Include a mobility-reduction move not only in explicit stagnation cases,
-    # but also whenever such a safe move exists and no stronger injected move
-    # already covers that pressure type.
-    mob_idx = _best_index(
-        lambda m, f: (
-            f.get("mobility_reduction", 0) > 0
-            and f.get("our_pieces_threatened_after", 99) == 0
-        ),
-        lambda f: (
-            f.get("mobility_reduction", 0),
-            f.get("winning_conversion_score", 0),
-            f.get("counterplay_score", 0),
-        ),
-    )
-    if mob_idx is not None:
-        injections.append(mob_idx)
-
-    # Merge: critical injections first, then LLM selections, then remaining injections.
-    # This ensures safety-net moves are never crowded out by LLM choices at trim time.
-    seen:   set[int]  = set()
-    merged: list[int] = []
-
-    # Critical injections always go in first (blocker, safe move, promotion)
-    critical = []
-    if safe_idx is not None:
-        critical.append(safe_idx)
-    if promo_idx is not None:
-        critical.append(promo_idx)
-    if blocker_idx is not None:
-        critical.append(blocker_idx)
-
-    for idx in critical:
-        if idx not in seen:
-            seen.add(idx)
-            merged.append(idx)
-
-    # LLM selections next
-    for idx in selected_indices:
-        if 0 <= idx < n_moves and idx not in seen:
-            seen.add(idx)
-            merged.append(idx)
-
-    # Remaining injections last
-    for idx in injections:
-        if idx not in seen:
-            seen.add(idx)
-            merged.append(idx)
-
-    # Enforce target count
-    if len(merged) > target:
-        # Critical protections: safety + promotion + mobility reduction
-        protected = set()
-
-        for idx in injections:
-            _, f = moves_with_facts[idx]
-
-            # Always protect:
-            if f.get("our_pieces_threatened_after", 99) == 0:
-                protected.add(idx)
-
-            if f.get("results_in_king", False) or f.get("near_promotion", False):
-                protected.add(idx)
-
-            if f.get("mobility_reduction", 0) > 0:
-                protected.add(idx)
-
-            if f.get("blocks_opponent_landing", False):
-                protected.add(idx)
-
-        # Fallback: if nothing protected, keep original behavior
-        if not protected:
-            protected = set(injections)
-
-        kept: list[int] = []
-        seen_keep: set[int] = set()
-
-        for i in merged:
-            if i in protected and i not in seen_keep:
-                kept.append(i)
-                seen_keep.add(i)
-
-        for i in merged:
-            if len(kept) >= target:
-                break
-            if i not in seen_keep:
-                kept.append(i)
-                seen_keep.add(i)
-
-        merged = kept[:target]
-
-    # Rebuild seen from current merged state before padding
-    seen = set(merged)
-
-    # If still under target, pad with best remaining moves
-    if len(merged) < target:
-        for i, (m, f) in enumerate(moves_with_facts):
-            if len(merged) >= target:
-                break
-            if i not in seen:
-                seen.add(i)
-                merged.append(i)
-
-    return merged[:target]
 
 
 # ── System prompt ─────────────────────────────────────────────────────────────
@@ -695,6 +518,15 @@ Rules:
 - Never output duplicates.
 
 SELECTION ORDER:
+
+STEP 0 — MINIMAX SCORE (when present)
+When minimax_score is provided in a move's facts, it comes from depth-limited
+symbolic minimax/search and is the strongest available tactical signal under
+the current search depth.
+Higher minimax_score means the move is stronger under that search depth;
+include the highest minimax_score move in your shortlist unless it is clearly
+illegal or unavailable.
+
 
 STEP 1 — SAFETY
 Prefer moves with lower our_pieces_threatened_after.
@@ -745,15 +577,18 @@ Reply with ONLY this JSON object:
 
 def build_proposal_prompts(
     state: CheckersState,
-) -> tuple[str, str, int, list[tuple[dict, dict]], dict]:
+) -> tuple[str, str, int, list[tuple[dict, dict]], dict, int | None]:
     """
-    Returns (system_prompt, user_prompt, n_moves, moves_with_facts, path_to_basis_idx).
+    Returns (system_prompt, user_prompt, n_moves, moves_with_facts, path_to_basis_idx,
+             mm_pinned_pres_idx).
 
-    moves_with_facts  — sorted+pinned presentation order used by _apply_safety_net.
-    path_to_basis_idx — maps each move's path tuple -> its index in the original
-                        expansion_basis (legal_basis or scored_basis) so that
-                        proposal_agent can translate LLM indices before handing
-                        them to format_checker.
+    moves_with_facts    — sorted+pinned presentation order used by the postprocessor.
+    path_to_basis_idx   — maps each move's path tuple -> its index in the original
+                          expansion_basis (legal_basis or scored_basis) so that
+                          proposal_agent can translate LLM indices before handing
+                          them to format_checker.
+    mm_pinned_pres_idx  — presentation index where the minimax-best move was pinned
+                          (None when no pin was needed).
     """
     board   = state.board
     current = state.current_player
@@ -761,15 +596,38 @@ def build_proposal_prompts(
 
     # ── Phase 8: use symbolic_scored_moves as candidate pool ────────────────────
     scored_override: list[dict] | None = None
+    # Build score_by_path from symbolic_scored_moves so minimax_score is visible
+    # to the LLM in the LEGAL_MOVES payload (before-LLM information improvement).
+    # Entry schema from symbolic_decision: {"move": {...}, "minimax_score": float, "rank": int}
+    score_by_path: dict[tuple, float] = {}
     if state.symbolic_scored_moves:
         scored_override = [entry["move"] for entry in state.symbolic_scored_moves]
+        for entry in state.symbolic_scored_moves:
+            # Accept both "minimax_score" (real pipeline) and "score" (legacy/benchmark).
+            sc = entry.get("minimax_score") if "minimax_score" in entry else entry.get("score")
+            if sc is not None:
+                path_key = tuple(tuple(sq) for sq in entry["move"]["path"])
+                score_by_path[path_key] = float(sc)
         print(
             f"[proposal_agent] using symbolic_scored_moves ({len(scored_override)} candidates, "
             f"best_score={state.symbolic_best_score:.1f}, gap={state.symbolic_gap:.1f})"
         )
 
-    n_moves, legal_block, moves_with_facts, path_to_basis_idx = _build_legal_moves_with_facts(
-        board, current, state.strategic_context, override_moves=scored_override
+
+    # Fallback: read minimax_score from state.legal_moves facts when available.
+    # The benchmark harness (and minimax_scorer node) inject scores into those dicts.
+    if not score_by_path:
+        for lm in (getattr(state, 'legal_moves', None) or []):
+            v = lm.get('facts', {}).get('minimax_score')
+            if v is not None and v != float('-inf'):
+                path_key = tuple(tuple(sq) for sq in lm['path'])
+                score_by_path[path_key] = float(v)
+    n_moves, legal_block, moves_with_facts, path_to_basis_idx, mm_pinned_pres_idx = (
+        _build_legal_moves_with_facts(
+            board, current, state.strategic_context,
+            override_moves=scored_override,
+            score_by_path=score_by_path if score_by_path else None,
+        )
     )
 
     user_parts = [
@@ -801,7 +659,7 @@ def build_proposal_prompts(
             "using valid indices from the LEGAL_MOVES list above.",
         ])
 
-    return _SYSTEM_PROMPT, "\n".join(user_parts), n_moves, moves_with_facts, path_to_basis_idx
+    return _SYSTEM_PROMPT, "\n".join(user_parts), n_moves, moves_with_facts, path_to_basis_idx, mm_pinned_pres_idx
 
 
 def _translate_to_basis_indices(
@@ -894,19 +752,16 @@ def call_groq_proposal(system: str, user: str) -> str:
 
 def proposal_agent(state: CheckersState) -> dict:
     """
-    Calls Groq to propose the best 3-5 candidate move indices.
-    After LLM response, applies symbolic safety-net injection (Part B)
-    and score-state-aware role coverage (Part C).
-    Returns raw JSON string for format_checker to parse.
-    Retries up to 3 times with exponential backoff on API failures.
+    Calls Groq to propose the best candidate move indices.
+    After the LLM responds, post-processing validates, deduplicates, and trims
+    only the LLM-selected indices.  It does not add unselected moves.
+    Retries up to 9 times (3×10s/20s/40s cycles) on transient 429s.
     """
-    system, user, n_moves, moves_with_facts, path_to_basis_idx = build_proposal_prompts(state)
+    system, user, n_moves, moves_with_facts, path_to_basis_idx, mm_pinned_pres_idx = (
+        build_proposal_prompts(state)
+    )
 
     ctx                  = state.strategic_context or {}
-    score_state          = ctx.get("score_state", "EQUAL")
-    game_phase           = ctx.get("game_phase", "MIDGAME")
-    strategic_priorities = ctx.get("strategic_priorities", [])
-    active_patterns      = ctx.get("active_patterns", [])
 
     # ── ANSI colour helpers (safe on all POSIX terminals) ────────────────────
     _RED   = "\033[91m"
@@ -1028,27 +883,77 @@ def proposal_agent(state: CheckersState) -> dict:
             "last_completed_node": "proposal_agent",
         }
 
-    # ── Part B+C: symbolic safety-net + role coverage ─────────────────────────
-    selected_indices = _apply_safety_net(
-        selected_indices,
-        moves_with_facts,
-        score_state,
-        game_phase,
-        strategic_priorities,
-        active_patterns,
-        n_moves,
+    # ── Compute actual_best_pres_idx (for diagnostics only) ─────────────────
+    # 1. Prefer state.symbolic_best_move["path"] if set.
+    # 2. Else state.symbolic_scored_moves[0]["move"]["path"].
+    # 3. Else None.
+    _actual_best_path: list | None = None
+    try:
+        _sbm = getattr(state, "symbolic_best_move", None)
+        if _sbm and isinstance(_sbm, dict) and "path" in _sbm:
+            _actual_best_path = _sbm["path"]
+    except Exception:
+        pass
+    if _actual_best_path is None and state.symbolic_scored_moves:
+        try:
+            _actual_best_path = state.symbolic_scored_moves[0]["move"]["path"]
+        except Exception:
+            pass
+
+    _actual_best_pres_idx: int | None = None
+    if _actual_best_path is not None:
+        _best_key = tuple(tuple(sq) for sq in _actual_best_path)
+        for _pi, (_mv, _) in enumerate(moves_with_facts):
+            if tuple(tuple(sq) for sq in _mv["path"]) == _best_key:
+                _actual_best_pres_idx = _pi
+                break
+
+    # ── Snapshot raw LLM presentation indices BEFORE postprocess ────────────
+    _raw_pres_indices: list[int] = list(selected_indices)
+    _raw_llm_selected_actual_best = (
+        _actual_best_pres_idx is not None
+        and _actual_best_pres_idx in _raw_pres_indices
     )
 
-    # Translate sorted+pinned indices -> expansion_basis indices so that
-    # format_checker maps each number to the move the LLM actually intended.
+    # ── Post-LLM processing: validate / deduplicate / trim only ───────────
+    selected_indices = _postprocess_llm_selection(selected_indices, n_moves)
+
+    _final_pres_indices: list[int] = list(selected_indices)
+    _final_contains_actual_best = (
+        _actual_best_pres_idx is not None
+        and _actual_best_pres_idx in _final_pres_indices
+    )
+    _dropped_by_postprocess = _raw_llm_selected_actual_best and not _final_contains_actual_best
+    _added_after_llm = any(i not in _raw_pres_indices for i in _final_pres_indices)
+
+    # ── Logging ─────────────────────────────────────────────────────
+    print(f"[proposal_agent] Raw output: '{raw.strip()}'")
+    print(f"[proposal_agent] actual_best_path={_actual_best_path}  actual_best_pres_idx={_actual_best_pres_idx}")
+    print(f"[proposal_agent] mm_pinned_pres_idx={mm_pinned_pres_idx} (pin slot, not necessarily best)")
+    print(f"[proposal_agent] Raw LLM presentation indices: {_raw_pres_indices}")
+    print(
+        f"[proposal_agent] "
+        f"raw_llm_selected_actual_best={_raw_llm_selected_actual_best}  "
+        f"final_contains_actual_best={_final_contains_actual_best}  "
+        f"dropped_by_postprocess={_dropped_by_postprocess}  "
+        f"added_after_llm={_added_after_llm}"
+    )
+    print(f"[proposal_agent] Post-postprocess presentation indices: {_final_pres_indices}")
+
+    # ── Translate presentation indices -> expansion_basis indices ──────────
     selected_indices = _translate_to_basis_indices(
         selected_indices, moves_with_facts, path_to_basis_idx
     )
 
-    # Re-serialize for format_checker (same format as before)
     final_raw = json.dumps({"selected_indices": selected_indices})
-    print(f"[proposal_agent] Raw output: '{raw.strip()}'")
-    print(f"[proposal_agent] Selected indices after safety-net+translation: {selected_indices}")
+    print(f"[proposal_agent] Final basis indices (expansion_basis): {selected_indices}")
+    _exp_basis = (
+        [entry["move"] for entry in state.symbolic_scored_moves]
+        if state.symbolic_scored_moves
+        else get_all_legal_moves(state.board, state.current_player)
+    )
+    _final_paths = [_exp_basis[i]["path"] for i in selected_indices if 0 <= i < len(_exp_basis)]
+    print(f"[proposal_agent] Final proposed paths: {_final_paths}")
 
     return {
         "proposed_moves": final_raw,

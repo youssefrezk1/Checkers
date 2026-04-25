@@ -1,0 +1,357 @@
+{
+  "meta": {
+    "depth": 6,
+    "near_margin": 15.0,
+    "position_count": 1,
+    "llm_model": "llama-3.1-8b-instant",
+    "api_key_set": true,
+    "key_prefix": "gsk_",
+    "key_length": 56,
+    "key_sha256_12": "c4ec47952a4b",
+    "env_path": "/Users/youssefrezk/Desktop/bachelor_project/.env",
+    "output": "logs/proposal_key_smoke.json"
+  },
+  "summary": {
+    "total_positions": 1,
+    "errored_positions": 0,
+    "fallback_positions": 0,
+    "llm_positions": 1,
+    "best_move_coverage_all_pct": 100.0,
+    "near_best_coverage_all_pct": 100.0,
+    "best_move_coverage_llm_pct": 100.0,
+    "near_best_coverage_llm_pct": 100.0,
+    "avg_score_gap": 0.0,
+    "worst_misses": [],
+    "misses_by_tag": {
+      "promotion": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "ranker_tie": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "tie_break": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      },
+      "known_failure": {
+        "total": 1,
+        "best_covered": 1,
+        "near_best_covered": 1,
+        "fallbacks": 0,
+        "best_pct": 100.0,
+        "near_best_pct": 100.0
+      }
+    },
+    "recommendation": "PASS \u2014 LLM best-move coverage 100.0% \u2265 90%.",
+    "near_margin_used": 15.0
+  },
+  "results": [
+    {
+      "position_id": "pos_t41_promo_tiebreak",
+      "category": "known_failure",
+      "tags": [
+        "promotion",
+        "ranker_tie",
+        "tie_break",
+        "known_failure"
+      ],
+      "side_to_move": "RED",
+      "depth": 6,
+      "legal_move_count": 8,
+      "proposal_count": 5,
+      "proposal_backend": "llama-3.1-8b-instant",
+      "fallback_used": false,
+      "proposal_error": null,
+      "best_sym_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "best_sym_score": 96.0,
+      "near_best_margin": 15.0,
+      "near_best_threshold": 81.0,
+      "score_table_top5": [
+        {
+          "rank": 1,
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          "score": 96.0
+        },
+        {
+          "rank": 2,
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "score": 96.0
+        },
+        {
+          "rank": 3,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 96.0
+        },
+        {
+          "rank": 4,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "score": 37.0
+        },
+        {
+          "rank": 5,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": 33.0
+        }
+      ],
+      "proposed_basis_indices": [
+        1,
+        0,
+        4,
+        5,
+        7
+      ],
+      "proposed_paths": [
+        [
+          [
+            2,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            1,
+            6
+          ],
+          [
+            0,
+            7
+          ]
+        ],
+        [
+          [
+            4,
+            1
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        [
+          [
+            5,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        [
+          [
+            5,
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ]
+      ],
+      "proposed_scores": [
+        96.0,
+        96.0,
+        -11.0,
+        -51.0,
+        33.0
+      ],
+      "best_proposed_score": 96.0,
+      "score_gap": 0.0,
+      "best_move_covered": true,
+      "near_best_covered": true,
+      "rank_of_best_proposed": 1,
+      "miss_reasons": [],
+      "index_mapping_snapshot": [
+        {
+          "presentation_idx": 0,
+          "basis_idx": 0,
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 1,
+          "basis_idx": 1,
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 2,
+          "basis_idx": 4,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 3,
+          "basis_idx": 5,
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 4,
+          "basis_idx": 6,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 5,
+          "basis_idx": 7,
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 6,
+          "basis_idx": 3,
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ]
+        },
+        {
+          "presentation_idx": 7,
+          "basis_idx": 2,
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ],
+      "sym_nodes": 7303,
+      "sym_time_s": 1.298,
+      "proposal_time_s": 0.437,
+      "explanation": "Three moves tie at +96 by depth-6 minimax. The promotion (1,6)\u2192(0,7) must be selected by the tie-break rule (results_in_king=True preferred over near-tie). This verifies the promotion tie-break fix is active.",
+      "known_failure": true
+    }
+  ]
+}
