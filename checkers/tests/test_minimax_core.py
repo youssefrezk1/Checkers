@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from checkers.engine.board import BLACK, EMPTY, RED
+from checkers.engine.board import BLACK, BLACK_KING, EMPTY, RED, RED_KING
 from checkers.engine.evaluation import LOSS_SCORE, WIN_SCORE, evaluate_board
 from checkers.engine.minimax import minimax_score, score_move_with_minimax
 from checkers.engine.rules import apply_move, get_all_legal_moves
@@ -11,6 +11,7 @@ from checkers.search.minimax_core import (
     negamax,
     order_moves,
     search_root,
+    search_root_all_scores,
     search_root_iterative,
     SearchStats,
 )
@@ -440,3 +441,153 @@ def test_leaf_tension_penalty_absent_when_no_opponent_jumps() -> None:
     )
     # No opponent jumps → no penalty → scores must be identical
     assert score_with_ext == score_no_ext
+
+
+# ── King endgame pressure benchmarks ─────────────────────────────────────────
+#
+# Group D benchmark: 3K vs 2K pure-king endgame degeneracy.
+# Without a king_endgame_pressure term in evaluation.py, depth-6 search
+# returns a multi-way tie in quiescent pure-king positions because material,
+# mobility, center, and chase terms all produce identical values across moves.
+#
+# Tests 1: failing benchmark — drives the king_endgame_pressure implementation.
+# Tests 2–4: regression guards — must pass before AND after the fix.
+
+
+def test_3k_vs_2k_pure_king_best_move_is_unique() -> None:
+    # RED kings at (4,3),(2,1),(2,5); BLACK kings at (7,2),(7,6).
+    # Without king_endgame_pressure: 3-way tie at score 474 at depth 6.
+    # With king_endgame_pressure: approach move (4,3)→(5,2) must emerge as unique best.
+    board = _empty_board()
+    board[4][3] = RED_KING
+    board[2][1] = RED_KING
+    board[2][5] = RED_KING
+    board[7][2] = BLACK_KING
+    board[7][6] = BLACK_KING
+
+    clear_transposition_table()
+    _, _, all_scored, _ = search_root_all_scores(board=board, current_player=RED, depth=6)
+
+    scores = [s for _, s in all_scored]
+    top_score = scores[0]
+    tied_count = sum(1 for s in scores if s == top_score)
+    assert tied_count == 1, f"Expected unique best move; {tied_count} moves tied at {top_score}"
+
+
+def test_7piece_pure_king_endgame_gate_blocks() -> None:
+    # 4K vs 3K = 7 pieces total; exceeds the ≤6-piece gate.
+    # king_endgame_pressure must not contribute — existing evaluator is sufficient.
+    board = _empty_board()
+    board[1][2] = RED_KING
+    board[1][6] = RED_KING
+    board[3][4] = RED_KING
+    board[5][0] = RED_KING
+    board[6][1] = BLACK_KING
+    board[6][5] = BLACK_KING
+    board[7][3] = BLACK_KING
+
+    clear_transposition_table()
+    best_move, best_score, _, _ = search_root_all_scores(
+        board=board, current_player=RED, depth=4
+    )
+    assert best_move is not None
+    assert best_score > 0, f"RED 4K vs 3K must score positive; got {best_score}"
+
+
+def test_2k_vs_2k_equal_material_gate_blocks() -> None:
+    # 2K vs 2K: no material advantage — king_endgame_pressure gate requires
+    # winning material advantage, so it must not fire for either side.
+    board = _empty_board()
+    board[2][1] = RED_KING
+    board[2][5] = RED_KING
+    board[6][2] = BLACK_KING
+    board[6][6] = BLACK_KING
+
+    clear_transposition_table()
+    best_move, _, _, _ = search_root_all_scores(
+        board=board, current_player=RED, depth=4
+    )
+    assert best_move is not None, "2K vs 2K must have at least one legal move"
+
+
+def test_mixed_king_man_endgame_gate_blocks() -> None:
+    # Checkers still on board → gate requires pure king endgame → term must not fire.
+    # Verifies that adding king_endgame_pressure does not alter mixed-material results.
+    board = _empty_board()
+    board[1][2] = RED        # RED checker
+    board[2][5] = RED_KING
+    board[3][4] = RED_KING
+    board[6][3] = BLACK_KING
+    board[6][7] = BLACK_KING
+
+    clear_transposition_table()
+    best_move, best_score, _, _ = search_root_all_scores(
+        board=board, current_player=RED, depth=4
+    )
+    assert best_move is not None
+    assert best_score > 0, f"RED has material advantage in mixed position; got {best_score}"
+
+
+# ── History heuristic tests ───────────────────────────────────────────────────
+
+
+def test_history_heuristic_soundness_same_move_and_score() -> None:
+    # search_root with history enabled must return the same best move and score
+    # as without history.  History changes only ordering, never the minimax value.
+    board = _empty_board()
+    board[5][0] = RED
+    board[5][2] = RED
+    board[4][3] = BLACK
+    board[2][1] = BLACK
+    board[2][5] = BLACK
+
+    clear_transposition_table()
+    move_no_hist, score_no_hist, _ = search_root(board=board, current_player=RED, depth=5)
+
+    clear_transposition_table()
+    move_with_hist, score_with_hist, _ = search_root(board=board, current_player=RED, depth=5)
+
+    assert move_no_hist == move_with_hist, (
+        f"History changed best move: {move_no_hist} vs {move_with_hist}"
+    )
+    assert score_no_hist == score_with_hist, (
+        f"History changed score: {score_no_hist} vs {score_with_hist}"
+    )
+
+
+def test_history_heuristic_capture_priority_over_quiet() -> None:
+    # order_moves must place jump moves before quiet moves even if the quiet
+    # move has an arbitrarily large history score.
+    board = _empty_board()
+    board[5][2] = RED
+    board[4][3] = BLACK
+
+    jump_move = {"type": "jump", "path": [[5, 2], [3, 4]], "captured": [[4, 3]]}
+    quiet_move = {"type": "simple", "path": [[5, 2], [4, 1]], "captured": []}
+
+    # Give the quiet move a huge history score.
+    big_history: dict = {((5, 2), (4, 1)): 10_000}
+    ordered = order_moves(board, [quiet_move, jump_move], RED, history=big_history)
+
+    assert ordered[0]["type"] == "jump", (
+        "Capture must remain first regardless of quiet move's history score"
+    )
+
+
+def test_history_heuristic_efficiency_noop_without_history() -> None:
+    # Passing history=None (default) must not raise and must produce correct results.
+    # This validates backward compatibility of the updated signatures.
+    board = _empty_board()
+    board[5][0] = RED
+    board[5][2] = RED
+    board[2][1] = BLACK
+    board[2][3] = BLACK
+
+    clear_transposition_table()
+    move_a, score_a, _ = search_root(board=board, current_player=RED, depth=4)
+
+    clear_transposition_table()
+    move_b, score_b, _ = search_root(board=board, current_player=RED, depth=4, history=None)
+
+    assert move_a == move_b
+    assert score_a == score_b

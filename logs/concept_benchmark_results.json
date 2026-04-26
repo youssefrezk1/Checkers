@@ -1,0 +1,1054 @@
+{
+  "meta": {
+    "d6_depth": 6,
+    "d8_depth": 8,
+    "d8_gap_trigger": 30.0,
+    "win_threshold": 9000.0,
+    "scorer": "search_root_all_scores"
+  },
+  "results": [
+    {
+      "id": "P01",
+      "concept": "Two-for-One Shot \u2014 double-jump wins over single jump",
+      "category": "TACTICAL",
+      "verdict": "PASS",
+      "diagnosis": "expected path is rank-1 (score 255.0)",
+      "expected_note": "double jump (5,0)\u2192(3,2)\u2192(1,4) must be rank-1",
+      "n_legal": 2,
+      "d6_best_path": [
+        [
+          5,
+          0
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          1,
+          4
+        ]
+      ],
+      "d6_best_score": 255.0,
+      "d6_top_gap": 216.0,
+      "d6_elapsed_s": 0.02,
+      "d6_nodes": 147,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              3,
+              2
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "score": 255.0
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "score": 39.0
+        }
+      ]
+    },
+    {
+      "id": "P02",
+      "concept": "Three-for-One Shot \u2014 multi-jump chain preferred over single jump",
+      "category": "TACTICAL",
+      "verdict": "PASS",
+      "diagnosis": "rank-1 is multi-jump (2 captures, score -330.0)",
+      "expected_note": "any double-jump (len(captured)>=2) must be rank-1; single jump (3,0) is inferior",
+      "n_legal": 5,
+      "d6_best_path": [
+        [
+          5,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "d6_best_score": -330.0,
+      "d6_top_gap": 8.0,
+      "d6_elapsed_s": 0.08,
+      "d6_nodes": 557,
+      "d8_run": true,
+      "d8_best_path": [
+        [
+          5,
+          2
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "d8_best_score": -332.0,
+      "d8_elapsed_s": 0.17,
+      "d8_nodes": 1607,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "score": -330.0
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "score": -338.0
+        },
+        {
+          "path": [
+            [
+              5,
+              6
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "score": -344.0
+        }
+      ]
+    },
+    {
+      "id": "P03",
+      "concept": "King Forced Capture Loop \u2014 king sweeps all 4 BLACK men",
+      "category": "TACTICAL",
+      "verdict": "INFO",
+      "diagnosis": "rank-1=(5,4)\u2192(3,2)\u2192(1,4)\u2192(3,6)\u2192(5,4) score=10000.0",
+      "expected_note": "only legal moves are 4-capture loops; both are equivalent; no selection failure possible",
+      "n_legal": 2,
+      "d6_best_path": [
+        [
+          5,
+          4
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          1,
+          4
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          5,
+          4
+        ]
+      ],
+      "d6_best_score": 10000.0,
+      "d6_top_gap": 0.0,
+      "d6_elapsed_s": 0.0,
+      "d6_nodes": 3,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              3,
+              2
+            ],
+            [
+              1,
+              4
+            ],
+            [
+              3,
+              6
+            ],
+            [
+              5,
+              4
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              3,
+              6
+            ],
+            [
+              1,
+              4
+            ],
+            [
+              3,
+              2
+            ],
+            [
+              5,
+              4
+            ]
+          ],
+          "score": 10000.0
+        }
+      ]
+    },
+    {
+      "id": "P04",
+      "concept": "Promotion via Forced Jump",
+      "category": "TACTICAL",
+      "verdict": "PASS",
+      "diagnosis": "expected path is rank-1 (score 60.0)",
+      "expected_note": "(2,3)\u2192(0,5): only legal jump, promotes RED to king",
+      "n_legal": 1,
+      "d6_best_path": [
+        [
+          2,
+          3
+        ],
+        [
+          0,
+          5
+        ]
+      ],
+      "d6_best_score": 60.0,
+      "d6_top_gap": null,
+      "d6_elapsed_s": 0.0,
+      "d6_nodes": 24,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              2,
+              3
+            ],
+            [
+              0,
+              5
+            ]
+          ],
+          "score": 60.0
+        }
+      ]
+    },
+    {
+      "id": "P05",
+      "concept": "Two-for-One via Compulsory Recapture (confirmed D6 pass)",
+      "category": "TACTICAL",
+      "verdict": "PASS",
+      "diagnosis": "expected path is rank-1 (score 255.0)",
+      "expected_note": "identical to P01 \u2014 second confirmation",
+      "n_legal": 2,
+      "d6_best_path": [
+        [
+          5,
+          0
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          1,
+          4
+        ]
+      ],
+      "d6_best_score": 255.0,
+      "d6_top_gap": 216.0,
+      "d6_elapsed_s": 0.02,
+      "d6_nodes": 147,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              5,
+              0
+            ],
+            [
+              3,
+              2
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "score": 255.0
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "score": 39.0
+        }
+      ]
+    },
+    {
+      "id": "P06",
+      "concept": "Corner Cage \u2014 RED closes BLACK king into (0,7) corner",
+      "category": "CAGE",
+      "verdict": "PASS",
+      "diagnosis": "best score 10000.0 >= threshold 9000",
+      "expected_note": "moves ending near (0,7) must score WIN=10000; moves into center score ~-97",
+      "n_legal": 4,
+      "d6_best_path": [
+        [
+          3,
+          6
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "d6_best_score": 10000.0,
+      "d6_top_gap": 0.0,
+      "d6_elapsed_s": 0.01,
+      "d6_nodes": 104,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              3,
+              6
+            ],
+            [
+              2,
+              5
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "path": [
+            [
+              3,
+              6
+            ],
+            [
+              2,
+              7
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": -97.0
+        }
+      ]
+    },
+    {
+      "id": "P07",
+      "concept": "Corner Trap Terminal \u2014 RED wins immediately at (7,0)",
+      "category": "CAGE",
+      "verdict": "PASS",
+      "diagnosis": "best score 10000.0 >= threshold 9000",
+      "expected_note": "best score must be WIN (>=9000); any move to (5,2) achieves it",
+      "n_legal": 6,
+      "d6_best_path": [
+        [
+          4,
+          1
+        ],
+        [
+          5,
+          2
+        ]
+      ],
+      "d6_best_score": 10000.0,
+      "d6_top_gap": 0.0,
+      "d6_elapsed_s": 0.01,
+      "d6_nodes": 184,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              4,
+              1
+            ],
+            [
+              5,
+              2
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "path": [
+            [
+              6,
+              1
+            ],
+            [
+              5,
+              2
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "path": [
+            [
+              6,
+              1
+            ],
+            [
+              5,
+              0
+            ]
+          ],
+          "score": 178.0
+        }
+      ]
+    },
+    {
+      "id": "P08",
+      "concept": "Promotion Square Quality \u2014 non-corner preferred over (0,7) corner",
+      "category": "CAGE",
+      "verdict": "PASS",
+      "diagnosis": "rank-1=(3,2)\u2192(2,1) (not corner); corner (0,7) promo is rank-4",
+      "expected_note": "promotion to (0,7) must NOT be rank-1; any non-corner promotion or (3,2) advance preferred",
+      "n_legal": 5,
+      "d6_best_path": [
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "d6_best_score": 540.0,
+      "d6_top_gap": 133.0,
+      "d6_elapsed_s": 0.03,
+      "d6_nodes": 276,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "score": 540.0
+        },
+        {
+          "path": [
+            [
+              1,
+              4
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "score": 407.0
+        },
+        {
+          "path": [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              5
+            ]
+          ],
+          "score": 407.0
+        }
+      ]
+    },
+    {
+      "id": "P09",
+      "concept": "2K vs 1K \u2014 open field opposition",
+      "category": "KING_ENDGAME",
+      "verdict": "PASS",
+      "diagnosis": "best score 10000.0 >= threshold 9000",
+      "expected_note": "all RED moves must score WIN (>=9000)",
+      "n_legal": 8,
+      "d6_best_path": [
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "d6_best_score": 10000.0,
+      "d6_top_gap": 0.0,
+      "d6_elapsed_s": 0.09,
+      "d6_nodes": 1068,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 10000.0
+        }
+      ]
+    },
+    {
+      "id": "P10",
+      "concept": "2K vs 1K \u2014 approach to double-corner refuge",
+      "category": "KING_ENDGAME",
+      "verdict": "PASS",
+      "diagnosis": "best score 548.0 >= threshold 0",
+      "expected_note": "best score should be WIN (>=9000) or near-WIN (>=0); failure = score <= -100 indicating horizon draw",
+      "n_legal": 8,
+      "d6_best_path": [
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "d6_best_score": 548.0,
+      "d6_top_gap": 0.0,
+      "d6_elapsed_s": 0.07,
+      "d6_nodes": 997,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "score": 548.0
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "score": 548.0
+        },
+        {
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          "score": 548.0
+        }
+      ]
+    },
+    {
+      "id": "P11",
+      "concept": "2K vs 1K \u2014 bridge formation forcing corner",
+      "category": "KING_ENDGAME",
+      "verdict": "PASS",
+      "diagnosis": "best score 10000.0 >= threshold 9000",
+      "expected_note": "best score should be WIN (>=9000); engine must see the 2K vs 1K forced win",
+      "n_legal": 8,
+      "d6_best_path": [
+        [
+          4,
+          3
+        ],
+        [
+          3,
+          4
+        ]
+      ],
+      "d6_best_score": 10000.0,
+      "d6_top_gap": 9468.0,
+      "d6_elapsed_s": 0.09,
+      "d6_nodes": 1293,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "path": [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              4
+            ]
+          ],
+          "score": 532.0
+        },
+        {
+          "path": [
+            [
+              2,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "score": 526.0
+        }
+      ]
+    },
+    {
+      "id": "P12",
+      "concept": "3K vs 2K \u2014 forcing exchange to 2K vs 1K",
+      "category": "KING_ENDGAME",
+      "verdict": "PASS",
+      "diagnosis": "best score 10000.0 >= threshold 9000",
+      "expected_note": "best score must be WIN (>=9000); engine plans exchange to 2K vs 1K",
+      "n_legal": 2,
+      "d6_best_path": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          0
+        ]
+      ],
+      "d6_best_score": 10000.0,
+      "d6_top_gap": 0.0,
+      "d6_elapsed_s": 0.02,
+      "d6_nodes": 260,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              1,
+              2
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "score": 10000.0
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "score": 10000.0
+        }
+      ]
+    },
+    {
+      "id": "P13",
+      "concept": "3K vs 2K \u2014 avoid losing exchange (material preservation)",
+      "category": "STRATEGY",
+      "verdict": "INFO",
+      "diagnosis": "rank-1=(1,4)\u2192(3,2) score=550.0",
+      "expected_note": "informational; rank-1 should prefer moves scoring >= second option; avoid reducing to 1K vs 1K draw",
+      "n_legal": 4,
+      "d6_best_path": [
+        [
+          1,
+          4
+        ],
+        [
+          3,
+          2
+        ]
+      ],
+      "d6_best_score": 550.0,
+      "d6_top_gap": 8.0,
+      "d6_elapsed_s": 0.11,
+      "d6_nodes": 1334,
+      "d8_run": true,
+      "d8_best_path": [
+        [
+          3,
+          4
+        ],
+        [
+          5,
+          2
+        ]
+      ],
+      "d8_best_score": 10000.0,
+      "d8_elapsed_s": 0.23,
+      "d8_nodes": 3542,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              1,
+              4
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "score": 550.0
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              5,
+              2
+            ]
+          ],
+          "score": 542.0
+        },
+        {
+          "path": [
+            [
+              5,
+              4
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "score": 534.0
+        }
+      ]
+    },
+    {
+      "id": "P14",
+      "concept": "Forcing Opponent Kings to the Side (2K=2K positional)",
+      "category": "STRATEGY",
+      "verdict": "INFO",
+      "diagnosis": "rank-1=(3,4)\u2192(4,5) score=36.0",
+      "expected_note": "informational; best move restricts BLACK king mobility; report mobility after each option",
+      "n_legal": 8,
+      "d6_best_path": [
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "d6_best_score": 36.0,
+      "d6_top_gap": 18.0,
+      "d6_elapsed_s": 0.3,
+      "d6_nodes": 2720,
+      "d8_run": true,
+      "d8_best_path": [
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "d8_best_score": 14.0,
+      "d8_elapsed_s": 0.58,
+      "d8_nodes": 7570,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ],
+          "score": 36.0
+        },
+        {
+          "path": [
+            [
+              5,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 18.0
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          "score": 14.0
+        }
+      ]
+    },
+    {
+      "id": "P15",
+      "concept": "Reduction of Forces \u2014 correct tactical exchange choice",
+      "category": "TACTICAL",
+      "verdict": "INFO",
+      "diagnosis": "no multi-jump available; all moves are single captures or simples",
+      "expected_note": "both double-jumps score equally at D6 (+165); engine must prefer a jump over a non-jump",
+      "n_legal": 2,
+      "d6_best_path": [
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "d6_best_score": 165.0,
+      "d6_top_gap": 0.0,
+      "d6_elapsed_s": 0.0,
+      "d6_nodes": 39,
+      "d8_run": false,
+      "d8_best_path": null,
+      "d8_best_score": null,
+      "d8_elapsed_s": null,
+      "d8_nodes": null,
+      "d6_top3": [
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "score": 165.0
+        },
+        {
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "score": 165.0
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,786 @@
+{
+  "meta": {
+    "game_log": "logs/game_20260425_233613_685721.jsonl",
+    "target_turns": [
+      51,
+      67,
+      83,
+      107
+    ],
+    "d6_depth": 6,
+    "d8_depth": 8,
+    "scorer": "search_root_all_scores",
+    "policies": [
+      {
+        "label": "A_thr30",
+        "gap_threshold": 30.0,
+        "include_exact_ties": false,
+        "promotion_tie_only": false
+      },
+      {
+        "label": "B_thr50",
+        "gap_threshold": 50.0,
+        "include_exact_ties": false,
+        "promotion_tie_only": false
+      },
+      {
+        "label": "C_thr60",
+        "gap_threshold": 60.0,
+        "include_exact_ties": false,
+        "promotion_tie_only": false
+      },
+      {
+        "label": "D_promtie",
+        "gap_threshold": 30.0,
+        "include_exact_ties": false,
+        "promotion_tie_only": true
+      }
+    ]
+  },
+  "results": [
+    {
+      "turn": 51,
+      "chosen_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "chosen_is_promo": true,
+      "any_legal_promo": true,
+      "total_pieces": 10,
+      "d6_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "d6_best_score": 124.0,
+      "d6_chosen_score": 124.0,
+      "d6_gap": 0.0,
+      "d6_tie_count": 2,
+      "d8_best_path": [
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "d8_best_score": 126.0,
+      "d8_chosen_score": 124.0,
+      "d8_gap": 2.0,
+      "d8_tie_count": 1,
+      "d8_elapsed_s": 2.0,
+      "d8_nodes": 12833,
+      "top1_changed": true,
+      "d6_top5": [
+        [
+          [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          124.0
+        ],
+        [
+          [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          124.0
+        ],
+        [
+          [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          107.0
+        ],
+        [
+          [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          -2.0
+        ]
+      ],
+      "d8_top5": [
+        [
+          [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          126.0
+        ],
+        [
+          [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          124.0
+        ],
+        [
+          [
+            [
+              4,
+              1
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          124.0
+        ],
+        [
+          [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          31.0
+        ]
+      ],
+      "policy_triggers": {
+        "A_thr30": {
+          "triggered": false,
+          "reason": "exact_tie_skipped"
+        },
+        "B_thr50": {
+          "triggered": false,
+          "reason": "exact_tie_skipped"
+        },
+        "C_thr60": {
+          "triggered": false,
+          "reason": "exact_tie_skipped"
+        },
+        "D_promtie": {
+          "triggered": true,
+          "reason": "exact_tie+promotion"
+        }
+      }
+    },
+    {
+      "turn": 67,
+      "chosen_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "chosen_is_promo": true,
+      "any_legal_promo": true,
+      "total_pieces": 10,
+      "d6_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "d6_best_score": 368.0,
+      "d6_chosen_score": 368.0,
+      "d6_gap": 35.0,
+      "d6_tie_count": 1,
+      "d8_best_path": [
+        [
+          1,
+          6
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "d8_best_score": 443.0,
+      "d8_chosen_score": 443.0,
+      "d8_gap": 97.0,
+      "d8_tie_count": 1,
+      "d8_elapsed_s": 3.49,
+      "d8_nodes": 15461,
+      "top1_changed": false,
+      "d6_top5": [
+        [
+          [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          368.0
+        ],
+        [
+          [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          333.0
+        ],
+        [
+          [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          210.0
+        ],
+        [
+          [
+            [
+              0,
+              5
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          96.0
+        ]
+      ],
+      "d8_top5": [
+        [
+          [
+            [
+              1,
+              6
+            ],
+            [
+              0,
+              7
+            ]
+          ],
+          443.0
+        ],
+        [
+          [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          346.0
+        ],
+        [
+          [
+            [
+              5,
+              0
+            ],
+            [
+              4,
+              1
+            ]
+          ],
+          273.0
+        ],
+        [
+          [
+            [
+              0,
+              5
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          107.0
+        ]
+      ],
+      "policy_triggers": {
+        "A_thr30": {
+          "triggered": false,
+          "reason": "gap=35.0>30.0"
+        },
+        "B_thr50": {
+          "triggered": true,
+          "reason": "gap=35.0<=50.0"
+        },
+        "C_thr60": {
+          "triggered": true,
+          "reason": "gap=35.0<=60.0"
+        },
+        "D_promtie": {
+          "triggered": false,
+          "reason": "gap=35.0>30.0"
+        }
+      }
+    },
+    {
+      "turn": 83,
+      "chosen_path": [
+        [
+          3,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "chosen_is_promo": false,
+      "any_legal_promo": false,
+      "total_pieces": 8,
+      "d6_best_path": [
+        [
+          2,
+          5
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "d6_best_score": 521.0,
+      "d6_chosen_score": 521.0,
+      "d6_gap": 0.0,
+      "d6_tie_count": 2,
+      "d8_best_path": [
+        [
+          3,
+          2
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "d8_best_score": 508.0,
+      "d8_chosen_score": 484.0,
+      "d8_gap": 14.0,
+      "d8_tie_count": 1,
+      "d8_elapsed_s": 9.51,
+      "d8_nodes": 63074,
+      "top1_changed": true,
+      "d6_top5": [
+        [
+          [
+            [
+              2,
+              5
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          521.0
+        ],
+        [
+          [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          521.0
+        ],
+        [
+          [
+            [
+              3,
+              0
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          504.0
+        ],
+        [
+          [
+            [
+              3,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          472.0
+        ],
+        [
+          [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          455.0
+        ]
+      ],
+      "d8_top5": [
+        [
+          [
+            [
+              3,
+              2
+            ],
+            [
+              4,
+              3
+            ]
+          ],
+          508.0
+        ],
+        [
+          [
+            [
+              3,
+              0
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          494.0
+        ],
+        [
+          [
+            [
+              3,
+              2
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          484.0
+        ],
+        [
+          [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          482.0
+        ],
+        [
+          [
+            [
+              2,
+              5
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          482.0
+        ]
+      ],
+      "policy_triggers": {
+        "A_thr30": {
+          "triggered": false,
+          "reason": "exact_tie_skipped"
+        },
+        "B_thr50": {
+          "triggered": false,
+          "reason": "exact_tie_skipped"
+        },
+        "C_thr60": {
+          "triggered": false,
+          "reason": "exact_tie_skipped"
+        },
+        "D_promtie": {
+          "triggered": false,
+          "reason": "exact_tie_no_promotion"
+        }
+      }
+    },
+    {
+      "turn": 107,
+      "chosen_path": [
+        [
+          2,
+          1
+        ],
+        [
+          3,
+          2
+        ]
+      ],
+      "chosen_is_promo": false,
+      "any_legal_promo": false,
+      "total_pieces": 5,
+      "d6_best_path": [
+        [
+          4,
+          3
+        ],
+        [
+          3,
+          4
+        ]
+      ],
+      "d6_best_score": 607.0,
+      "d6_chosen_score": 599.0,
+      "d6_gap": 0.0,
+      "d6_tie_count": 2,
+      "d8_best_path": [
+        [
+          2,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "d8_best_score": 613.0,
+      "d8_chosen_score": 613.0,
+      "d8_gap": 0.0,
+      "d8_tie_count": 6,
+      "d8_elapsed_s": 2.47,
+      "d8_nodes": 23853,
+      "top1_changed": true,
+      "d6_top5": [
+        [
+          [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          607.0
+        ],
+        [
+          [
+            [
+              4,
+              3
+            ],
+            [
+              5,
+              4
+            ]
+          ],
+          607.0
+        ],
+        [
+          [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          599.0
+        ],
+        [
+          [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          599.0
+        ],
+        [
+          [
+            [
+              2,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          599.0
+        ]
+      ],
+      "d8_top5": [
+        [
+          [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          613.0
+        ],
+        [
+          [
+            [
+              2,
+              1
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          613.0
+        ],
+        [
+          [
+            [
+              2,
+              1
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          613.0
+        ],
+        [
+          [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          613.0
+        ],
+        [
+          [
+            [
+              4,
+              3
+            ],
+            [
+              3,
+              4
+            ]
+          ],
+          613.0
+        ]
+      ],
+      "policy_triggers": {
+        "A_thr30": {
+          "triggered": false,
+          "reason": "exact_tie_skipped"
+        },
+        "B_thr50": {
+          "triggered": false,
+          "reason": "exact_tie_skipped"
+        },
+        "C_thr60": {
+          "triggered": false,
+          "reason": "exact_tie_skipped"
+        },
+        "D_promtie": {
+          "triggered": false,
+          "reason": "exact_tie_no_promotion"
+        }
+      }
+    }
+  ]
+}

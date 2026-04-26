@@ -65,6 +65,11 @@ def _tt_key(
     return (compute_hash(board), current_player, root_player, extension_depth, int(use_phase7a))
 
 
+def _hist_key(move: dict[str, Any]) -> tuple[tuple[int, int], tuple[int, int]]:
+    path = move["path"]
+    return (tuple(path[0]), tuple(path[-1]))  # type: ignore[return-value]
+
+
 def _is_promotion_move(board: list[list[int]], move: dict[str, Any], player: int) -> bool:
     path = move.get("path", [])
     if len(path) < 2:
@@ -79,13 +84,19 @@ def _is_promotion_move(board: list[list[int]], move: dict[str, Any], player: int
     return False
 
 
-def order_moves(board: list[list[int]], moves: list[dict[str, Any]], player: int) -> list[dict[str, Any]]:
+def order_moves(
+    board: list[list[int]],
+    moves: list[dict[str, Any]],
+    player: int,
+    history: dict[tuple, int] | None = None,
+) -> list[dict[str, Any]]:
     """
     Stable, conservative move ordering for alpha-beta pruning:
     1) captures before non-captures
     2) among captures, larger capture count first
     3) promotion-producing moves first
-    4) preserve original order for ties
+    4) history heuristic score for quiet (non-capture) moves
+    5) preserve original order for ties
     """
     indexed = list(enumerate(moves))
     ordered = sorted(
@@ -94,6 +105,9 @@ def order_moves(board: list[list[int]], moves: list[dict[str, Any]], player: int
             pair[1].get("type") == "jump",
             len(pair[1].get("captured", [])),
             _is_promotion_move(board, pair[1], player),
+            0 if pair[1].get("type") == "jump" else (
+                history.get(_hist_key(pair[1]), 0) if history else 0
+            ),
             -pair[0],  # keep stable original order when reverse=True
         ),
         reverse=True,
@@ -113,6 +127,7 @@ def negamax(
     extension_depth: int = 0,
     use_tactical_extension: bool = True,
     use_phase7a: bool = True,
+    history: dict[tuple, int] | None = None,
 ) -> float:
     """
     Fixed-depth alpha-beta search score from root player's perspective.
@@ -153,7 +168,7 @@ def negamax(
     if depth <= 0:
         jump_moves = [m for m in legal if m.get("type") == "jump"]
         if use_tactical_extension and jump_moves and extension_depth < MAX_TACTICAL_EXTENSION_PLIES:
-            ordered_jumps = order_moves(board, jump_moves, current_player)
+            ordered_jumps = order_moves(board, jump_moves, current_player, history=history)
             if current_player == root_player:
                 best = float("-inf")
                 best_move: dict[str, Any] | None = None
@@ -171,6 +186,7 @@ def negamax(
                         extension_depth=extension_depth + 1,
                         use_tactical_extension=use_tactical_extension,
                         use_phase7a=use_phase7a,
+                        history=history,
                     )
                     if score > best:
                         best = score
@@ -206,6 +222,7 @@ def negamax(
                     extension_depth=extension_depth + 1,
                     use_tactical_extension=use_tactical_extension,
                     use_phase7a=use_phase7a,
+                    history=history,
                 )
                 if score < best:
                     best = score
@@ -261,7 +278,7 @@ def negamax(
                 _TT[key] = TTEntry(value=value, depth=depth, bound_type=TTBoundType.EXACT, best_move=None)
         return value
 
-    ordered_legal = order_moves(board, legal, current_player)
+    ordered_legal = order_moves(board, legal, current_player, history=history)
     tt_entry = _TT.get(key) if use_tt else None
     if tt_entry is not None and tt_entry.best_move is not None and tt_entry.best_move in ordered_legal:
         ordered_legal = [tt_entry.best_move] + [m for m in ordered_legal if m != tt_entry.best_move]
@@ -283,6 +300,7 @@ def negamax(
                 extension_depth=extension_depth,
                 use_tactical_extension=use_tactical_extension,
                 use_phase7a=use_phase7a,
+                history=history,
             )
             if score > best:
                 best = score
@@ -290,6 +308,9 @@ def negamax(
             if score > alpha:
                 alpha = score
             if alpha >= beta:
+                if history is not None and move.get("type") != "jump":
+                    _k = _hist_key(move)
+                    history[_k] = history.get(_k, 0) + (1 << depth)
                 break
         if use_tt:
             bound = TTBoundType.EXACT
@@ -318,6 +339,7 @@ def negamax(
             extension_depth=extension_depth,
             use_tactical_extension=use_tactical_extension,
             use_phase7a=use_phase7a,
+            history=history,
         )
         if score < best:
             best = score
@@ -325,6 +347,9 @@ def negamax(
         if score < beta:
             beta = score
         if alpha >= beta:
+            if history is not None and move.get("type") != "jump":
+                _k = _hist_key(move)
+                history[_k] = history.get(_k, 0) + (1 << depth)
             break
     if use_tt:
         bound = TTBoundType.EXACT
@@ -347,6 +372,7 @@ def search_root(
     use_tactical_extension: bool = True,
     use_phase7a: bool = True,
     pv_move: dict[str, Any] | None = None,
+    history: dict[tuple, int] | None = None,
 ) -> tuple[dict[str, Any] | None, float, SearchStats]:
     """
     Search the current position and choose the best move in legal move order.
@@ -368,12 +394,15 @@ def search_root(
         )
         return None, score, stats
 
+    if history is None:
+        history = {}
+
     best_move: dict[str, Any] | None = None
     best_score = float("-inf")
     alpha = float("-inf")
     beta = float("inf")
 
-    ordered = order_moves(board, root_legal, current_player)
+    ordered = order_moves(board, root_legal, current_player, history=history)
     if pv_move is not None and pv_move in ordered:
         ordered = [pv_move] + [m for m in ordered if m != pv_move]
 
@@ -391,6 +420,7 @@ def search_root(
             extension_depth=0,
             use_tactical_extension=use_tactical_extension,
             use_phase7a=use_phase7a,
+            history=history,
         )
         if score > best_score:
             best_score = score
@@ -443,7 +473,8 @@ def search_root_all_scores(
         )
         return None, score, [], stats
 
-    ordered = order_moves(board, root_legal, current_player)
+    history: dict[tuple, int] = {}
+    ordered = order_moves(board, root_legal, current_player, history=history)
     scored: list[tuple[dict[str, Any], float]] = []
 
     for move in ordered:
@@ -460,6 +491,7 @@ def search_root_all_scores(
             extension_depth=0,
             use_tactical_extension=use_tactical_extension,
             use_phase7a=use_phase7a,
+            history=history,
         )
         scored.append((move, float(score)))
 
@@ -520,6 +552,7 @@ def search_root_iterative(
 
     last_result: tuple[dict[str, Any] | None, float, SearchStats] | None = None
     prev_best_move: dict[str, Any] | None = None
+    history: dict[tuple, int] = {}
     started = time.perf_counter()
 
     for depth in range(1, target_depth + 1):
@@ -533,6 +566,7 @@ def search_root_iterative(
             use_tactical_extension=use_tactical_extension,
             use_phase7a=use_phase7a,
             pv_move=prev_best_move,
+            history=history,
         )
         prev_best_move = best_move
         depth_elapsed_ms = (time.perf_counter() - depth_started) * 1000.0

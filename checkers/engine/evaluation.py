@@ -59,6 +59,12 @@ COLUMN_CENTRALITY_OPENING_THRESHOLD = 16
 # static evaluator so it propagates through all search nodes.
 # Phase-gated to total_pieces <= ENDGAME_FEATURE_PIECE_THRESHOLD (14).
 CAGED_KING_PENALTY = int(os.environ.get("CAGED_KING_PENALTY", "75"))
+# King endgame pressure: fired only in pure king endgames where player is winning.
+# Rewards own kings being close (Chebyshev distance) to opponent kings.
+# Max Chebyshev distance on 8x8 board = 7.
+KING_ENDGAME_PRESSURE_WEIGHT = 10
+KING_ENDGAME_PRESSURE_MAX_DIST = 7
+KING_ENDGAME_PIECE_GATE = 6
 
 
 _CENTER_SQUARES = frozenset((r, c) for r in (3, 4) for c in (2, 3, 4, 5))
@@ -317,6 +323,25 @@ def _king_chase_pressure(board: list[list[int]], player: int) -> int:
     return score
 
 
+def _king_approach_bonus(board: list[list[int]], player: int) -> int:
+    """
+    For each own king sum max(0, MAX_DIST - chebyshev_to_nearest_opponent_king).
+    Higher when own kings press closer to opponent kings.
+    Only called when the gate in evaluate_board_breakdown is satisfied.
+    """
+    opp = _opponent(player)
+    opp_kings = _king_positions(board, opp)
+    if not opp_kings:
+        return 0
+    score = 0
+    for kr, kc in _king_positions(board, player):
+        nearest = min(
+            max(abs(kr - or_), abs(kc - oc)) for or_, oc in opp_kings
+        )
+        score += max(0, KING_ENDGAME_PRESSURE_MAX_DIST - nearest)
+    return score
+
+
 def _is_king_caged(board: list[list[int]], kr: int, kc: int, player: int) -> bool:
     """
     True iff the king at (kr, kc) has ≥1 legal diagonal destination AND every
@@ -537,6 +562,20 @@ def evaluate_board_breakdown(
             * CAGED_KING_PENALTY
         )
 
+    # King endgame pressure: pure king endgame with material advantage only.
+    # Stricter gate than the phase7a block above (≤6 pieces, no checkers, winning).
+    king_endgame_pressure = 0.0
+    if (
+        use_phase7a
+        and total_pieces <= KING_ENDGAME_PIECE_GATE
+        and our_men == 0
+        and opp_men == 0
+        and our_kings > opp_kings
+    ):
+        king_endgame_pressure = float(
+            _king_approach_bonus(board, root_player) * KING_ENDGAME_PRESSURE_WEIGHT
+        )
+
     our_threatened = _threatened_squares(board, opp)
     opp_threatened = _threatened_squares(board, root_player)
     vulnerability = _vulnerability_penalty(board, opp, opp_threatened) - _vulnerability_penalty(
@@ -596,6 +635,7 @@ def evaluate_board_breakdown(
         + confinement_bonus
         + col_centrality
         + caged_king
+        + king_endgame_pressure
     )
     return {
         "material": float(material),
@@ -617,6 +657,7 @@ def evaluate_board_breakdown(
         "confinement_bonus": float(confinement_bonus),
         "column_centrality": float(col_centrality),
         "caged_king": float(caged_king),
+        "king_endgame_pressure": float(king_endgame_pressure),
         "total": total,
     }
 
