@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from enum import Enum
 from dataclasses import dataclass
@@ -13,6 +14,17 @@ from checkers.engine.zobrist import compute_hash
 
 logger = logging.getLogger(__name__)
 MAX_TACTICAL_EXTENSION_PLIES = 2
+
+# Bounded capture quiescence: extend captures beyond the tactical-extension cap
+# until the position is quiet (no forced captures) or the ply cap is reached.
+# Fires only on jump-only positions; simple-move leaves are never extended.
+# Total effective extension cap = MAX_TACTICAL_EXTENSION_PLIES + _QUIESCENCE_MAX_CAPTURE_PLIES.
+_QUIESCENCE_ENABLED = os.environ.get(
+    "QUIESCENCE_CAPTURE_EXTENSION_ENABLED", "true"
+).lower() in ("1", "true", "yes", "on")
+_QUIESCENCE_MAX_CAPTURE_PLIES = int(
+    os.environ.get("QUIESCENCE_MAX_CAPTURE_PLIES", "4")
+)
 
 
 def _opponent(player: int) -> int:
@@ -131,6 +143,7 @@ def negamax(
     use_phase7a: bool = True,
     history: dict[tuple, int] | None = None,
     ply_from_root: int = 0,
+    use_quiescence_extension: bool = True,
 ) -> float:
     """
     Fixed-depth alpha-beta search score from root player's perspective.
@@ -175,7 +188,12 @@ def negamax(
         return value
     if depth <= 0:
         jump_moves = [m for m in legal if m.get("type") == "jump"]
-        if use_tactical_extension and jump_moves and extension_depth < MAX_TACTICAL_EXTENSION_PLIES:
+        _should_extend = use_tactical_extension and jump_moves and (
+            extension_depth < MAX_TACTICAL_EXTENSION_PLIES
+            or (use_quiescence_extension and _QUIESCENCE_ENABLED
+                and extension_depth < MAX_TACTICAL_EXTENSION_PLIES + _QUIESCENCE_MAX_CAPTURE_PLIES)
+        )
+        if _should_extend:
             ordered_jumps = order_moves(board, jump_moves, current_player, history=history)
             if current_player == root_player:
                 best = float("-inf")
@@ -196,6 +214,7 @@ def negamax(
                         use_phase7a=use_phase7a,
                         history=history,
                         ply_from_root=ply_from_root + 1,
+                        use_quiescence_extension=use_quiescence_extension,
                     )
                     if score > best:
                         best = score
@@ -233,6 +252,7 @@ def negamax(
                     use_phase7a=use_phase7a,
                     history=history,
                     ply_from_root=ply_from_root + 1,
+                    use_quiescence_extension=use_quiescence_extension,
                 )
                 if score < best:
                     best = score
@@ -312,6 +332,7 @@ def negamax(
                 use_phase7a=use_phase7a,
                 history=history,
                 ply_from_root=ply_from_root + 1,
+                use_quiescence_extension=use_quiescence_extension,
             )
             if score > best:
                 best = score
@@ -352,6 +373,7 @@ def negamax(
             use_phase7a=use_phase7a,
             history=history,
             ply_from_root=ply_from_root + 1,
+            use_quiescence_extension=use_quiescence_extension,
         )
         if score < best:
             best = score

@@ -1,0 +1,313 @@
+{
+  "pipeline": "all_legal",
+  "games": 3,
+  "max_plies": 80,
+  "seed": 42,
+  "wins_red": 3,
+  "wins_black": 0,
+  "draws": 0,
+  "avg_override_triggers_per_game": 3.67,
+  "avg_mismatch_per_game": 1.67,
+  "full_legal_not_best_count": 6,
+  "filtered_not_best_count": 5,
+  "true_error_count": 1,
+  "true_ranker_error_count": 1,
+  "near_tie_count": 4,
+  "justified_count": 0,
+  "proposal_or_filtering_gap_count": 1,
+  "minimax_near_tie_epsilon": 2.0,
+  "games_with_material_deficit": 2,
+  "total_red_pipeline_failures": 0,
+  "red_failure_reasons": [],
+  "suspicious_mismatch_details": [
+    {
+      "classification": "true_ranker_error",
+      "diagnostic_inconsistency": false,
+      "game_index": 1,
+      "turn_number": 48,
+      "llm_idx": 7,
+      "best_idx": 0,
+      "filtered_menu_size": 8,
+      "chosen_minimax_internal": 9991.0,
+      "best_minimax_internal": 9997.0,
+      "chosen_path_internal": "[(7,",
+      "best_path_internal": "[(0,",
+      "chosen_path_matches_llm_idx": true,
+      "best_idx_is_argmax": true,
+      "best_score_tie_count": 6,
+      "chosen_move": {
+        "type": "simple",
+        "path": [
+          [
+            7,
+            4
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "captured": []
+      },
+      "best_move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "chosen_minimax": 9991.0,
+      "best_minimax": 9997.0,
+      "minimax_gap": 6.0,
+      "full_legal_not_best": true,
+      "filtered_not_best": true,
+      "filtered_best_minimax": 9997.0,
+      "full_legal_best_minimax": 9997.0,
+      "full_legal_chosen_minimax": 9991.0,
+      "filtered_menu_gap": 6.0,
+      "full_legal_minimax_gap": 6.0,
+      "full_legal_best_move": {
+        "type": "simple",
+        "path": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "captured": []
+      },
+      "override_triggered": false,
+      "override_branch_name": null,
+      "override_block_reason": "gates|LDMD:bs=1,cs=1,ldB=1,ldC=1,g=6.0,th=3.0,gOK=1,cap=0,structBlock=1,defBlock=0;OPNLD:op=0,csss=0,bAccLD=1,g=6.0,th=6.0,gOK=1,structBlock=1;LDAC:csss=0,bAccLD=1,g=6.0,th=8.0,gOK=0,structBlock=1;QSAFE:bs=1,cs=1,bq=1,cq=0,bqs=1,cqs=1,g=6.0,th=2.0,gOK=1,structBlock=1;SVDOM:bs=1,cs=1,g=6.0,th=7.0,gOK=0",
+      "best_move_rejected_reason": "no_override_condition_met",
+      "chosen_passive_safe": false,
+      "best_passive_safe": true,
+      "chosen_low_danger": true,
+      "best_low_danger": true
+    }
+  ],
+  "debug_ranker_menu_presence": {
+    "red_decisions_with_ranker_filtered_menu": 68,
+    "red_decisions_missing_ranker_filtered_menu": 0,
+    "chosen_move_unmatched_on_ranker_filtered_menu": 0,
+    "true_error_rows_filtered_menu_gap_null": 0
+  },
+  "single_safe_audit": {
+    "single_safe_positions_count": 23,
+    "single_safe_unsafe_survivor_3_to_14_count": 0,
+    "single_safe_unsafe_chosen_count": 5,
+    "examples": [
+      {
+        "game_index": 1,
+        "turn_number": 14,
+        "chosen_move": {
+          "type": "jump",
+          "path": [
+            [
+              3,
+              2
+            ],
+            [
+              1,
+              4
+            ]
+          ],
+          "captured": [
+            [
+              2,
+              3
+            ]
+          ]
+        },
+        "chosen_minimax": 160.0,
+        "best_safe_minimax": 160.0,
+        "chosen_opponent_can_recapture": true,
+        "gap_over_best_safe": 0.0,
+        "override_triggered": null,
+        "classification": null
+      },
+      {
+        "game_index": 2,
+        "turn_number": 30,
+        "chosen_move": {
+          "type": "jump",
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              6
+            ]
+          ],
+          "captured": [
+            [
+              2,
+              5
+            ]
+          ]
+        },
+        "chosen_minimax": 1567.0,
+        "best_safe_minimax": 1567.0,
+        "chosen_opponent_can_recapture": true,
+        "gap_over_best_safe": 0.0,
+        "override_triggered": null,
+        "classification": null
+      },
+      {
+        "game_index": 3,
+        "turn_number": 2,
+        "chosen_move": {
+          "type": "jump",
+          "path": [
+            [
+              4,
+              5
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "captured": [
+            [
+              3,
+              4
+            ]
+          ]
+        },
+        "chosen_minimax": 20.0,
+        "best_safe_minimax": 20.0,
+        "chosen_opponent_can_recapture": true,
+        "gap_over_best_safe": 0.0,
+        "override_triggered": null,
+        "classification": null
+      },
+      {
+        "game_index": 3,
+        "turn_number": 12,
+        "chosen_move": {
+          "type": "jump",
+          "path": [
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          "captured": [
+            [
+              2,
+              3
+            ]
+          ]
+        },
+        "chosen_minimax": 181.0,
+        "best_safe_minimax": 181.0,
+        "chosen_opponent_can_recapture": true,
+        "gap_over_best_safe": 0.0,
+        "override_triggered": null,
+        "classification": null
+      },
+      {
+        "game_index": 3,
+        "turn_number": 30,
+        "chosen_move": {
+          "type": "jump",
+          "path": [
+            [
+              6,
+              1
+            ],
+            [
+              4,
+              3
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "captured": [
+            [
+              5,
+              2
+            ],
+            [
+              3,
+              2
+            ]
+          ]
+        },
+        "chosen_minimax": 1122.0,
+        "best_safe_minimax": 1122.0,
+        "chosen_opponent_can_recapture": true,
+        "gap_over_best_safe": 0.0,
+        "override_triggered": null,
+        "classification": null
+      }
+    ]
+  },
+  "per_game": [
+    {
+      "game_index": 1,
+      "winner": "RED",
+      "total_plies": 57,
+      "override_triggers": 5,
+      "chosen_not_best_minimax_count": 3,
+      "full_legal_not_best_count": 4,
+      "filtered_not_best_count": 3,
+      "true_error_count": 1,
+      "near_tie_count": 2,
+      "justified_count": 0,
+      "proposal_or_filtering_gap_count": 1,
+      "first_material_deficit_turn": 10,
+      "red_pipeline_failures": 0
+    },
+    {
+      "game_index": 2,
+      "winner": "RED",
+      "total_plies": 37,
+      "override_triggers": 3,
+      "chosen_not_best_minimax_count": 1,
+      "full_legal_not_best_count": 1,
+      "filtered_not_best_count": 1,
+      "true_error_count": 0,
+      "near_tie_count": 1,
+      "justified_count": 0,
+      "proposal_or_filtering_gap_count": 0,
+      "first_material_deficit_turn": null,
+      "red_pipeline_failures": 0
+    },
+    {
+      "game_index": 3,
+      "winner": "RED",
+      "total_plies": 39,
+      "override_triggers": 3,
+      "chosen_not_best_minimax_count": 1,
+      "full_legal_not_best_count": 1,
+      "filtered_not_best_count": 1,
+      "true_error_count": 0,
+      "near_tie_count": 1,
+      "justified_count": 0,
+      "proposal_or_filtering_gap_count": 0,
+      "first_material_deficit_turn": 26,
+      "red_pipeline_failures": 0
+    }
+  ]
+}

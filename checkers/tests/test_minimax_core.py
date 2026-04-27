@@ -425,6 +425,7 @@ def test_extension_depth_limit_respected() -> None:
         use_tt=False,
         extension_depth=MAX_TACTICAL_EXTENSION_PLIES,
         use_tactical_extension=True,
+        use_quiescence_extension=False,
     )
     score_no_ext = negamax(
         board=board,
@@ -496,6 +497,7 @@ def test_leaf_tension_penalty_applied_when_opponent_has_jumps() -> None:
         use_tt=False,
         extension_depth=MAX_TACTICAL_EXTENSION_PLIES,  # exhausted → goes to static eval
         use_tactical_extension=True,   # penalty fires here
+        use_quiescence_extension=False,
     )
     # Penalty lowers the score when the opponent threatens (bad for root=RED)
     assert score_with_penalty < score_no_penalty
