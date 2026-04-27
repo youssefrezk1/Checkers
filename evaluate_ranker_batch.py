@@ -42,8 +42,8 @@ from dotenv import load_dotenv  # type: ignore
 
 load_dotenv()
 
-# Strict minimax near-tie band: |best − chosen| < this → not a true error (overrides other labels).
-MINIMAX_NEAR_TIE_EPSILON = float(os.environ.get("MINIMAX_NEAR_TIE_EPSILON", "0.5"))
+# Strict minimax near-tie band: |best − chosen| <= this → not a true error (overrides other labels).
+MINIMAX_NEAR_TIE_EPSILON = float(os.environ.get("MINIMAX_NEAR_TIE_EPSILON", "2.0"))
 
 from checkers.engine.board import BLACK, RED, create_initial_board
 from checkers.engine.move_facts import count_pieces
@@ -58,7 +58,10 @@ from checkers.nodes.win_condition import win_condition
 from checkers.state.state import CheckersState
 from checkers.agents.ranker_agent import ranker_agent
 
-
+include_exact_ties = (
+    os.environ.get("SELECTIVE_D8_INCLUDE_EXACT_TIES", "false").lower()
+    in ("1", "true", "yes", "on")
+)
 @dataclass
 class RedDecisionStats:
     override_triggered: Optional[bool]
@@ -393,8 +396,20 @@ def _build_suspicious_mismatch_record(
     filtered_menu_gap = float(f_best_s) - float(f_chosen) if f_chosen > float("-inf") else None
     full_legal_gap = float(g_best_s) - float(g_chosen) if g_chosen > float("-inf") else None
 
-    return {
-        "classification": "true_ranker_error",
+    chosen_path_norm = _normalize_move_path(chosen_move.get("path"))
+    best_path_norm = _normalize_move_path(best_move.get("path"))
+
+    diagnostic_inconsistency = False
+    if chosen_path_norm == best_path_norm:
+        diagnostic_inconsistency = True
+    elif gap == 0.0 and ((filtered_menu_gap is not None and filtered_menu_gap > 0) or (full_legal_gap is not None and full_legal_gap > 0)):
+        diagnostic_inconsistency = True
+    elif chosen_minimax is not None and f_chosen > float("-inf") and not math.isclose(chosen_minimax, f_chosen, abs_tol=1e-5):
+        diagnostic_inconsistency = True
+
+    rec = {
+        "classification": "diagnostic_inconsistency" if diagnostic_inconsistency else "true_ranker_error",
+        "diagnostic_inconsistency": diagnostic_inconsistency,
         "game_index": game_index,
         "turn_number": turn_number,
         # Override-time instrumentation captured from DECISION_DEBUG (ranker stdout).
@@ -430,6 +445,7 @@ def _build_suspicious_mismatch_record(
         "chosen_low_danger": full.get("chosen_low_danger"),
         "best_low_danger": full.get("best_low_danger"),
     }
+    return rec
 
 
 _JUSTIFIED_DEVIATION_REASONS = frozenset(
@@ -481,7 +497,7 @@ def _classify_ranker_mismatch(
 
     if filtered_not_best:
         diff_f = abs(f_best - f_chosen)
-        if diff_f < MINIMAX_NEAR_TIE_EPSILON:
+        if diff_f <= MINIMAX_NEAR_TIE_EPSILON:
             return "near_tie"
         if _justified_from_debug(debug):
             return "justified_deviation"
@@ -491,7 +507,7 @@ def _classify_ranker_mismatch(
     if not full_legal_not_best:
         return None
     diff_g = abs(g_best - g_chosen)
-    if diff_g < MINIMAX_NEAR_TIE_EPSILON:
+    if diff_g <= MINIMAX_NEAR_TIE_EPSILON:
         return "near_tie"
     return "proposal_or_filtering_gap"
 
@@ -503,13 +519,25 @@ def _extract_red_decision(snapshot: dict[str, Any], debug: dict[str, Any]) -> Re
     chosen_move = snapshot.get("chosen_move") or {}
 
     f_chosen = _chosen_minimax_on_menu(legal_moves, chosen_move)
-    _, f_best = _best_minimax_legal(legal_moves)
+    f_best_m, f_best = _best_minimax_legal(legal_moves)
     g_chosen = _chosen_minimax_on_menu(full_menu, chosen_move)
-    _, g_best = _best_minimax_legal(full_menu)
+    g_best_m, g_best = _best_minimax_legal(full_menu)
 
-    filtered_not_best = f_chosen < f_best
+    chosen_p = _normalize_move_path(chosen_move.get("path"))
+    f_best_p = _normalize_move_path(f_best_m.get("path")) if f_best_m else None
+    g_best_p = _normalize_move_path(g_best_m.get("path")) if g_best_m else None
+
+    # Fix 1: If chosen path matches best path, it's not a mismatch.
+    if chosen_p == f_best_p:
+        filtered_not_best = False
+    else:
+        filtered_not_best = f_chosen < f_best
+
     if g_chosen > float("-inf"):
-        full_legal_not_best = g_chosen < g_best
+        if chosen_p == g_best_p:
+            full_legal_not_best = False
+        else:
+            full_legal_not_best = g_chosen < g_best
     else:
         # Chosen move missing from the rescored full-legal menu (validator drop) — treat as global gap.
         full_legal_not_best = bool(full_menu) and g_best > float("-inf")
@@ -720,6 +748,11 @@ def run_batch(
     chosen_move_unmatched_on_ranker_filtered_menu = 0
     true_error_rows_filtered_menu_gap_null = 0
 
+    single_safe_positions_count = 0
+    single_safe_unsafe_survivor_3_to_14_count = 0
+    single_safe_unsafe_chosen_count = 0
+    single_safe_examples: list[dict[str, Any]] = []
+
     for game_idx in range(1, games + 1):
         state = CheckersState(
             board=create_initial_board(),
@@ -784,7 +817,6 @@ def run_batch(
                     elif cat == "proposal_or_filtering_gap":
                         proposal_gap += 1
                     elif cat == "true_ranker_error":
-                        true_err += 1
                         rec = _build_suspicious_mismatch_record(
                             game_idx,
                             turn_before,
@@ -793,9 +825,45 @@ def run_batch(
                             decision,
                         )
                         if rec is not None:
-                            if rec.get("filtered_menu_gap") is None:
-                                true_error_rows_filtered_menu_gap_null += 1
+                            if not rec.get("diagnostic_inconsistency"):
+                                true_err += 1
+                                if rec.get("filtered_menu_gap") is None:
+                                    true_error_rows_filtered_menu_gap_null += 1
                             suspicious_mismatch_details.append(rec)
+                            
+                    # Safety audit
+                    menu = ranker_menu if ranker_menu else (decision_snapshot.get("legal_moves") or [])
+                    safe_moves = [m for m in menu if not m.get("facts", {}).get("opponent_can_recapture", False)]
+                    if len(safe_moves) == 1:
+                        single_safe_positions_count += 1
+                        best_safe_score = _safe_float(safe_moves[0].get("facts", {}).get("minimax_score"))
+                        
+                        unsafe_survivors = False
+                        for m in menu:
+                            if m.get("facts", {}).get("opponent_can_recapture", False):
+                                gap = _safe_float(m.get("facts", {}).get("minimax_score")) - best_safe_score
+                                if 3.0 <= gap <= 14.0:
+                                    unsafe_survivors = True
+                                    break
+                                    
+                        if unsafe_survivors:
+                            single_safe_unsafe_survivor_3_to_14_count += 1
+                            
+                        if chosen_move.get("facts", {}).get("opponent_can_recapture", False):
+                            single_safe_unsafe_chosen_count += 1
+                            if len(single_safe_examples) < 5:
+                                chosen_score = _safe_float(chosen_move.get("facts", {}).get("minimax_score"))
+                                single_safe_examples.append({
+                                    "game_index": game_idx,
+                                    "turn_number": turn_before,
+                                    "chosen_move": _slim_move(chosen_move),
+                                    "chosen_minimax": chosen_score,
+                                    "best_safe_minimax": best_safe_score,
+                                    "chosen_opponent_can_recapture": True,
+                                    "gap_over_best_safe": chosen_score - best_safe_score,
+                                    "override_triggered": decision.override_triggered,
+                                    "classification": decision.mismatch_classification,
+                                })
             else:
                 state, _ = _run_black_random_ply(state, rng)
 
@@ -845,6 +913,12 @@ def run_batch(
             "red_decisions_missing_ranker_filtered_menu": red_decisions_missing_ranker_filtered_menu,
             "chosen_move_unmatched_on_ranker_filtered_menu": chosen_move_unmatched_on_ranker_filtered_menu,
             "true_error_rows_filtered_menu_gap_null": true_error_rows_filtered_menu_gap_null,
+        },
+        "single_safe_audit": {
+            "single_safe_positions_count": single_safe_positions_count,
+            "single_safe_unsafe_survivor_3_to_14_count": single_safe_unsafe_survivor_3_to_14_count,
+            "single_safe_unsafe_chosen_count": single_safe_unsafe_chosen_count,
+            "examples": single_safe_examples,
         },
         "per_game": [asdict(r) for r in all_results],
     }

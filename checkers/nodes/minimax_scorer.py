@@ -231,7 +231,8 @@ def _apply_selective_d8(
     d6_top_gap = get_d6_top_gap([(None, sc) for _, sc in scored_proxy])
 
     # Exact-tie guard
-    if d6_top_gap == 0.0 and not SELECTIVE_D8_INCLUDE_EXACT_TIES:
+    include_exact_ties = os.environ.get("SELECTIVE_D8_INCLUDE_EXACT_TIES", "false").lower() in ("1", "true", "yes", "on")
+    if d6_top_gap == 0.0 and not include_exact_ties:
         print(
             f"[SELECTIVE_D8] skipped_exact_tie: pieces={total_pieces} d6_top_gap=0.0"
         )

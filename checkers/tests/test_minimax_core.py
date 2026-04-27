@@ -17,6 +17,102 @@ from checkers.search.minimax_core import (
 )
 
 
+# ── Terminal win-distance tests ───────────────────────────────────────────────
+
+
+def test_faster_forced_win_scores_higher_than_slower() -> None:
+    # Empty board: BLACK has no pieces → no legal moves for BLACK → RED wins.
+    # When reached at ply 1 the score is WIN_SCORE - 1;
+    # at ply 5 it is WIN_SCORE - 5.  Faster win must score higher.
+    board = _empty_board()
+
+    clear_transposition_table()
+    score_fast = negamax(
+        board=board,
+        depth=5,
+        current_player=BLACK,   # BLACK's turn, no pieces → terminal
+        root_player=RED,
+        alpha=float("-inf"),
+        beta=float("inf"),
+        stats=SearchStats(),
+        use_tt=False,
+        ply_from_root=1,
+    )
+    clear_transposition_table()
+    score_slow = negamax(
+        board=board,
+        depth=5,
+        current_player=BLACK,
+        root_player=RED,
+        alpha=float("-inf"),
+        beta=float("inf"),
+        stats=SearchStats(),
+        use_tt=False,
+        ply_from_root=5,
+    )
+
+    assert score_fast == float(WIN_SCORE - 1)
+    assert score_slow == float(WIN_SCORE - 5)
+    assert score_fast > score_slow
+
+
+def test_delayed_loss_scores_higher_than_immediate_loss() -> None:
+    # Empty board: RED has no pieces → no legal moves for RED → RED loses.
+    # LOSS_SCORE + ply: a loss at ply 5 scores higher (less negative) than at ply 1.
+    board = _empty_board()
+
+    clear_transposition_table()
+    score_immediate = negamax(
+        board=board,
+        depth=5,
+        current_player=RED,   # RED's turn, no pieces → terminal, RED loses
+        root_player=RED,
+        alpha=float("-inf"),
+        beta=float("inf"),
+        stats=SearchStats(),
+        use_tt=False,
+        ply_from_root=1,
+    )
+    clear_transposition_table()
+    score_delayed = negamax(
+        board=board,
+        depth=5,
+        current_player=RED,
+        root_player=RED,
+        alpha=float("-inf"),
+        beta=float("inf"),
+        stats=SearchStats(),
+        use_tt=False,
+        ply_from_root=5,
+    )
+
+    assert score_immediate == float(LOSS_SCORE + 1)
+    assert score_delayed == float(LOSS_SCORE + 5)
+    assert score_delayed > score_immediate   # losing later is the better outcome
+
+
+def test_tt_key_distinguishes_ply_from_root() -> None:
+    board = _empty_board()
+    board[5][2] = RED
+    board[2][3] = BLACK
+
+    key_ply0 = _tt_key(board, RED, RED, ply_from_root=0)
+    key_ply1 = _tt_key(board, RED, RED, ply_from_root=1)
+    key_ply5 = _tt_key(board, RED, RED, ply_from_root=5)
+    assert key_ply0 != key_ply1
+    assert key_ply0 != key_ply5
+    assert key_ply1 != key_ply5
+
+
+def test_tt_key_ply_from_root_defaults_to_zero() -> None:
+    board = _empty_board()
+    board[5][2] = RED
+
+    key_explicit = _tt_key(board, RED, RED, ply_from_root=0)
+    key_default = _tt_key(board, RED, RED)   # ply_from_root omitted
+    assert key_explicit == key_default
+
+
 def _empty_board() -> list[list[int]]:
     return [[EMPTY for _ in range(8)] for _ in range(8)]
 

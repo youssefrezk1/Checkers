@@ -39,7 +39,7 @@ class TTEntry:
     best_move: dict[str, Any] | None = None
 
 
-_TT: dict[tuple[int, int, int, int, int], TTEntry] = {}
+_TT: dict[tuple[int, int, int, int, int, int], TTEntry] = {}
 
 
 def clear_transposition_table() -> None:
@@ -52,7 +52,8 @@ def _tt_key(
     root_player: int,
     extension_depth: int = 0,
     use_phase7a: bool = True,
-) -> tuple[int, int, int, int, int]:
+    ply_from_root: int = 0,
+) -> tuple[int, int, int, int, int, int]:
     """
     Conservative TT key:
     - board Zobrist hash
@@ -60,9 +61,10 @@ def _tt_key(
     - root_player perspective (value orientation)
     - extension_depth (to separate bounded capture extensions)
     - use_phase7a flag (evaluation ablation separation)
+    - ply_from_root (terminal scores depend on ply; must be part of key)
     """
     # bool is normalized to int to keep key purely hashable primitives
-    return (compute_hash(board), current_player, root_player, extension_depth, int(use_phase7a))
+    return (compute_hash(board), current_player, root_player, extension_depth, int(use_phase7a), ply_from_root)
 
 
 def _hist_key(move: dict[str, Any]) -> tuple[tuple[int, int], tuple[int, int]]:
@@ -128,6 +130,7 @@ def negamax(
     use_tactical_extension: bool = True,
     use_phase7a: bool = True,
     history: dict[tuple, int] | None = None,
+    ply_from_root: int = 0,
 ) -> float:
     """
     Fixed-depth alpha-beta search score from root player's perspective.
@@ -136,11 +139,13 @@ def negamax(
     - All returned scores are in root_player perspective.
     - current_player == root_player is a maximizing layer.
     - current_player != root_player is a minimizing layer.
+    - Terminal scores are ply-adjusted: LOSS_SCORE+ply (prefer slower loss)
+      and WIN_SCORE-ply (prefer faster win) so the engine converts efficiently.
     """
     stats.nodes += 1
     alpha_orig = alpha
     beta_orig = beta
-    key = _tt_key(board, current_player, root_player, extension_depth, use_phase7a=use_phase7a)
+    key = _tt_key(board, current_player, root_player, extension_depth, use_phase7a=use_phase7a, ply_from_root=ply_from_root)
 
     if use_tt:
         entry = _TT.get(key)
@@ -159,7 +164,10 @@ def negamax(
 
     legal = get_all_legal_moves(board, current_player)
     if not legal:
-        value = float(LOSS_SCORE if current_player == root_player else WIN_SCORE)
+        value = float(
+            LOSS_SCORE + ply_from_root if current_player == root_player
+            else WIN_SCORE - ply_from_root
+        )
         if use_tt:
             existing = _TT.get(key)
             if existing is None or depth >= existing.depth:
@@ -187,6 +195,7 @@ def negamax(
                         use_tactical_extension=use_tactical_extension,
                         use_phase7a=use_phase7a,
                         history=history,
+                        ply_from_root=ply_from_root + 1,
                     )
                     if score > best:
                         best = score
@@ -223,6 +232,7 @@ def negamax(
                     use_tactical_extension=use_tactical_extension,
                     use_phase7a=use_phase7a,
                     history=history,
+                    ply_from_root=ply_from_root + 1,
                 )
                 if score < best:
                     best = score
@@ -301,6 +311,7 @@ def negamax(
                 use_tactical_extension=use_tactical_extension,
                 use_phase7a=use_phase7a,
                 history=history,
+                ply_from_root=ply_from_root + 1,
             )
             if score > best:
                 best = score
@@ -340,6 +351,7 @@ def negamax(
             use_tactical_extension=use_tactical_extension,
             use_phase7a=use_phase7a,
             history=history,
+            ply_from_root=ply_from_root + 1,
         )
         if score < best:
             best = score
@@ -421,6 +433,7 @@ def search_root(
             use_tactical_extension=use_tactical_extension,
             use_phase7a=use_phase7a,
             history=history,
+            ply_from_root=1,
         )
         if score > best_score:
             best_score = score
@@ -492,6 +505,7 @@ def search_root_all_scores(
             use_tactical_extension=use_tactical_extension,
             use_phase7a=use_phase7a,
             history=history,
+            ply_from_root=1,
         )
         scored.append((move, float(score)))
 
