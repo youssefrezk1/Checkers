@@ -811,14 +811,6 @@ def compute_move_facts(board, move, current_player):
                               piece hanging is just as dangerous as one where
                               the moved piece itself is immediately taken.
 
-                              IMPORTANT CHANGE FROM ORIGINAL: the original
-                              only checked if the just-moved piece could be
-                              recaptured. This caused the ranker to rate moves
-                              like (6,3)→(5,2) as "safe" even when an existing
-                              piece at (4,5) was about to be eaten by BLACK
-                              at (3,6). Now we check ALL our pieces on the
-                              board after the move.
-
         recapturable_piece_is_king : True when opponent_can_recapture=True and
                               the piece at risk is a king. This lets the ranker
                               weight the danger proportionally — losing a king
@@ -897,7 +889,6 @@ def compute_move_facts(board, move, current_player):
     opp_after = count_pieces(board_after, opponent)
 
     captures_count = len(move["captured"])
-    jump_count = captures_count
     is_multi_jump = captures_count > 1
     promotion = results_in_promotion(board, move)
     path_length = len(move["path"])
@@ -931,7 +922,7 @@ def compute_move_facts(board, move, current_player):
 
 
 
-   # Near promotion — only meaningful for regular pieces, never for kings
+    # Near promotion — only meaningful for regular pieces, never for kings
     if piece_type_moving == "king":
         near_promotion = False
     elif current_player == RED:
@@ -1084,9 +1075,9 @@ def compute_move_facts(board, move, current_player):
         if is_opening_like else False
     )
     creates_forced_capture_risk = (
-    _creates_forced_capture_risk(board_after, current_player, opponent)
-    if is_opening_like else False
-)
+        _creates_forced_capture_risk(board_after, current_player, opponent)
+        if is_opening_like else False
+    )
 
     # ── King/endgame pressure features ───────────────────────────────────────
     is_safe_move = not opponent_can_recapture
@@ -1286,7 +1277,9 @@ def compute_move_facts(board, move, current_player):
         king_activity_score += min(edge_conf_delta, 3) * endgame_weight
         king_activity_score += min(dc_smokeout, 3) * endgame_weight
         king_activity_score += min(bridge_score, 1)        # weak proxy — capped at 1
-        king_activity_score += anti_shuffle                # -2 or 0 only    # Quiet move role — categorical label for shortlist diversity in quiet positions.
+        king_activity_score += anti_shuffle  # -2 or 0 only
+
+    # Quiet move role — categorical label for shortlist diversity in quiet positions.
     # Evaluated in priority order: first matching category wins.
     # Used by proposal to ensure the shortlist covers distinct strategic ideas
     # rather than returning 5 nearly identical passive moves.
@@ -1341,7 +1334,6 @@ def compute_move_facts(board, move, current_player):
 
         # Capture details
         "captures_count": captures_count,
-        "jump_count": jump_count,
         "is_multi_jump": is_multi_jump,
         "kings_captured": kings_captured,
         "regulars_captured": regulars_captured,
@@ -1361,7 +1353,7 @@ def compute_move_facts(board, move, current_player):
         # Strategic context
         "center_control": in_center,
 
-        # FIXED: board-wide recapture check (was: only checked moved piece)
+        # Board-wide recapture and danger metrics
         "opponent_can_recapture": opponent_can_recapture,
         "moved_piece_is_threatened": moved_piece_is_threatened,
         "recapturable_piece_is_king": recapturable_piece_is_king,
@@ -1372,7 +1364,7 @@ def compute_move_facts(board, move, current_player):
         "leaves_piece_isolated": leaves_piece_isolated,
         "any_piece_isolated": any_piece_isolated,
 
-        # NEW: does our move block an opponent landing square?
+        # Does our move block an opponent jump landing square?
         "blocks_opponent_landing": blocks_opponent_landing,
 
         # Opponent threat metrics
@@ -1393,7 +1385,7 @@ def compute_move_facts(board, move, current_player):
         "improves_trade_conversion": improves_trade_conversion,
         "winning_conversion_score": winning_conversion_score,
         
-        # NEW: board-wide safety scores (lower = safer)
+        # Board-wide safety scores (lower = fewer pieces at risk)
         "our_pieces_threatened_before": our_pieces_threatened_before,
         "our_pieces_threatened_after": our_pieces_threatened_after,
 

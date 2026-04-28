@@ -64,6 +64,61 @@ SELECTIVE_D8_DEPTH           = int(os.environ.get("SELECTIVE_D8_DEPTH", "8"))
 _ties_env = os.environ.get("SELECTIVE_D8_INCLUDE_EXACT_TIES", "false").lower()
 SELECTIVE_D8_INCLUDE_EXACT_TIES = _ties_env in ("1", "true", "yes", "on")
 
+# Promotion-race stability verification (post-D8, candidate-set only)
+_promo_verify_env = os.environ.get("PROMOTION_RACE_VERIFY_ENABLED", "true").lower()
+PROMOTION_RACE_VERIFY_ENABLED = _promo_verify_env in ("1", "true", "yes", "on")
+PROMOTION_RACE_VERIFY_DEPTH = int(os.environ.get("PROMOTION_RACE_VERIFY_DEPTH", "10"))
+PROMOTION_RACE_VERIFY_MARGIN = float(os.environ.get("PROMOTION_RACE_VERIFY_MARGIN", "15.0"))
+PROMOTION_RACE_PIECE_THRESHOLD = int(os.environ.get("PROMOTION_RACE_PIECE_THRESHOLD", "14"))
+
+
+_PROMOTION_CRITICAL_ROLES = {"PROMOTION_PUSH", "CONVERSION", "BLOCK_PROMOTION"}
+
+
+def _path_key(path: list[Any]) -> tuple:
+    return tuple(tuple(sq) for sq in path)
+
+
+def _is_terminal_like_score(score: float | None) -> bool:
+    return score is None or abs(float(score)) >= 9000.0
+
+
+def _is_promotion_conversion_critical(cand: dict[str, Any]) -> bool:
+    facts = cand.get("facts", {}) or {}
+    if facts.get("near_promotion", False):
+        return True
+    if facts.get("results_in_king", False):
+        return True
+    if facts.get("opponent_near_promotion", False):
+        return True
+    return facts.get("quiet_move_role") in _PROMOTION_CRITICAL_ROLES
+
+
+def _build_scored_lookup(
+    scored: list[tuple[dict[str, Any], float]]
+) -> dict[tuple, tuple[float, int]]:
+    lookup: dict[tuple, tuple[float, int]] = {}
+    for rank, (mv, sc) in enumerate(scored):
+        lookup[_path_key(mv["path"])] = (float(sc), rank + 1)
+    return lookup
+
+
+def _apply_scored_lookup_to_candidates(
+    candidates: list[dict[str, Any]],
+    scored_lookup: dict[tuple, tuple[float, int]],
+) -> list[dict[str, Any]]:
+    upgraded: list[dict[str, Any]] = []
+    for cand in candidates:
+        c = deepcopy(cand)
+        pk = _path_key(c.get("path", []))
+        if pk in scored_lookup:
+            score, rank = scored_lookup[pk]
+            c.setdefault("facts", {})
+            c["facts"]["minimax_score"] = round(score, 2)
+            c["facts"]["symbolic_rank"] = rank
+        upgraded.append(c)
+    return upgraded
+
 
 def _build_score_lookup(symbolic_scored_moves: list[dict]) -> dict[tuple, tuple[float, int]]:
     """
@@ -276,23 +331,69 @@ def _apply_selective_d8(
         f" d8_best_score={round(d8_best_score, 2) if d8_best_score is not None else None}"
     )
 
-    # Build D8 score lookup: path_key -> (score, rank)
-    d8_lookup: dict[tuple, tuple[float, int]] = {}
-    for rank, (mv, sc) in enumerate(d8_scored):
-        pk = tuple(tuple(sq) for sq in mv["path"])
-        d8_lookup[pk] = (float(sc), rank + 1)   # rank is 1-indexed
+    d8_lookup = _build_scored_lookup(d8_scored)
+    upgraded = _apply_scored_lookup_to_candidates(candidates, d8_lookup)
 
-    # Replace minimax_score and symbolic_rank on every candidate
-    upgraded: list[dict[str, Any]] = []
-    for cand in candidates:
-        c = deepcopy(cand)
-        pk = tuple(tuple(sq) for sq in c.get("path", []))
-        if pk in d8_lookup:
-            d8_score, d8_rank = d8_lookup[pk]
-            c.setdefault("facts", {})
-            c["facts"]["minimax_score"] = round(d8_score, 2)
-            c["facts"]["symbolic_rank"] = d8_rank
-        # If path not found in D8 (should not happen — same legal list), keep D6
-        upgraded.append(c)
+    # ── Promotion-race stability verification (optional) ──────────────────────
+    if (
+        PROMOTION_RACE_VERIFY_ENABLED
+        and total_pieces <= PROMOTION_RACE_PIECE_THRESHOLD
+        and len(scored_proxy) >= 2
+        and d8_best_move is not None
+    ):
+        d6_best_cand, d6_best_score = scored_proxy[0]
+        d6_best_key = _path_key(d6_best_cand["path"])
+        d8_best_key = _path_key(d8_best_move["path"])
+        d8_score_of_d6_best = d8_lookup.get(d6_best_key, (None, 0))[0]
+        d8_downgrade_gap = (
+            float(d8_best_score - d8_score_of_d6_best)
+            if d8_score_of_d6_best is not None and d8_best_score is not None
+            else float("-inf")
+        )
+        verify_triggered = (
+            d6_best_key != d8_best_key
+            and _is_promotion_conversion_critical(d6_best_cand)
+            and d8_downgrade_gap >= PROMOTION_RACE_VERIFY_MARGIN
+            and not _is_terminal_like_score(float(d6_best_score))
+            and not _is_terminal_like_score(float(d8_best_score))
+            and not _is_terminal_like_score(d8_score_of_d6_best)
+        )
+        if verify_triggered:
+            clear_transposition_table()
+            _, d10_best_score, d10_scored, _ = search_root_all_scores(
+                board=board,
+                current_player=player,
+                depth=PROMOTION_RACE_VERIFY_DEPTH,
+                legal_moves=candidate_move_list,
+                use_tt=True,
+                use_tactical_extension=True,
+                use_phase7a=True,
+            )
+            d10_lookup = _build_scored_lookup(d10_scored)
+            d10_best_move = d10_scored[0][0] if d10_scored else None
+            d10_best_key = _path_key(d10_best_move["path"]) if d10_best_move is not None else None
+            d10_score_of_d8_best = d10_lookup.get(d8_best_key, (None, 0))[0]
+            d10_prefer_gap = (
+                float(d10_best_score - d10_score_of_d8_best)
+                if d10_score_of_d8_best is not None and d10_best_score is not None
+                else float("-inf")
+            )
+            use_d10 = (
+                d10_best_key is not None
+                and d10_best_key != d8_best_key
+                and d10_best_key == d6_best_key
+                and d10_prefer_gap >= PROMOTION_RACE_VERIFY_MARGIN
+                and not _is_terminal_like_score(float(d10_best_score))
+                and not _is_terminal_like_score(d10_score_of_d8_best)
+            )
+            decision = "use_d10" if use_d10 else "use_d8"
+            print(
+                "[PROMOTION_RACE_VERIFY] triggered: "
+                f"d6_best={d6_best_cand['path']} d8_best={d8_best_move['path']} "
+                f"d10_best={d10_best_move['path'] if d10_best_move else None} "
+                f"decision={decision} gap={d8_downgrade_gap:.1f}"
+            )
+            if use_d10:
+                upgraded = _apply_scored_lookup_to_candidates(candidates, d10_lookup)
 
     return upgraded
