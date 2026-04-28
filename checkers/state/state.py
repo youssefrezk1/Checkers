@@ -97,3 +97,4 @@ class CheckersState(BaseModel):
     # Thesis instrumentation — set by symbolic_decision and ranker_agent.
     llm_invoked: bool = Field(default=False)
     llm_agreed_with_symbolic_best: Optional[bool] = Field(default=None)
+    proposal_diagnostics: Optional[dict[str, Any]] = Field(default=None)

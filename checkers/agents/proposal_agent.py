@@ -1,16 +1,15 @@
 # agents/proposal_agent.py
 #
-# CHANGES FROM PREVIOUS VERSION:
-#   - Groq API only (Ollama removed)
-#   - compute_move_facts() called per legal move BEFORE sending to Groq
-#     so the LLM sees 7 essential facts alongside each move
-#   - System prompt has a clear priority-ordered selection algorithm
-#     so Groq picks the best 3-5 candidates, not random ones
-#   - Strategic context formatter extracts only what proposal needs
-#     (not a raw JSON dump)
-#   - Strict count rules: N>=5 → 5, N==4 → 4, N==3 → 3, N<3 → all
-#   - Retry logic with exponential backoff (5s, 10s, 20s)
-#   - Output format unchanged: {"selected_indices": [...]} — format_checker compatible
+# Calls Groq (llama-3.1-8b-instant) to shortlist min(5, N) candidate move indices
+# from the symbolic-pre-sorted legal move list.
+#
+# Pipeline responsibilities:
+#   - Pre-LLM: sort by quality key, role-pin strategic representatives,
+#     mm-pin minimax-best if outside window, annotate top-3 with MINIMAX_RANK.
+#   - LLM: select exactly min(5, N) indices from the annotated list.
+#   - Post-LLM: validate / deduplicate / trim only — never adds unselected moves.
+#   - Retry: up to 9 attempts (3×10s/20s/40s) on transient Groq 429s.
+#   - Output: {"selected_indices": [...]} in expansion_basis index space.
 
 from __future__ import annotations
 
@@ -24,7 +23,6 @@ from typing import Any
 from checkers.state.state import CheckersState
 from checkers.engine.board import (
     BOARD_SIZE,
-    EMPTY,
     RED,
     BLACK,
     RED_KING,
@@ -33,14 +31,6 @@ from checkers.engine.board import (
 )
 from checkers.engine.rules import get_all_legal_moves
 from checkers.engine.move_facts import compute_move_facts
-
-_PIECE_NAMES = {
-    EMPTY: "EMPTY",
-    RED: "RED",
-    BLACK: "BLACK",
-    RED_KING: "RED_KING",
-    BLACK_KING: "BLACK_KING",
-}
 
 # ── Groq settings ─────────────────────────────────────────────────────────────
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
@@ -301,6 +291,7 @@ def _role_pin_moves(
     pinned_new_positions = frozenset(range(1, 1 + len(to_pin)))
     return result, pinned_new_positions
 
+
 def _build_legal_moves_with_facts(
     board: list[list[int]],
     current_player: int,
@@ -309,19 +300,19 @@ def _build_legal_moves_with_facts(
     score_by_path: dict[tuple, float] | None = None,
 ) -> tuple[int, str, list[tuple[dict, dict]]]:
     """
-    Gets all legal moves from the engine (or uses override_moves if supplied),
-    computes facts per move, optionally injects minimax_score from score_by_path,
-    pre-sorts by symbolic quality, and returns:
-      (n_moves, formatted_block_string, sorted_moves_with_facts)
+    Builds the sorted+pinned move presentation for the LLM.
 
-    override_moves: when provided (e.g. from symbolic_scored_moves), skips
-    get_all_legal_moves and uses this pre-computed list instead.
+    Returns a 5-tuple:
+      (n_moves, formatted_block_string, sorted_moves_with_facts,
+       path_to_basis_idx, mm_pinned_pres_idx)
 
-    score_by_path: optional dict mapping path-key tuple -> minimax_score float.
-    When provided, facts["minimax_score"] is set for each move so the score
-    appears in the LEGAL_MOVES payload shown to the LLM.  If facts already
-    contains minimax_score (e.g. injected by the benchmark harness), that
-    existing value is preserved and score_by_path is not used.
+    override_moves: skip get_all_legal_moves and use this list instead
+      (e.g. state.symbolic_scored_moves already scored by symbolic_decision).
+
+    score_by_path: path-key → minimax_score float. When provided, injects
+      minimax_score into each move's facts payload for LLM visibility and
+      drives mm_pin and MINIMAX_RANK markers. Preserves any pre-existing
+      minimax_score (benchmark harness / minimax_scorer injection).
     """
     moves = override_moves if override_moves is not None else get_all_legal_moves(board, current_player)
 
@@ -385,50 +376,54 @@ def _build_legal_moves_with_facts(
     # minimax value.  Confirmed from trace: moves at edge columns or with low
     # centrality score (e.g. col-0/col-6 destinations) routinely fall to
     # positions 5+ even when they are the minimax-best by 94–192 points.
-    # This pin guarantees the minimax-best move is always inside n_slots.
-    # It runs only when the list has more moves than the LLM will see (> n_slots).
+    # This pin reorders existing moves before the LLM sees them so the
+    # canonical minimax-best is always inside n_slots. It does not create
+    # new moves and does not modify LLM output after selection.
+    # Requires score_by_path (built from search_root_all_scores); skipped
+    # when scores are unavailable.
     mm_pinned_pres_idx: int | None = None
-    if len(moves_with_facts) > n_slots:
-        try:
-            from checkers.engine.minimax import score_move_with_minimax as _smm
-            _mm_best_i   = None
-            _mm_best_s   = float("-inf")
-            for _i, (_mv, _) in enumerate(moves_with_facts):
-                try:
-                    # Normalise to minimal dict: symbolic_scored_moves pool may carry
-                    # extra keys that confuse score_move_with_minimax, causing wrong scores.
-                    _mv_norm = {
-                        "type":     _mv.get("type", "simple"),
-                        "path":     _mv.get("path", []),
-                        "captured": _mv.get("captured", []),
-                    }
-                    _s = float(_smm(board, _mv_norm, current_player) or float("-inf"))
-                except Exception:
-                    _s = float("-inf")
-                if _s > _mm_best_s:
-                    _mm_best_s = _s
-                    _mm_best_i = _i
-            # Only pin if the best minimax move is OUTSIDE the visible window
-            # and is not already position 0 (symbolic best is never displaced).
-            if _mm_best_i is not None and _mm_best_i >= n_slots:
-                _pin_item = moves_with_facts.pop(_mm_best_i)
-                # Insert at n_slots-1 so position 0 is always preserved.
-                _insert_at = n_slots - 1
-                moves_with_facts.insert(_insert_at, _pin_item)
-                pinned_positions = pinned_positions | frozenset({_insert_at})
-                # Track the pinned presentation index so _apply_safety_net
-                # can protect the minimax-best from eviction during trim.
-                mm_pinned_pres_idx = _insert_at
-        except Exception:
-            pass   # never break the pipeline; skip pin silently if minimax unavailable
+    if len(moves_with_facts) > n_slots and score_by_path:
+        _mm_best_i = None
+        _mm_best_s = float("-inf")
+        for _i, (_mv, _) in enumerate(moves_with_facts):
+            _pk = tuple(tuple(sq) for sq in _mv.get("path", []))
+            _s = score_by_path.get(_pk, float("-inf"))
+            if _s > _mm_best_s:
+                _mm_best_s = _s
+                _mm_best_i = _i
+        # Only pin if the best minimax move is OUTSIDE the visible window
+        # and is not already position 0 (symbolic best is never displaced).
+        if _mm_best_i is not None and _mm_best_i >= n_slots:
+            _pin_item = moves_with_facts.pop(_mm_best_i)
+            # Insert at n_slots-1 so position 0 (symbolic sort top) is preserved.
+            _insert_at = n_slots - 1
+            moves_with_facts.insert(_insert_at, _pin_item)
+            pinned_positions = pinned_positions | frozenset({_insert_at})
+            mm_pinned_pres_idx = _insert_at
     # ── End minimax-best pin ────────────────────────────────────────────────
-
-
-
 
     n = len(moves_with_facts)
 
-    has_pins = bool(pinned_positions)
+    # ── Minimax rank markers ────────────────────────────────────────────────
+    # Identify the top-3 moves by minimax score in the FINAL presentation
+    # order (after all sorts and pins), using the same score_by_path that
+    # mm_pin uses — no new computation.  These markers appear beside each
+    # move line so the LLM sees them without scanning individual JSON blobs.
+    _mm_rank_for_idx: dict[int, int] = {}  # presentation index → rank 1/2/3
+    if score_by_path:
+        _scored_pres: list[tuple[float, int]] = []
+        for _i, (_mv, _) in enumerate(moves_with_facts):
+            _pk = tuple(tuple(sq) for sq in _mv.get("path", []))
+            _s = score_by_path.get(_pk)
+            if _s is not None and _s != float("-inf"):
+                _scored_pres.append((_s, _i))
+        # Sort descending by score; ties broken by lower presentation index.
+        _scored_pres.sort(key=lambda t: (-t[0], t[1]))
+        for _rank_0, (_, _i) in enumerate(_scored_pres[:3]):
+            _mm_rank_for_idx[_i] = _rank_0 + 1  # 1, 2, or 3
+
+    has_pins  = bool(pinned_positions)
+    has_ranks = bool(_mm_rank_for_idx)
     lines = [
         f"N = {n}  (legal moves indexed 0 .. {n - 1} when N > 0).",
         "",
@@ -439,6 +434,11 @@ def _build_legal_moves_with_facts(
             "  [★ = ROLE_SUGGESTION: this move covers a key strategic role that would "
             "otherwise be absent from the shortlist. Include it unless clearly unsafe "
             "or tactically dominated.]"
+        )
+    if has_ranks:
+        lines.append(
+            "  [MINIMAX_RANK_1/2/3 = top moves by symbolic minimax search — "
+            "always include RANK_1; include RANK_2 and RANK_3 when selecting 5 moves]"
         )
     lines.append("")
 
@@ -471,8 +471,9 @@ def _build_legal_moves_with_facts(
             "captured": m["captured"],
             "facts":    essential,
         }
-        prefix = "★ " if i in pinned_positions else "  "
-        lines.append(f"{prefix}[{i}] {json.dumps(payload, ensure_ascii=False)}")
+        prefix   = "★ " if i in pinned_positions else "  "
+        rank_tag = f" MINIMAX_RANK_{_mm_rank_for_idx[i]}" if i in _mm_rank_for_idx else ""
+        lines.append(f"{prefix}[{i}]{rank_tag} {json.dumps(payload, ensure_ascii=False)}")
 
     return n, "\n".join(lines), moves_with_facts, path_to_basis_idx, mm_pinned_pres_idx
 
@@ -503,7 +504,6 @@ def _postprocess_llm_selection(
     return cleaned[:target]
 
 
-
 # ── System prompt ─────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
@@ -519,13 +519,20 @@ Rules:
 
 SELECTION ORDER:
 
-STEP 0 — MINIMAX SCORE (when present)
-When minimax_score is provided in a move's facts, it comes from depth-limited
-symbolic minimax/search and is the strongest available tactical signal under
-the current search depth.
-Higher minimax_score means the move is stronger under that search depth;
-include the highest minimax_score move in your shortlist unless it is clearly
-illegal or unavailable.
+STEP 0 — MINIMAX RANK (mandatory when present)
+Moves labeled MINIMAX_RANK_1, MINIMAX_RANK_2, MINIMAX_RANK_3 are the top
+moves by symbolic minimax search score — the strongest available tactical
+signal for the current position.
+When selecting candidates:
+1. Always include MINIMAX_RANK_1 in your shortlist.
+2. Include MINIMAX_RANK_2 and MINIMAX_RANK_3 whenever they appear in the list
+    and you are selecting 5 moves.
+3. Use remaining slots for useful tactical/strategic alternatives:
+   - captures (captures_count > 0)
+   - promotion/conversion (results_in_king=true, near_promotion=true)
+   - safety/counterplay (counterplay_score, creates_immediate_threat=true)
+   - mobility restriction (mobility_reduction > 0)
+4. Do not skip MINIMAX_RANK_1/2/3 only for diversity.
 
 
 STEP 1 — SAFETY
@@ -561,6 +568,7 @@ Try to cover different quiet_move_role categories when possible:
 PROMOTION_PUSH, KING_ACTIVATION, COUNTERPLAY, CONVERSION,
 DEFENSIVE_STABILIZATION, MOBILITY_IMPROVEMENT.
 Safety always dominates diversity.
+MINIMAX_RANK also dominates diversity — do not drop RANK_1/2/3 to vary roles.
 
 COUNT RULES:
 - N >= 5 → output exactly 5 indices

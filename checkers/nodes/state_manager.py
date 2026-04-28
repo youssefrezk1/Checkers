@@ -116,6 +116,7 @@ def state_manager(state: CheckersState) -> dict:
         "symbolic_bypass_reason": None,
         "llm_invoked": False,
         "llm_agreed_with_symbolic_best": None,
+        "proposal_diagnostics": None,
         "last_completed_node": "state_manager",
     }
 
