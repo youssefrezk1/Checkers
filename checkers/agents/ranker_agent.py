@@ -1,13 +1,9 @@
 # agents/ranker_agent.py
-# CHANGES FROM PREVIOUS VERSION:
-#   - Added Mistral API support via call_mistral_ranker()
-#   - RANKER_BACKEND env var switches between "mistral" (default) and "ollama"
-#   - MISTRAL_API_KEY env var holds your key from console.mistral.ai
-#   - MISTRAL_RANKER_MODEL defaults to "mistral-small-latest"
-#   - All prompt logic, safety filter, parsing, and retry logic unchanged
-#   - Mistral call uses native JSON mode (response_format: json_object)
-#     so parsing is cleaner than with phi4-mini
-#   - call_ollama_ranker() kept intact for ablation / fallback
+#
+# LLM ranker for the American Checkers pipeline.
+# Backend : Mistral API only (call_mistral_ranker / call_ranker).
+# Model   : MISTRAL_RANKER_MODEL env var, default "mistral-small-latest".
+# Key     : MISTRAL_API_KEY env var (console.mistral.ai).
 
 from __future__ import annotations
 
@@ -310,7 +306,6 @@ def _apply_safety_filter(
 # ── Minimax dominance guardrail ──────────────────────────────────────────────
 
 MINIMAX_DOMINANCE_MARGIN = float(os.environ.get("MINIMAX_DOMINANCE_MARGIN", "2.0"))
-MINIMAX_NEAR_TIE_MARGIN = float(os.environ.get("MINIMAX_NEAR_TIE_MARGIN", "1.0"))
 QUIET_MINIMAX_MARGIN = float(os.environ.get("QUIET_MINIMAX_MARGIN", "2.0"))
 TACTICAL_MINIMAX_MAX_GAP = float(os.environ.get("TACTICAL_MINIMAX_MAX_GAP", "8.0"))
 LOW_DANGER_ACTIVE_MINIMAX_GAP = float(os.environ.get("LOW_DANGER_ACTIVE_MINIMAX_GAP", "8.0"))
@@ -339,6 +334,10 @@ SAFE_VS_UNSAFE_OVERRIDE_GAP = float(os.environ.get("SAFE_VS_UNSAFE_OVERRIDE_GAP"
 #     avoid false positives from noise in deep-game scores.
 UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP", "35.0"))
 UNSAFE_VS_UNSAFE_FALLBACK_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_FALLBACK_GAP", "150.0"))
+# Midgap threshold: equal threat exposure on both moves, override purely by minimax.
+# Slightly above tier-1 (35) because no threat advantage justifies the override —
+# minimax must work alone. Confirmed T13-class miss: gap=56, best_threat=chosen_threat=1.
+UNSAFE_VS_UNSAFE_MIDGAP_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_MIDGAP_GAP", "40.0"))
 
 
 def _get_minimax_score(move: dict[str, Any]) -> float:
@@ -1081,24 +1080,32 @@ def _override_if_llm_chose_much_worse_minimax(
             f"SVDOM:{safe_vs_safe_dominance_gate}"
         )
 
-    # ── Unsafe-vs-unsafe fallback ──────────────────────────────────────────────
+    # ── Unsafe-vs-unsafe override ────────────────────────────────────────────
     # All existing branches require at least one of {passive_safe, low_danger} to
-    # be true on either the chosen or best move.  When the position is dangerous
-    # enough that BOTH moves are fully unsafe (bs=0, cs=0), every branch is skipped
-    # regardless of how large the gap is.  This was confirmed in Turn 11 where
-    # gap=42 was detected (gOK=1) but no branch fired because 42 < 150.
+    # be true on either the chosen or best move.  When BOTH moves are fully unsafe
+    # (bs=0, cs=0), every prior branch is skipped regardless of gap size.
+    # Three mutually exclusive tiers handle this blind spot:
     #
-    # TIER-1: best_threat < chosen_threat AND gap >= UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP (35)
-    #   Best move leaves fewer pieces hanging. A 35pt gap is unambiguous.
-    #   Confirmed miss at T11: gap=42, best_threat=1, chosen_threat=2.
-    # TIER-2: equal threats AND gap >= UNSAFE_VS_UNSAFE_FALLBACK_GAP (150)
-    #   Conservative threshold to avoid false positives on noise.
-    #   Conditions (all must hold):
-    #   1. No normal branch has already fired.
-    #   2. Both chosen and best are fully unsafe: not passive_safe AND not low_danger.
-    #   3. No infinity/sentinel scores (|score| < 1000).
-    _best_threat = best_facts.get("threat_after", 0)
-    _chosen_threat = chosen_facts.get("threat_after", 0)
+    # TIER-1 (unsafe_vs_unsafe_fallback_tier1_lower_threat):
+    #   _best_threat < _chosen_threat AND gap >= UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP (35)
+    #   Best move leaves fewer pieces hanging AND is minimax-better. The combination
+    #   of two advantages makes 35pt sufficient. Confirmed T11: gap=42, bt=1, ct=2.
+    #
+    # MIDGAP (unsafe_vs_unsafe_midgap_minimax):
+    #   _best_threat == _chosen_threat AND gap >= UNSAFE_VS_UNSAFE_MIDGAP_GAP (40)
+    #   Equal threat exposure on both moves. Override is justified purely by minimax
+    #   dominance; no secondary threat advantage. Slightly higher threshold (40 > 35)
+    #   because minimax must work alone. Confirmed T13: gap=56, bt=ct=1.
+    #
+    # TIER-2 (unsafe_vs_unsafe_fallback_tier2_higher_threat):
+    #   _best_threat > _chosen_threat AND gap >= UNSAFE_VS_UNSAFE_FALLBACK_GAP (150)
+    #   Best move leaves MORE pieces hanging but minimax gap is extreme. Very
+    #   conservative threshold because the threat direction is counter-intuitive.
+    #
+    # Common guard (_both_fully_unsafe): not passive_safe, not low_danger,
+    # |score| < 1000 (excludes forced-loss sentinels).
+    _best_threat = best_facts.get("our_pieces_threatened_after", 0)
+    _chosen_threat = chosen_facts.get("our_pieces_threatened_after", 0)
     _both_fully_unsafe = (
         not chosen_safe
         and not best_safe
@@ -1108,18 +1115,25 @@ def _override_if_llm_chose_much_worse_minimax(
         and abs(chosen_score) < 1000.0
     )
     if _both_fully_unsafe:
-        _tier1 = _best_threat < _chosen_threat and gap >= UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP
-        _tier2 = _best_threat >= _chosen_threat and gap >= UNSAFE_VS_UNSAFE_FALLBACK_GAP
-        if _tier1 or _tier2:
-            _tier_name = "tier1_lower_threat" if _tier1 else "tier2_equal_threat"
+        _tier1  = _best_threat <  _chosen_threat and gap >= UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP
+        _midgap = _best_threat == _chosen_threat and gap >= UNSAFE_VS_UNSAFE_MIDGAP_GAP
+        _tier2  = _best_threat >  _chosen_threat and gap >= UNSAFE_VS_UNSAFE_FALLBACK_GAP
+        if _tier1 or _midgap or _tier2:
+            if _tier1:
+                _branch_name = "unsafe_vs_unsafe_fallback_tier1_lower_threat"
+            elif _midgap:
+                _branch_name = "unsafe_vs_unsafe_midgap_minimax"
+            else:
+                _branch_name = "unsafe_vs_unsafe_fallback_tier2_higher_threat"
             debug_info["override_branch_triggered"] = True
-            debug_info["override_branch_name"] = f"unsafe_vs_unsafe_fallback_{_tier_name}"
+            debug_info["override_branch_name"] = _branch_name
             return best_move, (
-                f"Unsafe-vs-unsafe fallback override ({_tier_name}): "
+                f"Unsafe-vs-unsafe override ({_branch_name}): "
                 f"chosen={chosen_score:.1f} (threat={_chosen_threat}), "
                 f"best={best_score:.1f} (threat={_best_threat}), "
                 f"gap={gap:.1f}."
             ), debug_info
+
 
     return chosen_move, None, debug_info
 
@@ -1390,7 +1404,7 @@ UNSAFE BEST EXCEPTION (applies alongside the MINIMAX DOMINANCE RULE):
   or our_pieces_threatened_after=1 (but NOT >= 2),
   AND its minimax_score exceeds all fully safe candidates by 25.0 or more,
   THEN safety alone is NOT sufficient reason to reject it.
-  A 25+ point minimax advantage at depth-3 means the engine already accounts
+  A 25+ point minimax advantage means the engine already accounts
   for the opponent's best recapture — the net result is still favorable.
   Prefer the higher-minimax move in this case.
   Do NOT apply this exception if our_pieces_threatened_after >= 2.
@@ -2163,6 +2177,207 @@ def _log_no_chosen_move_failure(
     print(f"[RANKER_FAILURE_DEBUG] {json.dumps(payload, ensure_ascii=False)}")
 
 
+# ── Override audit helpers ───────────────────────────────────────────────────
+
+OVERRIDE_MAX_RETRIES = int(os.environ.get("OVERRIDE_MAX_RETRIES", "3"))
+
+
+def _audit_override(
+    candidate_moves: list[dict[str, Any]],
+    idx_in_candidates: int,
+    game_phase: str,
+    score_state: str,
+    priorities: list[str],
+    comparison_moves: list[dict[str, Any]],
+) -> tuple[bool, Optional[str], Optional[dict[str, Any]], Optional[str], dict[str, Any]]:
+    """
+    Thin wrapper around _override_if_llm_chose_much_worse_minimax.
+    Returns (triggered, branch_name, best_move, override_reason, override_debug).
+    Does NOT apply the override — caller decides what to do.
+    """
+    result_move, override_reason, override_debug = _override_if_llm_chose_much_worse_minimax(
+        candidate_moves,
+        idx_in_candidates,
+        game_phase,
+        score_state,
+        priorities,
+        comparison_moves=comparison_moves,
+    )
+    triggered: bool = bool(override_debug.get("override_branch_triggered", False))
+    branch_name: Optional[str] = override_debug.get("override_branch_name")
+    # best_move: the move the override would choose (from comparison_moves)
+    best_idx, _, _ = _best_and_second_best_minimax(comparison_moves)
+    best_move = comparison_moves[best_idx] if best_idx is not None else None
+    return triggered, branch_name, best_move, override_reason, override_debug
+
+
+def _build_override_feedback_str(
+    override_debug: dict[str, Any],
+    branch_name: Optional[str],
+    chosen_score: Optional[float] = None,
+    best_score: Optional[float] = None,
+) -> str:
+    """
+    Builds a branch-aware OVERRIDE_FEEDBACK block injected BEFORE the move list.
+    Each branch explains specifically why the previous LLM reasoning failed.
+    Does NOT reveal the exact index to choose.
+    """
+    gap = override_debug.get("best_vs_chosen_minimax_gap")
+    gap_str = f"{gap:.1f}" if isinstance(gap, (int, float)) else "unknown"
+    threat_delta = override_debug.get("best_vs_chosen_threat_delta")
+    threat_str = f"{threat_delta:+d}" if isinstance(threat_delta, int) else "n/a"
+    c_str = f"{chosen_score:.1f}" if isinstance(chosen_score, (int, float)) else "n/a"
+    b_str = f"{best_score:.1f}" if isinstance(best_score, (int, float)) else "n/a"
+    bn = branch_name or "unknown"
+
+    if bn == "safe_vs_unsafe_large_gap":
+        body = (
+            f"  branch_triggered    : {bn}\n"
+            f"  your_choice_score   : {c_str}\n"
+            f"  best_available_score: {b_str}\n"
+            f"  minimax_gap         : {gap_str}  (threshold={SAFE_VS_UNSAFE_OVERRIDE_GAP:.1f})\n"
+            f"  threat_delta        : {threat_str}  (best.threat_after - your_choice.threat_after)\n"
+            "\n"
+            "DIAGNOSIS: You chose a lower-threat move, but the minimax engine evaluated\n"
+            "all opponent replies and found the higher-scoring move is tactically dominant.\n"
+            f"A {gap_str}-point minimax gap means the engine already priced in the\n"
+            "opponent recapture risk. opponent_can_recapture=True does not mean the\n"
+            "position becomes losing — minimax proves the best move recovers well after.\n"
+            "Choosing the safe-but-weaker move permanently loses that positional value.\n"
+            "\n"
+            "ACTION: Re-rank all candidates by minimax_score. A move with threat_after=1\n"
+            "or opponent_can_recapture=True is still correct when its minimax_score is\n"
+            "significantly higher than the safe alternative."
+        )
+    elif bn == "low_danger_minimax_dominance":
+        body = (
+            f"  branch_triggered    : {bn}\n"
+            f"  your_choice_score   : {c_str}\n"
+            f"  best_available_score: {b_str}\n"
+            f"  minimax_gap         : {gap_str}  (threshold={LOW_DANGER_MINIMAX_GAP:.1f})\n"
+            f"  threat_delta        : {threat_str}\n"
+            "\n"
+            "DIAGNOSIS: Both your choice and the best move are low-danger. You likely\n"
+            "over-weighted counterplay_score, creates_immediate_threat, or\n"
+            "shot_sequence_available. These fields describe the current move only —\n"
+            "they do NOT guarantee a better position after the opponent's best reply.\n"
+            "A high counterplay_score with a lower minimax_score means the tactical\n"
+            "pressure evaporates once the opponent responds optimally.\n"
+            "\n"
+            "ACTION: Among low-danger moves, treat minimax_score as the dominant\n"
+            "criterion. Counterplay and threat signals are valid tiebreakers only when\n"
+            f"minimax scores are within {LOW_DANGER_MINIMAX_GAP:.1f} points of each other."
+        )
+    elif bn and bn.startswith("unsafe_vs_unsafe"):
+        body = (
+            f"  branch_triggered    : {bn}\n"
+            f"  your_choice_score   : {c_str}\n"
+            f"  best_available_score: {b_str}\n"
+            f"  minimax_gap         : {gap_str}\n"
+            f"  threat_delta        : {threat_str}\n"
+            "\n"
+            "DIAGNOSIS: All available moves expose pieces. In this situation\n"
+            "our_pieces_threatened_after and opponent_can_recapture are not useful\n"
+            "discriminators — both moves carry similar immediate risk. The minimax\n"
+            "engine evaluated the full sequence and found one move recovers\n"
+            "significantly better after the opponent's optimal reply.\n"
+            "\n"
+            "ACTION: When all moves are risky, rank by minimax_score alone. Do not\n"
+            "use threat_after or opponent_can_recapture to prefer one unsafe move."
+        )
+    else:
+        body = (
+            f"  branch_triggered    : {bn}\n"
+            f"  your_choice_score   : {c_str}\n"
+            f"  best_available_score: {b_str}\n"
+            f"  minimax_gap         : {gap_str}\n"
+            f"  threat_delta        : {threat_str}\n"
+            "\n"
+            "DIAGNOSIS: The minimax engine found a significantly better move. Minimax\n"
+            "evaluates all opponent replies to depth and is more reliable than\n"
+            "single-move heuristics (counterplay, safety, threat creation alone).\n"
+            "\n"
+            "ACTION: Re-examine the candidate list. Prefer the move with the highest\n"
+            "minimax_score that does not introduce unacceptable immediate danger."
+        )
+
+    lines = [
+        "OVERRIDE_FEEDBACK:",
+        "Your previous selection was rejected by the tactical override guardrail.",
+        "",
+        body,
+        "",
+        "The candidate list below is the FULL proposal shortlist (no safety filter applied).",
+        "END_OVERRIDE_FEEDBACK",
+    ]
+    return "\n".join(lines)
+
+
+def _build_retry_user_prompt(
+    state: "CheckersState",
+    move_list: list[dict[str, Any]],
+    index_map: list[int],
+    feedback_str: str,
+    system_prompt: str,
+) -> str:
+    """
+    Builds a retry user prompt that places feedback_str BEFORE the move list.
+    move_list is the full proposal shortlist (legal[]); index_map is identity.
+    The structure mirrors build_ranker_user_prompt but inserts the feedback
+    block between the header and the 'legal_moves:' section.
+    """
+    phase = (state.strategic_context or {}).get("game_phase", "MIDGAME")
+    header_lines = [
+        f"current_player: {_current_player_label(state.current_player)}",
+        f"turn_number: {state.turn_number}",
+        "",
+        feedback_str,
+        "",
+        f"Choose exactly one index from 0 to {len(move_list) - 1} inclusive.",
+        "",
+        "legal_moves:",
+        "Safety note: clearly unsafe moves may be removed before ranking,",
+        "but if all legal moves are unsafe then the candidate list may still",
+        "contain recapturable moves. Use the facts fields to judge safety.",
+    ]
+    move_lines: list[str] = []
+    for i, move in enumerate(move_list):
+        facts = dict(move.get("facts", {}) or {})
+        is_quiet_opening_move = (
+            phase == "OPENING"
+            and facts.get("captures_count", 0) == 0
+            and not facts.get("creates_immediate_threat", False)
+            and not facts.get("shot_sequence_available", False)
+            and not facts.get("blocks_opponent_landing", False)
+        )
+        if is_quiet_opening_move:
+            for key in (
+                "restriction_score",
+                "frozen_enemy_pieces",
+                "winning_conversion_score",
+                "mobility_reduction",
+                "opponent_mobility_after",
+            ):
+                facts.pop(key, None)
+        payload = {
+            "type": move.get("type"),
+            "path": move.get("path"),
+            "captured": move.get("captured", []),
+            "facts": facts,
+        }
+        move_lines.append(f"  [{i}] {json.dumps(payload, ensure_ascii=False)}")
+    ctx_lines: list[str] = []
+    if RANKER_INCLUDE_STRATEGIC_CONTEXT:
+        ctx_lines = [
+            "",
+            "strategic_context:",
+            _format_ranker_context(state.strategic_context),
+        ]
+    else:
+        ctx_lines = ["", "(strategic_context omitted — rely on per-move facts only.)"]
+    return "\n".join(header_lines + move_lines + ctx_lines)
+
+
 # ── Main node ─────────────────────────────────────────────────────────────────
 
 def ranker_agent(state: CheckersState) -> dict:
@@ -2296,89 +2511,244 @@ def ranker_agent(state: CheckersState) -> dict:
                 "last_completed_node": "ranker_agent",
             }
 
-        # ── Post-LLM minimax override only in clearly safe positions ─────────
-        llm_idx_before_override = idx
-        chosen_after_override, override_reason, override_debug = _override_if_llm_chose_much_worse_minimax(
-            filtered,
-            idx,
-            game_phase,
-            score_state,
-            priorities,
-            comparison_moves=legal,
-        )
-        if override_reason:
+        # ── Post-LLM override: audit → retry loop → Python fallback ─────────
+        #
+        # Variables that are NEVER mutated after initial assignment:
+        #   filtered    — safety-filter output (the menu the LLM saw on attempt 0)
+        #   legal       — full proposal shortlist (state.legal_moves)
+        #   index_map   — filtered→legal index translation
+        #   idx         — raw parsed index from the first LLM call (filtered space)
+        #
+        # Working variables updated each retry iteration:
+        #   attempt_moves      — filtered on attempt 0; legal on retries
+        #   idx_in_attempt_moves — correct index into attempt_moves for this iteration
+        #   idx_legal          — same choice expressed in legal[] space
+
+        # Diagnostic accumulators
+        _or_retry_attempts:   int           = 0
+        _or_retry_resolved:   bool          = False
+        _or_fallback_applied: bool          = False
+        _or_branch_name:      Optional[str] = None
+        _or_retry_full:       bool          = False
+        _last_override_debug: dict[str, Any] = {}
+        _last_override_reason: Optional[str] = None
+        _retry_reasoning:     Optional[str] = None   # text from most-recent retry LLM call
+
+        # Attempt-0 setup
+        attempt_moves        = filtered                    # NEVER overwrite filtered
+        idx_in_attempt_moves = idx                         # in filtered space
+        idx_legal            = index_map[idx]              # same move in legal space
+
+        _chosen_final: Optional[dict[str, Any]] = None
+
+        while True:
+            # ── Audit ────────────────────────────────────────────────────────
+            # comparison_moves=legal is ALWAYS the full proposal shortlist.
+            # candidate_moves=attempt_moves and idx_in_attempt_moves are
+            # iteration-local — never bleed back into filtered or idx.
+            (
+                _triggered,
+                _branch,
+                _best_move,
+                _override_reason,
+                _override_debug,
+            ) = _audit_override(
+                candidate_moves   = attempt_moves,
+                idx_in_candidates = idx_in_attempt_moves,
+                game_phase        = game_phase,
+                score_state       = score_state,
+                priorities        = priorities,
+                comparison_moves  = legal,
+            )
+            _last_override_debug  = _override_debug
+            _last_override_reason = _override_reason
+
+            if not _triggered:
+                # Audit passed — accept this iteration's choice.
+                _chosen_final = attempt_moves[idx_in_attempt_moves]
+                if _or_retry_attempts > 0:
+                    _or_retry_resolved = True
+                break
+
+            # Record branch on first trigger
+            if _or_branch_name is None:
+                _or_branch_name = _branch
+
+            # ── C2: Log audit result for retry iterations (attempt >= 1) ──────
+            if _or_retry_attempts > 0:
+                print(
+                    f"[override_retry] attempt={_or_retry_attempts}  "
+                    f"audit_still_triggered=True  "
+                    f"branch={_branch}  "
+                    f"gap={_override_debug.get('best_vs_chosen_minimax_gap')}"
+                )
+
+            if _or_retry_attempts >= OVERRIDE_MAX_RETRIES:
+                # ── C3: Fallback exit log ─────────────────────────────────────
+                print(
+                    f"[override_retry] FALLBACK  "
+                    f"original_branch={_or_branch_name}  "
+                    f"final_audit_branch={_branch}  "
+                    f"attempts={_or_retry_attempts}  "
+                    f"fallback_path={(_best_move or {}).get('path')}"
+                )
+                # All retries exhausted — Python fallback (best_move from last audit).
+                _chosen_final = _best_move if _best_move is not None else attempt_moves[idx_in_attempt_moves]
+                _or_fallback_applied = True
+                _last_override_reason = _override_reason
+                break
+
+            # ── Build and fire retry call ─────────────────────────────────
+            _or_retry_attempts += 1
+            _or_retry_full = True
+
+            _feedback_str  = _build_override_feedback_str(
+                _override_debug,
+                _branch,
+                chosen_score=_get_minimax_score(attempt_moves[idx_in_attempt_moves]),
+                best_score=_get_minimax_score(_best_move) if _best_move is not None else None,
+            )
+            _retry_user    = _build_retry_user_prompt(
+                state       = state,
+                move_list   = legal,                     # full proposal shortlist
+                index_map   = list(range(len(legal))),  # identity map
+                feedback_str = _feedback_str,
+                system_prompt = system,
+            )
+            import time as _time
+            _retry_raw: Optional[str] = None
+            for _api_attempt in range(3):
+                try:
+                    _retry_raw = call_ranker(system, _retry_user)
+                    break
+                except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError) as _e:
+                    _wait = 2 ** _api_attempt * 10
+                    print(
+                        f"[ranker_agent][override_retry] API call failed "
+                        f"(attempt {_api_attempt+1}): {_e} — waiting {_wait}s"
+                    )
+                    _time.sleep(_wait)
+
+            if _retry_raw is None:
+                # API totally failed on this retry slot — burn slot, continue
+                # (will fall back if _or_retry_attempts reaches OVERRIDE_MAX_RETRIES)
+                continue
+
+            _retry_idx_legal, _retry_reasoning = _interpret_ranker_response(_retry_raw, len(legal))
+
+            if _retry_idx_legal is None or not (0 <= _retry_idx_legal < len(legal)):
+                # Bad parse — burn retry slot
+                print(
+                    f"[ranker_agent][override_retry] retry {_or_retry_attempts}: "
+                    f"bad parse or out-of-range index ({_retry_idx_legal}) — burning slot"
+                )
+                continue
+
+            # ── C1: Per-retry chosen move log ─────────────────────────────
+            _retry_chosen_move = legal[_retry_idx_legal]
+            print(
+                f"[override_retry] attempt={_or_retry_attempts}  "
+                f"chosen_idx={_retry_idx_legal}  "
+                f"chosen_path={_retry_chosen_move.get('path')}  "
+                f"chosen_minimax={_get_minimax_score(_retry_chosen_move):.1f}  "
+                f"reasoning_prefix=\"{(_retry_reasoning or '')[:80]}\""
+            )
+
+            # ── Set up next audit iteration ───────────────────────────────
+            # Retries always audit against the full proposal list.
+            # Do NOT overwrite attempt_moves with filtered or legal:
+            # re-assign local working variables only.
+            attempt_moves        = legal             # full proposal — not filtered
+            idx_in_attempt_moves = _retry_idx_legal  # index into legal[] space
+            idx_legal            = _retry_idx_legal  # keep aligned
+            # Loop → audit runs again with attempt_moves=legal
+
+        # attempt_moves and idx_in_attempt_moves resolved; _chosen_final is set.
+        # filtered, legal, index_map, idx are all still their original values.
+
+        # ── Emit DECISION_DEBUG (unchanged structure) ─────────────────────
+        _override_debug  = _last_override_debug
+        override_reason  = _last_override_reason
+        if _or_retry_resolved and _retry_reasoning:
+            # Retry LLM chose a corrected move — use its own reasoning.
+            reasoning = _retry_reasoning
+        elif override_reason and not _or_retry_resolved:
+            # Override triggered but retries exhausted without resolving — use override message.
             reasoning = override_reason
 
         best_idx, _, _ = _best_and_second_best_minimax(legal)
         best_move = legal[best_idx] if best_idx is not None else None
-        chosen_before_override = filtered[llm_idx_before_override]
-        # Override-time invariants for diagnosis (instrumentation only).
+        chosen_before_override = filtered[idx]          # original LLM choice (unchanged)
         legal_scores = [_get_minimax_score(m) for m in legal]
         legal_best_score = max(legal_scores) if legal_scores else None
         legal_best_idxs = (
-            [i for i, s in enumerate(legal_scores) if legal_best_score is not None and s == legal_best_score]
-            if legal_scores
-            else []
+            [i for i, s in enumerate(legal_scores)
+             if legal_best_score is not None and s == legal_best_score]
+            if legal_scores else []
         )
         best_idx_is_argmax = (
             best_idx is not None
             and legal_best_score is not None
             and _get_minimax_score(legal[best_idx]) == legal_best_score
         )
-        chosen_path_internal = chosen_after_override.get("path")
+        chosen_path_internal = (_chosen_final or {}).get("path")
         best_path_internal = best_move.get("path") if best_move else None
         chosen_path_matches_llm_idx = (
-            llm_idx_before_override is not None
-            and 0 <= llm_idx_before_override < len(filtered)
-            and filtered[llm_idx_before_override].get("path") == chosen_before_override.get("path")
+            idx is not None
+            and 0 <= idx < len(filtered)
+            and filtered[idx].get("path") == chosen_before_override.get("path")
         )
-        chosen_debug_facts = chosen_after_override.get("facts", {}) or {}
+        chosen_debug_facts = (_chosen_final or {}).get("facts", {}) or {}
         best_debug_facts = (best_move.get("facts", {}) if best_move else {}) or {}
         print(
             "[DECISION_DEBUG] "
-            f"chosen={chosen_after_override.get('path')} "
+            f"chosen={(_chosen_final or {}).get('path')} "
             f"best={(best_move.get('path') if best_move else None)} "
-            f"gap={override_debug.get('best_vs_chosen_minimax_gap')} "
-            f"llm_idx={llm_idx_before_override} "
+            f"gap={_override_debug.get('best_vs_chosen_minimax_gap')} "
+            f"llm_idx={idx} "
             f"best_idx={best_idx} "
             f"filtered_menu_size={len(filtered)} "
-            f"chosen_minimax_internal={_get_minimax_score(chosen_after_override)} "
+            f"chosen_minimax_internal={_get_minimax_score(_chosen_final) if _chosen_final else None} "
             f"best_minimax_internal={_get_minimax_score(best_move) if best_move else None} "
             f"chosen_path_internal={chosen_path_internal} "
             f"best_path_internal={best_path_internal} "
             f"chosen_path_matches_llm_idx={chosen_path_matches_llm_idx} "
             f"best_idx_is_argmax={best_idx_is_argmax} "
             f"best_score_tie_count={len(legal_best_idxs)} "
-            f"chosen_passive_safe={override_debug.get('is_passive_safe_structural', {}).get('chosen')} "
-            f"best_passive_safe={override_debug.get('is_passive_safe_structural', {}).get('best')} "
-            f"chosen_low_danger={override_debug.get('is_low_danger_active', {}).get('chosen')} "
-            f"best_low_danger={override_debug.get('is_low_danger_active', {}).get('best')} "
-            f"override_triggered={override_debug.get('override_branch_triggered')} "
-            f"override_branch_name={override_debug.get('override_branch_name')} "
-            f"override_block_reason={override_debug.get('override_block_reason')} "
-            f"best_move_rejected_reason={override_debug.get('best_move_rejected_reason')} "
-            f"threat_delta={override_debug.get('best_vs_chosen_threat_delta')}"
+            f"chosen_passive_safe={_override_debug.get('is_passive_safe_structural', {}).get('chosen')} "
+            f"best_passive_safe={_override_debug.get('is_passive_safe_structural', {}).get('best')} "
+            f"chosen_low_danger={_override_debug.get('is_low_danger_active', {}).get('chosen')} "
+            f"best_low_danger={_override_debug.get('is_low_danger_active', {}).get('best')} "
+            f"override_triggered={_override_debug.get('override_branch_triggered')} "
+            f"override_branch_name={_override_debug.get('override_branch_name')} "
+            f"override_block_reason={_override_debug.get('override_block_reason')} "
+            f"best_move_rejected_reason={_override_debug.get('best_move_rejected_reason')} "
+            f"threat_delta={_override_debug.get('best_vs_chosen_threat_delta')} "
+            f"override_retry_attempts={_or_retry_attempts} "
+            f"override_retry_resolved={_or_retry_resolved} "
+            f"override_fallback_applied={_or_fallback_applied} "
+            f"retry_used_full_proposal={_or_retry_full}"
         )
         print(
             "[DECISION_DEBUG] "
             f"chosen_move_facts={{"
-            f"'path': {chosen_after_override.get('path')}, "
-            f"'is_passive_safe_structural': {override_debug.get('is_passive_safe_structural', {}).get('chosen')}, "
-            f"'is_low_danger_active': {override_debug.get('is_low_danger_active', {}).get('chosen')}, "
+            f"'path': {(_chosen_final or {}).get('path')}, "
+            f"'is_passive_safe_structural': {_override_debug.get('is_passive_safe_structural', {}).get('chosen')}, "
+            f"'is_low_danger_active': {_override_debug.get('is_low_danger_active', {}).get('chosen')}, "
             f"'threat_after': {chosen_debug_facts.get('our_pieces_threatened_after')}, "
-            f"'minimax_score': {_get_minimax_score(chosen_after_override)}"
+            f"'minimax_score': {_get_minimax_score(_chosen_final) if _chosen_final else None}"
             f"}} "
             f"best_move_facts={{"
             f"'path': {(best_move.get('path') if best_move else None)}, "
-            f"'is_passive_safe_structural': {override_debug.get('is_passive_safe_structural', {}).get('best')}, "
-            f"'is_low_danger_active': {override_debug.get('is_low_danger_active', {}).get('best')}, "
+            f"'is_passive_safe_structural': {_override_debug.get('is_passive_safe_structural', {}).get('best')}, "
+            f"'is_low_danger_active': {_override_debug.get('is_low_danger_active', {}).get('best')}, "
             f"'threat_after': {best_debug_facts.get('our_pieces_threatened_after')}, "
             f"'minimax_score': {_get_minimax_score(best_move) if best_move else None}"
             f"}} "
             f"llm_choice_path={chosen_before_override.get('path')}"
         )
 
-        chosen = chosen_after_override
+        chosen = _chosen_final
 
         # ── Promotion tie-break ───────────────────────────────────────────────
         # When scores are tied or near-tied and the chosen move is NOT an
@@ -2496,6 +2866,17 @@ def ranker_agent(state: CheckersState) -> dict:
         if sym_path is not None and chosen_path is not None:
             llm_agreed = (sym_path == chosen_path)
 
+    # ── Build structured override diagnostics ────────────────────────────────
+    # These variables are set inside the multi-candidate branch (n >= 2).
+    # For the single-candidate branch (n == 1) they default to None/False.
+    _ranker_diagnostics: dict[str, Any] = {
+        "override_retry_attempts":   locals().get("_or_retry_attempts",   0),
+        "override_retry_resolved":   locals().get("_or_retry_resolved",   False),
+        "override_fallback_applied": locals().get("_or_fallback_applied", False),
+        "override_branch_name":      locals().get("_or_branch_name",      None),
+        "retry_used_full_proposal":  locals().get("_or_retry_full",       False),
+    }
+
     out = {
         "chosen_move": chosen,
         "last_move_reasoning": reasoning,
@@ -2503,5 +2884,6 @@ def ranker_agent(state: CheckersState) -> dict:
         "last_completed_node": "ranker_agent",
         "ranker_filtered_menu": ranker_filtered_menu_snapshot,
         "llm_agreed_with_symbolic_best": llm_agreed,
+        "ranker_diagnostics": _ranker_diagnostics,
     }
     return out

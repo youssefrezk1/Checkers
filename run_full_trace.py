@@ -30,6 +30,13 @@ from checkers.nodes.state_manager import state_manager
 BAR = "═" * 56
 RULE = "─" * 56
 
+_ANSI_RED = "\033[91m"
+_ANSI_RESET = "\033[0m"
+
+
+def red_if(val, cond):
+    return f"{_ANSI_RED}{val}{_ANSI_RESET}" if cond else val
+
 
 def _as_dict(chunk: Any) -> dict[str, Any]:
     if isinstance(chunk, dict):
@@ -250,7 +257,8 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
     turn_no = acc.get("turn_number", 0)
     display_turn = turn_no + 1
     legal = get_all_legal_moves(acc["board"], RED)
-    peak_retry = acc.get("retry_count", 0)
+    peak_retry = 0  # reset per-ply; never inherit stale retry_count from prior turn
+    fe_before = acc.get("format_error_count", 0)  # snapshot for per-turn delta
     fb_before = acc.get("ranker_fallback_count", 0)
     ranker_fallback_used = False
 
@@ -289,26 +297,21 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
                     continue
 
                 if node_name == "proposal_agent":
-                    raw = acc.get("proposed_moves")
-                    print("── PROPOSAL AGENT ──")
-                    print(f"Raw output: {raw!r}")
-                    if isinstance(raw, str):
-                        try:
-                            sel = json.loads(raw)
-                            if isinstance(sel, dict) and "selected_indices" in sel:
-                                print(f"Selected indices: {sel['selected_indices']}")
-                        except (json.JSONDecodeError, TypeError):
-                            pass
-                    print()
+                    pass  # internal [proposal_agent] logs already printed by the node itself
 
                 elif node_name == "format_checker":
                     pm = acc.get("proposed_moves")
+                    print("── PROPOSAL AGENT ──")
                     print("Proposed moves after format_checker:")
                     if isinstance(pm, list) and pm:
                         for i, m in enumerate(pm):
                             print(_fmt_proposed_after_format(i, m))
                     else:
                         print("  (empty or invalid)")
+                    # print rejection feedback when format_checker sent one
+                    _fc_fb = acc.get("feedback")
+                    if _fc_fb:
+                        print(f"  [rejection feedback]: {str(_fc_fb)[:200]}")
                     print()
 
                 elif node_name == "minimax_scorer":
@@ -347,43 +350,30 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
                             _best_prop_score = _s
                             _best_prop_path  = _m.get("path")
 
-                    # Score all legal moves with minimax (read-only shallow pass)
-                    from checkers.engine.minimax import score_move_with_minimax as _mm_score
+                    # Score all legal moves with ONE joint search_root_all_scores call
+                    # at PIPELINE_SCORER_DEPTH — same function and depth as minimax_scorer,
+                    # shared TT, full window — so best_legal_score is on the same scale as
+                    # the pipeline scores in lm[*].facts["minimax_score"].
+                    from checkers.search.minimax_core import search_root_all_scores as _sra
+                    from checkers.nodes.minimax_scorer import PIPELINE_SCORER_DEPTH as _diag_depth
                     _best_legal_score = float("-inf")
                     _best_legal_path  = None
                     _best_legal_missing = False
-                    for _alm in _all_legal:
-                        try:
-                            _raw = _mm_score(acc["board"], _alm, RED)
-                            _s = float(_raw) if _raw is not None else float("-inf")
-                        except Exception:
-                            _s = float("-inf")
-                        if _s > _best_legal_score:
-                            _best_legal_score = _s
-                            _best_legal_path  = _alm.get("path")
-                            _p = tuple(tuple(sq) for sq in _alm.get("path", []))
+                    try:
+                        _, _, _all_scored, _ = _sra(acc["board"], RED, _diag_depth, _all_legal)
+                        if _all_scored:
+                            _best_legal_path = _all_scored[0][0].get("path")
+                            _best_legal_score = float(_all_scored[0][1])
+                            _p = tuple(tuple(sq) for sq in _all_scored[0][0].get("path", []))
                             _best_legal_missing = _p not in _proposal_paths
-
-                    _chosen_move_now = acc.get("chosen_move")
-                    _chosen_path = (_chosen_move_now or {}).get("path")
-                    _chosen_score_diag = float("-inf")
-                    for _m in lm:
-                        if _m.get("path") == _chosen_path:
-                            _v = _m.get("facts", {}).get("minimax_score")
-                            _chosen_score_diag = float(_v) if _v is not None else float("-inf")
-                            break
-
-                    _gap_diag = _best_legal_score - _chosen_score_diag if _chosen_score_diag > float("-inf") else "n/a"
+                    except Exception:
+                        pass
 
                     print("── TRACE DIAGNOSTIC (READ-ONLY) ──")
-                    print(f"best_legal_overall:              path={_best_legal_path}  minimax_score={_best_legal_score:.1f}")
-                    print(f"best_proposed:                   path={_best_prop_path}  minimax_score={_best_prop_score:.1f}")
+                    print(f"best_legal_overall:   path={_best_legal_path}  minimax_score={_best_legal_score:.1f}")
+                    print(f"best_in_proposal:     path={_best_prop_path}  minimax_score={_best_prop_score:.1f}")
                     print(f"best_legal_missing_from_proposal: {_best_legal_missing}")
                     print(f"legal_count: {len(_all_legal)}  proposal_count: {len(lm)}")
-                    if isinstance(_gap_diag, float):
-                        print(f"gap_best_legal_vs_chosen:        {_gap_diag:.1f}  (computed at scoring time, chosen not yet final)")
-                    else:
-                        print(f"gap_best_legal_vs_chosen:        {_gap_diag}")
                     print()
                     # ── END TRACE DIAGNOSTIC ─────────────────────────────────
 
@@ -400,7 +390,18 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
                                 chosen_facts = m.get("facts") or {}
                                 break
 
-                        print(f"Chose index: {idx}")
+                        # Determine decision source from ranker_diagnostics
+                        _rd_now = acc.get("ranker_diagnostics") or {}
+                        _orr_now = _rd_now.get("override_retry_resolved", False)
+                        _ofa_now = _rd_now.get("override_fallback_applied", False)
+                        if _orr_now:
+                            _via_tag = "retry_llm"
+                        elif _ofa_now:
+                            _via_tag = "python_fallback"
+                        else:
+                            _via_tag = "original_llm"
+
+                        print(f"Chose index: {idx}  [via={_via_tag}]")
                         cap = cm.get("captured") or []
                         path = cm.get("path", [])
                         if cap:
@@ -422,7 +423,6 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
                             f"frozen_enemy_pieces={chosen_facts.get('frozen_enemy_pieces', 'n/a')}  "
                             f"center_control={chosen_facts.get('center_control', 'n/a')}  "
                             f"quiet_move_role={chosen_facts.get('quiet_move_role', 'n/a')}"
-
                         )
 
                         r = acc.get("last_move_reasoning") or ""
@@ -496,16 +496,6 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
                         print("Chose index: (none — ranker failure, may retry)")
                     print()
 
-                elif node_name == "ranker_fallback":
-                    ranker_fallback_used = True
-                    cm = acc.get("chosen_move")
-                    lm = acc.get("legal_moves") or []
-                    print("── RANKER FALLBACK (symbolic) ──")
-                    if cm and lm:
-                        print("Applied legal_moves[0] after ranker retries exhausted.")
-                        print(f"Move: {cm.get('type')} {cm.get('path')}")
-                    print()
-
                 elif node_name == "state_manager":
                     mh = acc.get("move_history") or []
                     if mh:
@@ -543,16 +533,46 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
                     _strategic_block(ctx_snapshot)
                     print()
                     print("── METRICS THIS TURN ──")
+                    _fe_this_turn = acc.get('format_error_count', 0) - fe_before
+                    _ranker_failures = acc.get('ranker_failure_count', 0)
+                    _ranker_fallbacks = acc.get('ranker_fallback_count', 0)
                     print(
-                        f"format_errors={acc.get('format_error_count', 0)}  "
-                        f"ranker_failures={acc.get('ranker_failure_count', 0)}  "
-                        f"ranker_fallbacks={acc.get('ranker_fallback_count', 0)}"
+                        f"format_errors_this_turn={red_if(_fe_this_turn, _fe_this_turn > 0)}  "
+                        f"format_errors_cumulative={acc.get('format_error_count', 0)}  "
+                        f"ranker_failures={red_if(_ranker_failures, _ranker_failures > 0)}  "
+                        f"ranker_fallbacks={red_if(_ranker_fallbacks, _ranker_fallbacks > 0)}"
                     )
-                    print(f"retry_count={peak_retry}")
+                    print(f"format_checker_retry_count={red_if(peak_retry, peak_retry > 0)}")
                     print(
                         f"ranker_fallback_used_this_turn="
                         f"{ranker_fallback_used or (acc.get('ranker_fallback_count', 0) > fb_before)}"
                     )
+                    # Fix 3: read proposal_diagnostics for LLM source / retry visibility
+                    _pd = acc.get("proposal_diagnostics") or {}
+                    if _pd:
+                        print(
+                            f"proposal_source={_pd.get('proposal_source')}  "
+                            f"transient_retry_count={_pd.get('transient_retry_count', 0)}  "
+                            f"used_retry={_pd.get('used_retry', False)}  "
+                            f"fallback_reason={_pd.get('fallback_reason')}"
+                        )
+                    _rd = acc.get("ranker_diagnostics") or {}
+                    if _rd:
+                        _ora = _rd.get('override_retry_attempts', 0)
+                        _orr = _rd.get('override_retry_resolved', False)
+                        _ofa = _rd.get('override_fallback_applied', False)
+                        _rufp = _rd.get('retry_used_full_proposal', False)
+                        _retry_menu_label = (
+                            "n/a" if _ora == 0
+                            else ("full_proposal" if _rufp else "filtered")
+                        )
+                        print(
+                            f"override_retry_attempts={red_if(_ora, _ora > 0)}  "
+                            f"override_retry_resolved={red_if(_orr, not _orr and _ora > 0)}  "
+                            f"override_fallback_applied={red_if(_ofa, _ofa)}  "
+                            f"override_branch_name={_rd.get('override_branch_name')}  "
+                            f"retry_menu={red_if(_retry_menu_label, _rufp)}"
+                        )
                     print(RULE)
                     print()
 

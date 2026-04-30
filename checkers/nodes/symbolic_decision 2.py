@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 SYMBOLIC_DECISION_DEPTH = MINIMAX_DEPTH
 
 _VALID_BACKENDS = {"per_move", "search_root_all_scores"}
-SYMBOLIC_SCORING_BACKEND = os.environ.get("SYMBOLIC_SCORING_BACKEND", "search_root_all_scores")
+SYMBOLIC_SCORING_BACKEND = os.environ.get("SYMBOLIC_SCORING_BACKEND", "per_move")
 if SYMBOLIC_SCORING_BACKEND not in _VALID_BACKENDS:
     raise ValueError(
         f"SYMBOLIC_SCORING_BACKEND={SYMBOLIC_SCORING_BACKEND!r} is not valid. "
@@ -177,7 +177,7 @@ def symbolic_decision(state: CheckersState) -> dict[str, Any]:
     """
     Phase 8 symbolic-assisted decision stage.
 
-    Scores all legal moves at depth=SYMBOLIC_DECISION_DEPTH with full engine config, sorts them
+    Scores all legal moves at depth=3 with full engine config, sorts them
     best-first, and stores the result in state.symbolic_scored_moves.
     Proposal agent receives this sorted list as its candidate pool.
     Ranker agent remains the final decision-maker.

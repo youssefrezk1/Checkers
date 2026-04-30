@@ -20,9 +20,9 @@ set env `RANKER_INCLUDE_STRATEGIC_CONTEXT=false` to A/B test facts-only.
 RED ply retries: if format_checker or validator rejects everything, the demo loops
 back to `proposal_agent` with `state.feedback` until `retry_count >= retry_budget`
 (default 3). Retries also append a short numbered list of engine-legal moves.
-If the ranker LLM fails or returns an invalid index, the demo retries the ranker
-until `ranker_retry_count >= ranker_retry_budget`, then applies `ranker_fallback`
-(legal_moves[0]) and increments `ranker_fallback_count` for evaluation metrics.
+If the ranker LLM fails or returns an invalid index, ranker_agent applies a
+deterministic Python fallback (best minimax move) internally and always returns
+a chosen_move — no external fallback node is needed.
 
 Proposal: LLM outputs JSON `{"selected_indices":[...]}` into the engine’s numbered legal moves.
 Requires Ollama for RED (proposal + ranker unless `--stub-ranker`).
@@ -46,7 +46,6 @@ from checkers.engine.rules import get_all_legal_moves
 from checkers.nodes.format_checker import format_checker
 from checkers.nodes.inter_turn_memory import inter_turn_memory
 from checkers.nodes.state_manager import state_manager
-from checkers.nodes.ranker_fallback import ranker_fallback
 from checkers.nodes.validator import validator
 from checkers.nodes.win_condition import win_condition
 from checkers.state.state import CheckersState
@@ -362,30 +361,8 @@ def run_llm_side(
                     print(f"  APPLY MOVE: {_move_json(ch)}")
                     print(f"  {'─' * 68}")
                 break
-            if state.ranker_retry_count < state.ranker_retry_budget:
-                if verbose:
-                    print(
-                        "  ROUTE: ranker failed (LLM/parse/invalid index) — retry ranker "
-                        f"(failure total session: {state.ranker_failure_count})."
-                    )
-                continue
-            if verbose:
-                print(
-                    "  ROUTE: ranker retries exhausted — ranker_fallback (legal_moves[0])."
-                )
-            patch = ranker_fallback(state)
-            state = merge(state, patch)
-            if state.chosen_move is None:
-                if verbose:
-                    print("  STOP: ranker_fallback could not pick a move (no legal_moves).")
-                return state, False
-            if verbose:
-                ch = state.chosen_move
-                print(f"  fallback move: {_move_json(ch)}")
-                print(f"  last_move_reasoning: {_truncate(state.last_move_reasoning or '', 500)}")
-                print(f"\n  {'─' * 68}")
-                print(f"  APPLY MOVE: {_move_json(ch)}")
-                print(f"  {'─' * 68}")
+            # ranker_agent always returns chosen_move via internal Python fallback;
+            # this path is unreachable in practice.
             break
     patch = state_manager(state)
     state = merge(state, patch)

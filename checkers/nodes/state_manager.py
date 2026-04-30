@@ -1,7 +1,7 @@
 # nodes/state_manager.py
 #
 # The state_manager is the transition node between turns.
-# It runs after the ranker_agent (or ranker_fallback) and before win_condition.
+# It runs after the ranker_agent and before win_condition.
 #
 # Engine responsibilities (via apply_move): full path, all captures in one ply,
 # multi-jump sequences, king promotion — already implemented in rules.apply_move.

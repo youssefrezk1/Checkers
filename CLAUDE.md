@@ -11,7 +11,6 @@ Bachelor thesis project: an LLM-augmented American Checkers (8x8) engine. A Lang
 ### Run a full game (RED = LangGraph pipeline, BLACK = human or minimax opponent)
 ```
 venv/bin/python3 run_full_trace.py
-venv/bin/python3 run_full_trace.py --mode=auto   # both sides automated
 ```
 
 ### Run tests
@@ -37,11 +36,11 @@ venv/bin/python3 -m checkers.eval.run_ablation_eval --games 3 --depth 3 --out lo
 
 ### LangGraph Hub-and-Spoke Pipeline
 
-All nodes return to the **orchestrator** (pure passthrough); routing logic lives in `orchestrator_routing` inside `checkers/graph/graph.py`. State is a Pydantic model (`CheckersState` in `checkers/state/state.py`); nodes return dicts of changed fields that LangGraph merges.
+All nodes return to the **orchestrator** (pure passthrough); routing logic lives in `_orchestrator_routing` inside `checkers/graph/graph.py` (module-level function, unit-testable). State is a Pydantic model (`CheckersState` in `checkers/state/state.py`); nodes return dicts of changed fields that LangGraph merges.
 
 **Per-turn flow** (in order):
 1. **inter_turn_memory** — computes strategic context (game phase, score state, patterns, priorities) from board facts and a 5-turn sliding window
-2. **symbolic_decision** — scores ALL legal moves via depth-3 negamax, sorts best-first, stores in `symbolic_scored_moves`. Always proceeds to proposal (never bypasses LLM)
+2. **symbolic_decision** — scores ALL legal moves via negamax at `MINIMAX_DEPTH` (env default 6), sorts best-first, stores in `symbolic_scored_moves`. Always proceeds to proposal (never bypasses LLM)
 3. **proposal_agent** — calls Groq (llama-3.1-8b) to shortlist 3-5 candidate indices from the sorted move list. Applies symbolic safety-net injection and role-pinning post-LLM
 4. **format_checker** — parses LLM JSON output, expands indices to engine move dicts, enforces count rules. Retries back to proposal on failure
 5. **validator** — checks proposed moves against engine legal moves, enriches with `move_facts`, deduplicates via Zobrist hashing. Retries back to proposal if all illegal
@@ -65,7 +64,7 @@ Alpha-beta negamax with transposition table, iterative deepening, tactical exten
 ### Key Environment Variables
 - `GROQ_API_KEY` — proposal agent LLM
 - `MISTRAL_API_KEY` — ranker agent LLM
-- `MINIMAX_DEPTH` (default 3) — shared search depth for symbolic_decision, minimax_scorer, and minimax wrapper
+- `MINIMAX_DEPTH` (default 6) — shared search depth for symbolic_decision, minimax_scorer, and minimax wrapper
 - `MINIMAX_ENABLED` (default true) — set false for ablation
 - `RANKER_BACKEND` — fixed to "mistral"
 - `DEBUG_ALL_LEGAL_TO_RANKER` — bypasses proposal narrowing, sends all legal moves to ranker
@@ -74,4 +73,4 @@ Alpha-beta negamax with transposition table, iterative deepening, tactical exten
 Moves are dicts with `type` ("simple"/"jump"), `path` (list of [row,col] squares), and `captured` (list of [row,col] captured pieces). The engine's `get_all_legal_moves` is always ground truth — LLMs propose indices into this list, never raw coordinates.
 
 ### Thesis Instrumentation
-State tracks `format_error_count`, `ranker_retry_count`, `ranker_fallback_count`, `llm_invoked`, `llm_agreed_with_symbolic_best` for thesis evaluation metrics. `evaluate_ranker_batch.py` computes filtered/full-legal mismatch rates.
+State tracks `format_error_count`, `ranker_retry_count`, `llm_invoked`, `llm_agreed_with_symbolic_best` for thesis evaluation metrics. (`ranker_fallback_count` is a legacy field kept for log schema compatibility; always 0 since the fallback node was removed.) `evaluate_ranker_batch.py` computes filtered/full-legal mismatch rates.

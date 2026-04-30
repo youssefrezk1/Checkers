@@ -782,7 +782,6 @@ def compute_move_facts(board, move, current_player):
 
     ── CAPTURE DETAILS ──────────────────────────────────────────────
         captures_count      : total opponent pieces captured this turn
-        jump_count          : same as captures_count (explicit alias)
         is_multi_jump       : True if captures_count > 1
         kings_captured      : how many captured pieces were kings
         regulars_captured   : how many captured pieces were regulars

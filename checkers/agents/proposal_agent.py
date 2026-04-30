@@ -371,36 +371,69 @@ def _build_legal_moves_with_facts(
         moves_with_facts, score_state, n_slots
     )
 
-    # ── Minimax-best pin ────────────────────────────────────────────────────
+    # ── Minimax top-3 pin ───────────────────────────────────────────────────
     # The symbolic sort key ranks by centrality, safety and role — NOT by
-    # minimax value.  Confirmed from trace: moves at edge columns or with low
-    # centrality score (e.g. col-0/col-6 destinations) routinely fall to
-    # positions 5+ even when they are the minimax-best by 94–192 points.
-    # This pin reorders existing moves before the LLM sees them so the
-    # canonical minimax-best is always inside n_slots. It does not create
-    # new moves and does not modify LLM output after selection.
-    # Requires score_by_path (built from search_root_all_scores); skipped
-    # when scores are unavailable.
+    # minimax value.  Confirmed from trace: edge-column or low-centrality moves
+    # routinely fall to positions 5+ even when top-3 by minimax score.
+    # This block reorders existing moves (no duplicates/removals) so that all
+    # three top minimax paths appear within positions 0..4 before the LLM sees
+    # the list.  For each top-3 path already in the window nothing is done.
+    # For each missing one, the lowest-priority non-top-3 move currently in the
+    # first 5 (highest window index not belonging to the top-3 set) is displaced.
+    # Requires score_by_path; skipped when scores are unavailable or N < 5.
     mm_pinned_pres_idx: int | None = None
-    if len(moves_with_facts) > n_slots and score_by_path:
-        _mm_best_i = None
-        _mm_best_s = float("-inf")
+    if len(moves_with_facts) >= n_slots and score_by_path and n_slots >= 5:
+        # Step 1: compute the ordered list of top-3 presentation indices by score.
+        _all_scored: list[tuple[float, int]] = []
         for _i, (_mv, _) in enumerate(moves_with_facts):
             _pk = tuple(tuple(sq) for sq in _mv.get("path", []))
-            _s = score_by_path.get(_pk, float("-inf"))
-            if _s > _mm_best_s:
-                _mm_best_s = _s
-                _mm_best_i = _i
-        # Only pin if the best minimax move is OUTSIDE the visible window
-        # and is not already position 0 (symbolic best is never displaced).
-        if _mm_best_i is not None and _mm_best_i >= n_slots:
-            _pin_item = moves_with_facts.pop(_mm_best_i)
-            # Insert at n_slots-1 so position 0 (symbolic sort top) is preserved.
-            _insert_at = n_slots - 1
-            moves_with_facts.insert(_insert_at, _pin_item)
-            pinned_positions = pinned_positions | frozenset({_insert_at})
-            mm_pinned_pres_idx = _insert_at
-    # ── End minimax-best pin ────────────────────────────────────────────────
+            _s = score_by_path.get(_pk)
+            if _s is not None and _s != float("-inf"):
+                _all_scored.append((_s, _i))
+        _all_scored.sort(key=lambda t: (-t[0], t[1]))  # descending score, index tiebreak
+        _top3_pres_indices: list[int] = [_i for _, _i in _all_scored[:3]]
+
+        # Step 2: for each top-3 path missing from positions 0..4, bring it in.
+        for _rank_i, _top_i in enumerate(_top3_pres_indices):
+            if _top_i < n_slots:
+                continue  # already inside the window — nothing to do
+            # Find the displacement target: highest index in [0, n_slots) that
+            # is NOT one of the top-3 presentation indices.
+            _top3_set = set(_top3_pres_indices)
+            _displace_at: int | None = None
+            for _j in range(n_slots - 1, -1, -1):  # scan window right-to-left
+                if _j not in _top3_set:
+                    _displace_at = _j
+                    break
+            if _displace_at is None:
+                # The entire window is already filled with top-3 moves; nothing to swap.
+                continue
+            # Remove the top-3 move from its current position (index may have
+            # shifted if a previous iteration already moved something).
+            _current_idx = next(
+                (k for k, (_mv2, _) in enumerate(moves_with_facts)
+                 if tuple(tuple(sq) for sq in _mv2.get("path", []))
+                 == tuple(tuple(sq) for sq in moves_with_facts[_top_i][0].get("path", []))),
+                _top_i,
+            )
+            _pin_item = moves_with_facts.pop(_current_idx)
+            # Update _displace_at if the pop shifted its position.
+            _actual_displace = _displace_at if _current_idx >= _displace_at else _displace_at - 1
+            _actual_displace = max(0, min(_actual_displace, n_slots - 1))
+            moves_with_facts.insert(_actual_displace, _pin_item)
+            pinned_positions = pinned_positions | frozenset({_actual_displace})
+            if mm_pinned_pres_idx is None:
+                mm_pinned_pres_idx = _actual_displace
+            # Refresh _top3_pres_indices to reflect the new ordering for subsequent iterations.
+            _all_scored2: list[tuple[float, int]] = []
+            for _i2, (_mv2, _) in enumerate(moves_with_facts):
+                _pk2 = tuple(tuple(sq) for sq in _mv2.get("path", []))
+                _s2 = score_by_path.get(_pk2)
+                if _s2 is not None and _s2 != float("-inf"):
+                    _all_scored2.append((_s2, _i2))
+            _all_scored2.sort(key=lambda t: (-t[0], t[1]))
+            _top3_pres_indices = [_i2 for _, _i2 in _all_scored2[:3]]
+    # ── End minimax top-3 pin ───────────────────────────────────────────────
 
     n = len(moves_with_facts)
 
@@ -436,9 +469,10 @@ def _build_legal_moves_with_facts(
             "or tactically dominated.]"
         )
     if has_ranks:
+        _rank_label = "/".join(str(r) for r in sorted(set(_mm_rank_for_idx.values())))
         lines.append(
-            "  [MINIMAX_RANK_1/2/3 = top moves by symbolic minimax search — "
-            "always include RANK_1; include RANK_2 and RANK_3 when selecting 5 moves]"
+            f"  [MINIMAX_RANK_{_rank_label} = top moves by symbolic minimax search — "
+            "REQUIRED: include ALL labeled RANK moves. Omitting any is a format error.]"
         )
     lines.append("")
 
@@ -453,7 +487,6 @@ def _build_legal_moves_with_facts(
             "opponent_can_recapture":      facts.get("opponent_can_recapture", False),
             "unsafe_simple_move":          facts.get("unsafe_simple_move", False),
             "blocks_opponent_landing":     facts.get("blocks_opponent_landing", False),
-            "center_control":              facts.get("center_control", False),
             "leaves_piece_isolated":       facts.get("leaves_piece_isolated", False),
             "mobility_reduction":          facts.get("mobility_reduction", 0),
             "creates_immediate_threat":    facts.get("creates_immediate_threat", False),
@@ -474,6 +507,17 @@ def _build_legal_moves_with_facts(
         prefix   = "★ " if i in pinned_positions else "  "
         rank_tag = f" MINIMAX_RANK_{_mm_rank_for_idx[i]}" if i in _mm_rank_for_idx else ""
         lines.append(f"{prefix}[{i}]{rank_tag} {json.dumps(payload, ensure_ascii=False)}")
+
+    if has_ranks:
+        _rank_label_footer = ", ".join(
+            f"MINIMAX_RANK_{r}" for r in sorted(set(_mm_rank_for_idx.values()))
+        )
+        lines.append(
+            f"\nREQUIRED: selected_indices MUST include all moves labeled "
+            f"{_rank_label_footer} above. "
+            "This overrides diversity and strategic preferences. "
+            "Omitting any RANK-labeled move will be rejected."
+        )
 
     return n, "\n".join(lines), moves_with_facts, path_to_basis_idx, mm_pinned_pres_idx
 
@@ -519,20 +563,21 @@ Rules:
 
 SELECTION ORDER:
 
-STEP 0 — MINIMAX RANK (mandatory when present)
+STEP 0 — MINIMAX RANK (mandatory — highest priority rule)
 Moves labeled MINIMAX_RANK_1, MINIMAX_RANK_2, MINIMAX_RANK_3 are the top
 moves by symbolic minimax search score — the strongest available tactical
 signal for the current position.
 When selecting candidates:
-1. Always include MINIMAX_RANK_1 in your shortlist.
-2. Include MINIMAX_RANK_2 and MINIMAX_RANK_3 whenever they appear in the list
-    and you are selecting 5 moves.
-3. Use remaining slots for useful tactical/strategic alternatives:
+1. ALWAYS include every move labeled MINIMAX_RANK_1, MINIMAX_RANK_2, or
+   MINIMAX_RANK_3. This is unconditional — no exception.
+2. Omitting any RANK-labeled move is a format error and will be rejected.
+3. No safety, diversity, or strategic preference rule overrides this
+   requirement. RANK compliance takes absolute precedence.
+4. Use remaining slots for useful tactical/strategic alternatives:
    - captures (captures_count > 0)
    - promotion/conversion (results_in_king=true, near_promotion=true)
    - safety/counterplay (counterplay_score, creates_immediate_threat=true)
    - mobility restriction (mobility_reduction > 0)
-4. Do not skip MINIMAX_RANK_1/2/3 only for diversity.
 
 
 STEP 1 — SAFETY
@@ -551,7 +596,6 @@ Always include results_in_king=true or near_promotion=true moves unless clearly 
 
 STEP 4 — STRATEGIC PRIORITIES
 Use strategic_priorities in order:
-- CONTROL_CENTER → prefer center_control=true
 - DEVELOP_PIECES → prefer leaves_piece_isolated=false
 - PROMOTE → prefer near_promotion=true or results_in_king=true
 - TRADE_WHEN_AHEAD / CONVERT_ADVANTAGE → prefer higher winning_conversion_score and mobility_reduction
@@ -560,7 +604,7 @@ Use strategic_priorities in order:
 - REDUCE_OPP_MOBILITY → prefer higher mobility_reduction
 - ACTIVATE_KINGS → prefer quiet_move_role=KING_ACTIVATION
 - INCREASE_MOBILITY → prefer quiet_move_role=MOBILITY_IMPROVEMENT
-- otherwise use net_gain, counterplay_score, winning_conversion_score, then center_control
+- otherwise use net_gain, counterplay_score, winning_conversion_score
 
 STEP 5 — QUIET POSITION COVERAGE
 If no captures are available and several safe moves are available, avoid returning only passive duplicates.
@@ -585,10 +629,10 @@ Reply with ONLY this JSON object:
 
 def build_proposal_prompts(
     state: CheckersState,
-) -> tuple[str, str, int, list[tuple[dict, dict]], dict, int | None]:
+) -> tuple[str, str, int, list[tuple[dict, dict]], dict, int | None, dict]:
     """
     Returns (system_prompt, user_prompt, n_moves, moves_with_facts, path_to_basis_idx,
-             mm_pinned_pres_idx).
+             mm_pinned_pres_idx, prompt_metrics).
 
     moves_with_facts    — sorted+pinned presentation order used by the postprocessor.
     path_to_basis_idx   — maps each move's path tuple -> its index in the original
@@ -637,6 +681,12 @@ def build_proposal_prompts(
             score_by_path=score_by_path if score_by_path else None,
         )
     )
+    prompt_metrics = {
+    "system_char_count": len(_SYSTEM_PROMPT),
+    "user_char_count": None,  # filled after user prompt is built
+    "legal_block_char_count": len(legal_block),
+    "prompt_char_count": None,  # filled after user prompt is built
+}
 
     user_parts = [
         f"current_player: {_current_player_label(current)}",
@@ -667,7 +717,19 @@ def build_proposal_prompts(
             "using valid indices from the LEGAL_MOVES list above.",
         ])
 
-    return _SYSTEM_PROMPT, "\n".join(user_parts), n_moves, moves_with_facts, path_to_basis_idx, mm_pinned_pres_idx
+    user_prompt = "\n".join(user_parts)
+    prompt_metrics["user_char_count"] = len(user_prompt)
+    prompt_metrics["prompt_char_count"] = len(_SYSTEM_PROMPT) + len(user_prompt)
+
+    return (
+        _SYSTEM_PROMPT,
+        user_prompt,
+        n_moves,
+        moves_with_facts,
+        path_to_basis_idx,
+        mm_pinned_pres_idx,
+        prompt_metrics,
+    )
 
 
 def _translate_to_basis_indices(
@@ -765,7 +827,7 @@ def proposal_agent(state: CheckersState) -> dict:
     only the LLM-selected indices.  It does not add unselected moves.
     Retries up to 9 times (3×10s/20s/40s cycles) on transient 429s.
     """
-    system, user, n_moves, moves_with_facts, path_to_basis_idx, mm_pinned_pres_idx = (
+    system, user, n_moves, moves_with_facts, path_to_basis_idx, mm_pinned_pres_idx, prompt_metrics = (
         build_proposal_prompts(state)
     )
 
@@ -803,11 +865,14 @@ def proposal_agent(state: CheckersState) -> dict:
         return any(kw in t for kw in _TRANSIENT_RATE_LIMIT_KEYWORDS)
 
     # Retry waits: 3 full cycles of 10s→20s→40s = 9 attempts, then fallback
-    _RETRY_WAITS = [10, 20, 40]
+    _RETRY_WAITS = [20, 40, 60]
     _MAX_TRANSIENT_RETRIES = 9
 
     raw = None
     transient_attempt = 0
+    _fallback_reason: str | None = None
+    _fallback_error_type: str | None = None
+    _fallback_error_message: str | None = None
 
     while True:
         try:
@@ -823,6 +888,9 @@ def proposal_agent(state: CheckersState) -> dict:
                     f"falling back immediately (no retry). "
                     f"Error: {err_text[:300]}{_RESET}"
                 )
+                _fallback_reason = "hard_quota_or_daily_limit"
+                _fallback_error_type = type(e).__name__
+                _fallback_error_message = err_text[:300]
                 break
 
             # ── Transient 429 / rate limit → up to 3 retries ─────────────
@@ -833,6 +901,9 @@ def proposal_agent(state: CheckersState) -> dict:
                         f"exhausted {_MAX_TRANSIENT_RETRIES} retries, falling back. "
                         f"Error: {err_text[:300]}{_RESET}"
                     )
+                    _fallback_reason = "transient_rate_limit_exhausted"
+                    _fallback_error_type = type(e).__name__
+                    _fallback_error_message = err_text[:300]
                     break
                 wait = _RETRY_WAITS[transient_attempt % len(_RETRY_WAITS)]
                 transient_attempt += 1
@@ -849,6 +920,13 @@ def proposal_agent(state: CheckersState) -> dict:
                 f"{_RED}[proposal_agent] UNEXPECTED ERROR — "
                 f"falling back. Error: {err_text[:300]}{_RESET}"
             )
+            _fallback_reason = (
+                "groq_http_error"
+                if isinstance(e, urllib.error.HTTPError)
+                else "unexpected_exception"
+            )
+            _fallback_error_type = type(e).__name__
+            _fallback_error_message = err_text[:300]
             break
 
     if raw is None:
@@ -871,6 +949,19 @@ def proposal_agent(state: CheckersState) -> dict:
 
         return {
             "proposed_moves": final_raw,
+            "proposal_diagnostics": {
+                "proposal_source": "fallback",
+                "transient_retry_count": transient_attempt,
+                "used_retry": transient_attempt > 0,
+                "fallback_reason": _fallback_reason or "raw_response_none",
+                "fallback_error_type": _fallback_error_type,
+                "fallback_error_message": _fallback_error_message,
+                "raw_pres_indices": fallback_indices,
+                "final_pres_indices": fallback_indices,
+                "raw_llm_selected_actual_best": None,
+                "final_contains_actual_best": None,
+                "prompt_metrics": prompt_metrics,
+            },
             "last_completed_node": "proposal_agent",
         }
 
@@ -888,6 +979,20 @@ def proposal_agent(state: CheckersState) -> dict:
         # format_checker will handle the error; pass through raw
         return {
             "proposed_moves": raw.strip(),
+            "proposal_diagnostics": {
+                "proposal_source": "llm_parse_error",
+                "transient_retry_count": transient_attempt,
+                "used_retry": transient_attempt > 0,
+                "fallback_reason": "parse_error",
+                "fallback_error_type": None,
+                "fallback_error_message": None,
+                "raw_pres_indices": None,
+                "final_pres_indices": None,
+                "raw_llm_selected_actual_best": None,
+                "final_contains_actual_best": None,
+                "prompt_metrics": prompt_metrics,
+                
+            },
             "last_completed_node": "proposal_agent",
         }
 
@@ -925,6 +1030,65 @@ def proposal_agent(state: CheckersState) -> dict:
 
     # ── Post-LLM processing: validate / deduplicate / trim only ───────────
     selected_indices = _postprocess_llm_selection(selected_indices, n_moves)
+
+    # ── FORCE_BAD_PROPOSAL_FOR_TRACE diagnostic gate (disabled by default) ──
+    # When FORCE_BAD_PROPOSAL_FOR_TRACE=true, replaces one RANK-labeled
+    # presentation index with a valid non-RANK index on the FIRST call of a
+    # ply (state.retry_count == 0).  Count stays at 5 so format_checker
+    # reaches MISSING_REQUIRED_MINIMAX_RANKS (not a count error).
+    # Has zero effect during normal runs (env flag absent or not "true").
+    if (
+        os.environ.get("FORCE_BAD_PROPOSAL_FOR_TRACE", "").lower() == "true"
+        and state.retry_count == 0
+        and n_moves >= 5
+    ):
+        # Step 1: recompute top-3 presentation indices from minimax_score in facts.
+        _diag_scored: list[tuple[float, int]] = []
+        for _di, (_dmv, _dfacts) in enumerate(moves_with_facts):
+            _ds = _dfacts.get("minimax_score")
+            if _ds is not None:
+                try:
+                    _diag_scored.append((float(_ds), _di))
+                except (ValueError, TypeError):
+                    pass
+        _diag_scored.sort(key=lambda t: (-t[0], t[1]))
+        _diag_rank_pres: list[int] = [_di for _, _di in _diag_scored[:3]]
+        _diag_rank_set: set[int] = set(_diag_rank_pres)
+        # Step 2: find the first RANK-labeled index that IS currently selected.
+        _diag_drop_idx: int | None = None
+        for _diag_idx in _diag_rank_pres:
+            if _diag_idx in selected_indices:
+                _diag_drop_idx = _diag_idx
+                break
+        if _diag_drop_idx is not None:
+            # Step 3: find a replacement — valid, non-RANK, not already selected.
+            # Prefer indices outside the 0..4 window; fall back to any valid index.
+            _diag_selected_set = set(selected_indices)
+            _diag_replacement: int | None = None
+            for _diag_cand in range(5, n_moves):      # prefer index >= 5
+                if _diag_cand not in _diag_selected_set and _diag_cand not in _diag_rank_set:
+                    _diag_replacement = _diag_cand
+                    break
+            if _diag_replacement is None:              # fall back: any valid non-RANK index
+                for _diag_cand in range(n_moves):
+                    if _diag_cand not in _diag_selected_set and _diag_cand not in _diag_rank_set:
+                        _diag_replacement = _diag_cand
+                        break
+            # Step 4: swap in-place — same list length.
+            if _diag_replacement is not None:
+                selected_indices = [
+                    _diag_replacement if i == _diag_drop_idx else i
+                    for i in selected_indices
+                ]
+            else:
+                # No replacement available: fall back to plain drop (rare edge case).
+                selected_indices = [i for i in selected_indices if i != _diag_drop_idx]
+            print(
+                f"\033[93m[FORCE_BAD_PROPOSAL_FOR_TRACE] "
+                f"Swapped RANK-labeled pres_idx={_diag_drop_idx} → non-RANK pres_idx={_diag_replacement} "
+                f"(count={len(selected_indices)}) to trigger MISSING_REQUIRED_MINIMAX_RANKS.\033[0m"
+            )
+    # ── End FORCE_BAD_PROPOSAL_FOR_TRACE ────────────────────────────────────
 
     _final_pres_indices: list[int] = list(selected_indices)
     _final_contains_actual_best = (
@@ -964,6 +1128,19 @@ def proposal_agent(state: CheckersState) -> dict:
     print(f"[proposal_agent] Final proposed paths: {_final_paths}")
 
     return {
-        "proposed_moves": final_raw,
-        "last_completed_node": "proposal_agent",
-    }
+    "proposed_moves": final_raw,
+    "proposal_diagnostics": {
+        "proposal_source": "llm",
+        "transient_retry_count": transient_attempt,
+        "used_retry": transient_attempt > 0,
+        "raw_pres_indices": _raw_pres_indices,
+        "final_pres_indices": _final_pres_indices,
+        "actual_best_pres_idx": _actual_best_pres_idx,
+        "raw_llm_selected_actual_best": _raw_llm_selected_actual_best,
+        "final_contains_actual_best": _final_contains_actual_best,
+        "dropped_by_postprocess": _dropped_by_postprocess,
+        "added_after_llm": _added_after_llm,
+        "prompt_metrics": prompt_metrics,
+    },
+    "last_completed_node": "proposal_agent",
+}

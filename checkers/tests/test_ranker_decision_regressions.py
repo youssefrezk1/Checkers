@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+
+import pytest
 
 import checkers.agents.ranker_agent as ranker_module
 from checkers.engine.board import create_initial_board
@@ -537,7 +540,14 @@ def test_no_override_when_llm_already_best(monkeypatch, capsys):
 
 
 def test_integration_trace_turn5_opening_override(monkeypatch, capsys):
-    log_path = "/Users/youssefrezk/Desktop/bachelor_project/logs/game_20260419_191038_610610.jsonl"
+    _log_file = (
+        Path(__file__).resolve().parent.parent.parent
+        / "logs"
+        / "game_20260419_191038_610610.jsonl"
+    )
+    if not _log_file.exists():
+        pytest.skip(f"fixture log not found: {_log_file}")
+    log_path = str(_log_file)
     board, turn_entry = _reconstruct_board_before_turn(log_path, turn=5)
     current_player = RED if turn_entry["player_who_moved"] == 1 else BLACK
     state = _state_from_real_pipeline(
@@ -583,7 +593,14 @@ def test_integration_trace_turn59_hard_cap_override(monkeypatch, capsys):
     # [(6,1),(7,0)] as the stronger move.  The meaningful invariants are:
     #   (a) the override fires, and
     #   (b) the chosen move has the best minimax score in the candidate pool.
-    log_path = "/Users/youssefrezk/Desktop/bachelor_project/logs/game_20260419_191038_610610.jsonl"
+    _log_file = (
+        Path(__file__).resolve().parent.parent.parent
+        / "logs"
+        / "game_20260419_191038_610610.jsonl"
+    )
+    if not _log_file.exists():
+        pytest.skip(f"fixture log not found: {_log_file}")
+    log_path = str(_log_file)
     board, turn_entry = _reconstruct_board_before_turn(log_path, turn=59)
     current_player = RED if turn_entry["player_who_moved"] == 1 else BLACK
     state = _state_from_real_pipeline(
@@ -620,3 +637,348 @@ def test_integration_trace_turn59_hard_cap_override(monkeypatch, capsys):
         f"Override should pick best minimax. "
         f"chosen_score={chosen_score:.1f}, best={best_score:.1f}, path={chosen_path}"
     )
+
+
+def test_unsafe_vs_unsafe_midgap_minimax_uses_retry_not_fallback(monkeypatch, capsys):
+    # Both moves are unsafe (opponent_can_recapture=True).
+    # Same our_pieces_threatened_after=2 on both → _midgap condition fires (bt==ct).
+    # Gap = 45 >= UNSAFE_VS_UNSAFE_MIDGAP_GAP (40).
+    #
+    # Expected:
+    #   - First LLM call picks the worse move → midgap branch triggers.
+    #   - One retry LLM call fires (retry_used_full_proposal=True).
+    #   - Retry picks the best move → audit passes → override_retry_resolved=True.
+    #   - No fallback applied.
+    #   - Final chosen move is the best minimax.
+    move_best = {
+        "type": "simple",
+        "path": [(5, 0), (4, 1)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 2,
+            "net_gain": 0,
+            "minimax_score": 50.0,
+            "quiet_move_role": "DEVELOPMENT",
+        },
+    }
+    move_chosen = {
+        "type": "simple",
+        "path": [(5, 2), (4, 3)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 2,
+            "net_gain": 0,
+            "minimax_score": 5.0,
+            "quiet_move_role": "DEVELOPMENT",
+        },
+    }
+    legal_moves = [move_best, move_chosen]
+
+    # First call: LLM picks the worse move (index 1 in filtered=legal space).
+    # Retry call: LLM corrects to the best move (index 0 in legal space).
+    _call_count = [0]
+
+    def _fake_call_ranker(system: str, user: str) -> str:
+        _call_count[0] += 1
+        if _call_count[0] == 1:
+            return json.dumps({"chosen_index": 1, "reasoning": "midgap test initial call"})
+        return json.dumps({"chosen_index": 0, "reasoning": "midgap test retry corrected"})
+
+    monkeypatch.setattr(ranker_module, "call_ranker", _fake_call_ranker)
+
+    board = _empty_board()
+    board[5][0] = RED
+    board[5][2] = RED
+
+    from checkers.state.state import CheckersState as _CS
+    state = _CS(
+        board=board,
+        current_player=RED,
+        turn_number=25,
+        legal_moves=legal_moves,
+        strategic_context={
+            "game_phase": "MIDGAME",
+            "score_state": "EQUAL",
+            "strategic_priorities": [],
+        },
+    )
+
+    patch = ranker_module.ranker_agent(state)
+
+    assert patch["chosen_move"]["path"] == [(5, 0), (4, 1)], (
+        f"Expected best move [(5,0),(4,1)], got {patch['chosen_move']['path']}"
+    )
+
+    diag = patch["ranker_diagnostics"]
+    assert diag["override_branch_name"] == "unsafe_vs_unsafe_midgap_minimax", (
+        f"Expected midgap branch, got {diag['override_branch_name']}"
+    )
+    assert diag["override_retry_resolved"] is True, (
+        "Retry should have resolved the override (not fallback)"
+    )
+    assert diag["override_fallback_applied"] is False, (
+        "Fallback must not fire when retry resolves"
+    )
+    assert diag["override_retry_attempts"] == 1, (
+        f"Expected exactly 1 retry attempt, got {diag['override_retry_attempts']}"
+    )
+
+    out = capsys.readouterr().out
+    assert "override_retry_resolved=True" in out
+    assert "override_retry_attempts=1" in out
+
+
+def test_tier1_fires_lower_threat_smaller_gap(monkeypatch, capsys):
+    # TIER-1: best has fewer threatened pieces (bt=1 < ct=2) AND gap=37 >= 35.
+    # After the "threat_after" → "our_pieces_threatened_after" fix, TIER-1 is live.
+    # First LLM call picks the worse move; retry corrects to best.
+    move_best = {
+        "type": "simple",
+        "path": [(5, 0), (4, 1)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 1,
+            "net_gain": 0,
+            "minimax_score": 50.0,
+            "quiet_move_role": "DEVELOPMENT",
+        },
+    }
+    move_chosen = {
+        "type": "simple",
+        "path": [(5, 2), (4, 3)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 2,
+            "net_gain": 0,
+            "minimax_score": 13.0,
+            "quiet_move_role": "DEVELOPMENT",
+        },
+    }
+    legal_moves = [move_best, move_chosen]
+
+    _call_count = [0]
+
+    def _fake_call_ranker(system: str, user: str) -> str:
+        _call_count[0] += 1
+        if _call_count[0] == 1:
+            return json.dumps({"chosen_index": 1, "reasoning": "tier1 test initial call"})
+        return json.dumps({"chosen_index": 0, "reasoning": "tier1 test retry corrected"})
+
+    monkeypatch.setattr(ranker_module, "call_ranker", _fake_call_ranker)
+
+    board = _empty_board()
+    board[5][0] = RED
+    board[5][2] = RED
+
+    from checkers.state.state import CheckersState as _CS
+    state = _CS(
+        board=board,
+        current_player=RED,
+        turn_number=25,
+        legal_moves=legal_moves,
+        strategic_context={
+            "game_phase": "MIDGAME",
+            "score_state": "EQUAL",
+            "strategic_priorities": [],
+        },
+    )
+
+    patch = ranker_module.ranker_agent(state)
+
+    assert patch["chosen_move"]["path"] == [(5, 0), (4, 1)], (
+        f"Expected best move [(5,0),(4,1)], got {patch['chosen_move']['path']}"
+    )
+
+    diag = patch["ranker_diagnostics"]
+    assert diag["override_branch_name"] == "unsafe_vs_unsafe_fallback_tier1_lower_threat", (
+        f"Expected tier1 branch, got {diag['override_branch_name']}"
+    )
+    assert diag["override_retry_resolved"] is True
+    assert diag["override_fallback_applied"] is False
+    assert diag["override_retry_attempts"] == 1
+
+
+def test_tier2_does_not_fire_below_threshold(monkeypatch, capsys):
+    # TIER-2 non-fire: bt=2 > ct=1 (best has MORE threatened pieces), gap=60 < 150.
+    # After the fix, bt > ct and gap < UNSAFE_VS_UNSAFE_FALLBACK_GAP → no tier fires.
+    # The LLM's choice must be preserved (no override, no retry).
+    move_best = {
+        "type": "simple",
+        "path": [(5, 0), (4, 1)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 2,
+            "net_gain": 0,
+            "minimax_score": 70.0,
+            "quiet_move_role": "DEVELOPMENT",
+        },
+    }
+    move_chosen = {
+        "type": "simple",
+        "path": [(5, 2), (4, 3)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 1,
+            "net_gain": 0,
+            "minimax_score": 10.0,
+            "quiet_move_role": "DEVELOPMENT",
+        },
+    }
+    legal_moves = [move_best, move_chosen]
+
+    _call_count = [0]
+
+    def _fake_call_ranker(system: str, user: str) -> str:
+        _call_count[0] += 1
+        return json.dumps({"chosen_index": 1, "reasoning": "tier2 non-fire test"})
+
+    monkeypatch.setattr(ranker_module, "call_ranker", _fake_call_ranker)
+
+    board = _empty_board()
+    board[5][0] = RED
+    board[5][2] = RED
+
+    from checkers.state.state import CheckersState as _CS
+    state = _CS(
+        board=board,
+        current_player=RED,
+        turn_number=25,
+        legal_moves=legal_moves,
+        strategic_context={
+            "game_phase": "MIDGAME",
+            "score_state": "EQUAL",
+            "strategic_priorities": [],
+        },
+    )
+
+    patch = ranker_module.ranker_agent(state)
+
+    assert patch["chosen_move"]["path"] == [(5, 2), (4, 3)], (
+        f"LLM choice should be kept; got {patch['chosen_move']['path']}"
+    )
+
+    diag = patch["ranker_diagnostics"]
+    assert diag["override_branch_name"] is None, (
+        f"No unsafe-vs-unsafe tier should fire; got branch={diag['override_branch_name']}"
+    )
+    assert diag["override_retry_attempts"] == 0, (
+        f"No retry expected; got {diag['override_retry_attempts']}"
+    )
+
+
+def test_tier2_fires_above_threshold(monkeypatch, capsys):
+    # TIER-2 fire: bt=2 > ct=1 (best has MORE threatened pieces), gap=160 >= 150.
+    # After the fix, TIER-2 fires when gap is extreme despite counter-intuitive threat direction.
+    # First LLM call picks the worse move; retry corrects to best.
+    move_best = {
+        "type": "simple",
+        "path": [(5, 0), (4, 1)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 2,
+            "net_gain": 0,
+            "minimax_score": 170.0,
+            "quiet_move_role": "DEVELOPMENT",
+        },
+    }
+    move_chosen = {
+        "type": "simple",
+        "path": [(5, 2), (4, 3)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 1,
+            "net_gain": 0,
+            "minimax_score": 10.0,
+            "quiet_move_role": "DEVELOPMENT",
+        },
+    }
+    legal_moves = [move_best, move_chosen]
+
+    _call_count = [0]
+
+    def _fake_call_ranker(system: str, user: str) -> str:
+        _call_count[0] += 1
+        if _call_count[0] == 1:
+            return json.dumps({"chosen_index": 1, "reasoning": "tier2 test initial call"})
+        return json.dumps({"chosen_index": 0, "reasoning": "tier2 test retry corrected"})
+
+    monkeypatch.setattr(ranker_module, "call_ranker", _fake_call_ranker)
+
+    board = _empty_board()
+    board[5][0] = RED
+    board[5][2] = RED
+
+    from checkers.state.state import CheckersState as _CS
+    state = _CS(
+        board=board,
+        current_player=RED,
+        turn_number=25,
+        legal_moves=legal_moves,
+        strategic_context={
+            "game_phase": "MIDGAME",
+            "score_state": "EQUAL",
+            "strategic_priorities": [],
+        },
+    )
+
+    patch = ranker_module.ranker_agent(state)
+
+    assert patch["chosen_move"]["path"] == [(5, 0), (4, 1)], (
+        f"Expected best move [(5,0),(4,1)], got {patch['chosen_move']['path']}"
+    )
+
+    diag = patch["ranker_diagnostics"]
+    assert diag["override_branch_name"] == "unsafe_vs_unsafe_fallback_tier2_higher_threat", (
+        f"Expected tier2 branch, got {diag['override_branch_name']}"
+    )
+    assert diag["override_retry_resolved"] is True
+    assert diag["override_fallback_applied"] is False
+    assert diag["override_retry_attempts"] == 1

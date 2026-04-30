@@ -33,7 +33,7 @@ class CheckersState(BaseModel):
     ranker_retry_count: int = Field(default=0)
     # Ranker attempts that failed (LLM/parse/invalid index); cumulative session total.
     ranker_failure_count: int = Field(default=0)
-    # Times symbolic ranker_fallback ran after retries exhausted; cumulative.
+    # Legacy field — ranker_fallback node removed; always 0. Kept for log schema compatibility.
     ranker_fallback_count: int = Field(default=0)
     ranker_retry_budget: int = Field(default=3)
 
@@ -98,3 +98,9 @@ class CheckersState(BaseModel):
     llm_invoked: bool = Field(default=False)
     llm_agreed_with_symbolic_best: Optional[bool] = Field(default=None)
     proposal_diagnostics: Optional[dict[str, Any]] = Field(default=None)
+    # Structured diagnostics from ranker_agent override retry loop.
+    # Keys: override_retry_attempts, override_retry_resolved, override_fallback_applied,
+    #       override_branch_name, retry_used_full_proposal.
+    # Set by ranker_agent each ply; persists until overwritten by the next ranker_agent
+    # call (state_manager does NOT clear this field between turns).
+    ranker_diagnostics: Optional[dict[str, Any]] = Field(default=None)

@@ -40,7 +40,7 @@ from copy import deepcopy
 from typing import Any
 
 from checkers.state.state import CheckersState
-from checkers.engine.minimax import score_move_with_minimax, MINIMAX_DEPTH
+from checkers.engine.minimax import MINIMAX_DEPTH
 from checkers.search.minimax_core import (
     search_root_all_scores,
     get_d6_top_gap,
@@ -61,8 +61,9 @@ SELECTIVE_D8_ENABLED         = _d8_enabled_env in ("1", "true", "yes", "on")
 SELECTIVE_D8_PIECE_THRESHOLD = int(os.environ.get("SELECTIVE_D8_PIECE_THRESHOLD", "14"))
 SELECTIVE_D8_GAP_THRESHOLD   = float(os.environ.get("SELECTIVE_D8_GAP_THRESHOLD", "30"))
 SELECTIVE_D8_DEPTH           = int(os.environ.get("SELECTIVE_D8_DEPTH", "8"))
-_ties_env = os.environ.get("SELECTIVE_D8_INCLUDE_EXACT_TIES", "false").lower()
-SELECTIVE_D8_INCLUDE_EXACT_TIES = _ties_env in ("1", "true", "yes", "on")
+# Note: SELECTIVE_D8_INCLUDE_EXACT_TIES is intentionally NOT a module-level constant.
+# Tests and callers set os.environ["SELECTIVE_D8_INCLUDE_EXACT_TIES"] at runtime after
+# import; _apply_selective_d8 re-reads os.environ inline so those mutations take effect.
 
 # Promotion-race stability verification (post-D8, candidate-set only)
 _promo_verify_env = os.environ.get("PROMOTION_RACE_VERIFY_ENABLED", "true").lower()
@@ -285,7 +286,7 @@ def _apply_selective_d8(
     )
     d6_top_gap = get_d6_top_gap([(None, sc) for _, sc in scored_proxy])
 
-    # Exact-tie guard
+    # Exact-tie guard — re-reads os.environ so test-time mutations take effect.
     include_exact_ties = os.environ.get("SELECTIVE_D8_INCLUDE_EXACT_TIES", "false").lower() in ("1", "true", "yes", "on")
     if d6_top_gap == 0.0 and not include_exact_ties:
         print(

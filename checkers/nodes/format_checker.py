@@ -531,6 +531,58 @@ def _validate_and_repair_move(move, board, current_player):
     return repaired, was_repaired, None
 
 
+def _check_minimax_rank_coverage(
+    cleaned_moves: list[dict],
+    state: CheckersState,
+    n_legal: int,
+    format_error_count: int,
+) -> dict | None:
+    """
+    When n_legal >= 5 and state.symbolic_scored_moves is present, verifies that
+    cleaned_moves contains all top-3 moves by minimax score.
+
+    Returns a rejection dict if any top-3 path is absent, else None.
+    Does NOT modify cleaned_moves. Does NOT include indices or paths in feedback.
+    """
+    if n_legal < 5:
+        return None
+    if not state.symbolic_scored_moves:
+        return None
+
+    scored: list[tuple[float, tuple]] = []
+    for entry in state.symbolic_scored_moves:
+        sc = entry.get("minimax_score", entry.get("score"))
+        if sc is None:
+            continue
+        pk = tuple(tuple(sq) for sq in entry["move"]["path"])
+        scored.append((float(sc), pk))
+    if not scored:
+        return None
+
+    scored.sort(key=lambda t: -t[0])
+    required_paths = {pk for _, pk in scored[:3]}
+
+    proposed_paths = {
+        tuple(tuple(sq) for sq in m["path"])
+        for m in cleaned_moves
+    }
+
+    if required_paths.issubset(proposed_paths):
+        return None
+
+    return {
+        "proposed_moves": [],
+        "retry_count": state.retry_count + 1,
+        "format_error_count": format_error_count + 1,
+        "feedback": (
+            "MISSING_REQUIRED_MINIMAX_RANKS: Your shortlist must include the top "
+            "minimax-ranked moves. Ensure the strongest moves are included before "
+            "adding diversity."
+        ),
+        "last_completed_node": "format_checker",
+    }
+
+
 def format_checker(state: CheckersState) -> dict:
     """
     Parses index-based LLM output and expands to engine move dicts, or accepts
@@ -607,6 +659,12 @@ def format_checker(state: CheckersState) -> dict:
                 "format_error_count": format_error_count + bump,
                 "last_completed_node": "format_checker",
             }
+        rank_rejection = _check_minimax_rank_coverage(
+            cleaned_moves, state, n_legal, format_error_count
+        )
+        if rank_rejection is not None:
+            return rank_rejection
+
         return _finalize_cleaned_moves(
             cleaned_moves=cleaned_moves,
             board=board,
@@ -627,6 +685,12 @@ def format_checker(state: CheckersState) -> dict:
                 if i < 0 or i >= expansion_n:
                     index_extra_intervention = True
             cleaned_moves = _expand_indices_to_engine_moves(list(proposed_moves), expansion_basis)
+            rank_rejection = _check_minimax_rank_coverage(
+                cleaned_moves, state, n_legal, format_error_count
+            )
+            if rank_rejection is not None:
+                return rank_rejection
+
             return _finalize_cleaned_moves(
                 cleaned_moves=cleaned_moves,
                 board=board,
