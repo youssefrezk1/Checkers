@@ -15,7 +15,7 @@ import urllib.request
 from typing import Any, Optional
 
 from checkers.state.state import CheckersState
-from checkers.engine.board import RED
+from checkers.engine.board import RED, BLACK
 
 # ── Backend selection ─────────────────────────────────────────────────────────
 # Ranker is fixed to Mistral API only.
@@ -1282,7 +1282,26 @@ STEP 1 — BOARD SAFETY
   Prefer moves with the lowest our_pieces_threatened_after.
   A move that leaves 0 of our pieces threatened is ideal.
   A move that leaves 2 pieces threatened is worse than one that leaves 1.
-  
+
+  TACTICAL EXPOSURE RULE (read before applying Step 1):
+  Tactical exposure is NOT automatically bad.
+  A move with threat_after > 0, opponent_can_recapture=true, or moved_piece_is_threatened=true
+  may still be the BEST move when ANY of the following hold:
+    - minimax_score is clearly stronger (the engine already prices in the opponent's best reply)
+    - material gain exists (captures_count > 0, net_gain > 0)
+    - a tactical threat is created (creates_immediate_threat=true, shot_sequence_available=true)
+    - the opponent's reply is constrained (forced_opponent_jump_reply=true, low opponent_safe_reply_count)
+    - strategic improvement outweighs temporary exposure
+  Do NOT automatically prefer threat_after=0 over threat_after=1 without checking compensation.
+  Evaluate whether the exposure produces: captures, threats, mobility reduction,
+  promotion progress, forced replies, or minimax advantage.
+
+  ANTI-OVERDEFENSIVE RULE:
+  Avoid assuming that the safest-looking move is best.
+  Quiet / passive safety alone is insufficient justification if minimax strongly prefers another move.
+  A move chosen ONLY because it avoids exposure — with no captures, no threats, no positional gain —
+  must be confirmed by minimax_score before selecting it over an actively better alternative.
+
   This is the most important criterion in equal or winning positions — never let center_control,
   near_promotion, or any positional fact override a lower
   our_pieces_threatened_after value.
@@ -1745,12 +1764,61 @@ OUTPUT FORMAT — reply with ONLY this JSON object, no markdown, no extra text:
 
                                        {
   "chosen_index": <integer, 0-based>,
-  "reasoning": "<1-2 sentences as a checkers coach explaining the strategic
-                 benefit of this move and why the alternatives were weaker>"
+  "reasoning": "<A single coherent paragraph of 3–5 sentences written like an experienced checkers coach. Do NOT use labeled section headers. Do NOT open with 'I choose this move because:'. Rules: (A) minimax_score must appear ONLY in the final sentence as confirmation — never in an earlier sentence. (B) The final sentence must be phrased as confirmation: e.g., 'The minimax score of X confirms this over move [Y] at Z'. (C) Sentences 1–3 explain using safety, tactical, and strategic facts only. (D) Comparisons MUST name the concrete fact that differs (opponent_can_recapture, our_pieces_threatened_after, leaves_piece_isolated, moved_piece_is_threatened) — NEVER 'worse', 'weaker', 'no advantage'. (E) QUALITY RULES: NEVER use generic phrases like 'stable position', 'no threats', 'solid move', 'no advantage', 'safe choice', 'good position', or 'maintains balance'. Every sentence before the final confirmation MUST contain at least one concrete fact with its actual value (e.g., opponent_can_recapture=false, our_pieces_threatened_after=0). Sentence structure to follow: S1–S2 = concrete safety or tactical facts with values (our_pieces_threatened_after, opponent_can_recapture, captures_count, moved_piece_is_threatened). S3 = positional or opponent impact (center_control, blocks_opponent_landing, leaves_piece_isolated, opponent_mobility_after, shot_sequence_available) with actual value. S4 optional = comparison using a concrete numeric or boolean difference, NOT score words. Final = minimax confirmation only. If no strong advantage exists, explain why this is the least harmful option using a concrete fact (e.g., 'Although captures_count=0, this is the only move with our_pieces_threatened_after=0'). Example: 'This move keeps all pieces safe (our_pieces_threatened_after=0) and blocks the opponent from landing on a key square (blocks_opponent_landing=true). It avoids any recapture risk (opponent_can_recapture=false) while landing on a central square (center_control=true). Move [1] was rejected because it leaves the moved piece directly threatened (moved_piece_is_threatened=true) vs zero threats here. The minimax score of X confirms this choice over move [1] at Y.'>"
 }
 
 REASONING REQUIREMENTS:
-  - Never describe the position as MIDGAME, ENDGAME, winning, clearly ahead, or converting an advantage unless that exactly matches strategic_context.game_phase and strategic_context.score_state or material_advantage.
+  CRITICAL — The reasoning must be a single natural prose paragraph (3–5
+  sentences). Do NOT use labeled section headers like "Tactical:",
+  "Safety:", "Strategic:", or "vs alternatives:" anywhere in the reasoning.
+  Do NOT explain the move by saying only "highest minimax_score" or
+  "best minimax score, so best move" or any equivalent. minimax_score must
+  appear ONLY in the final sentence and must be phrased as confirmation,
+  e.g. "The minimax score of X confirms this choice over move [Y] at Z."
+  Do NOT use minimax_score as a justification in any earlier sentence.
+  Do NOT use vague alternative-comparison phrases like "no advantage",
+  "weaker", "inferior", or "lower score". When rejecting an alternative,
+  name a concrete negative fact from its facts dict instead.
+  Every claim must be grounded in at least one actual fact value.
+
+  TRUTHFULNESS RULES — only state a claim if the facts explicitly support it:
+  - Only say "reduces mobility" / "limits opponent moves" if
+    opponent_mobility_after < opponent_mobility_before.
+  - Only say "avoids recapture" / "safe from recapture" / "no recapture risk" if
+    opponent_can_recapture = false.
+  - Only say "does not isolate" / "maintains connectivity" if
+    leaves_piece_isolated = false.
+  - Only say "creates a threat" / "creates immediate threat" / "applies pressure" if
+    creates_immediate_threat = true.
+  - Only say "controls the center" / "center control" if center_control = true.
+  - Only say "captures" / "gains material" if captures_count > 0.
+  - Only say "promotes" / "crowns" if results_in_king = true.
+  - Only say "blocks the opponent" / "blocks landing" if blocks_opponent_landing = true.
+  If a fact value does not support the claim, do NOT make the claim.
+  Never write "slightly reducing mobility (X vs X)" when X equals X — that is a
+  false claim. Use the exact numeric values to verify before writing any comparison.
+  QUALITY RULES — each reasoning sentence must be specific and grounded:
+  - Do NOT use generic phrases like "stable position", "no threats", "solid move",
+    "no advantage", "safe choice", "good position", or "maintains balance".
+    These reveal nothing about the position and are forbidden.
+  - Every sentence before the final minimax confirmation MUST contain at least
+    one concrete fact with its actual value, e.g.: opponent_can_recapture=false,
+    our_pieces_threatened_after=0, captures_count=1, center_control=true.
+  - Sentence structure (enforce in order):
+      S1–S2: concrete safety or tactical facts with actual values.
+      S3:    positional or opponent impact — use center_control,
+             blocks_opponent_landing, opponent_mobility_after, leaves_piece_isolated,
+             shot_sequence_available, or near_promotion with actual values.
+      S4 (optional, omit if only 1 candidate): comparison using a concrete
+             numeric or boolean difference — name the specific fact that differs.
+             Example: "Move [1] leaves 2 pieces threatened (our_pieces_threatened_after=2)
+             vs 0 here." NOT "Move [1] is worse" or "offers no advantage".
+      Final: minimax_score as confirmation only.
+  - If no strong advantage exists, explain WHY this is the least harmful option
+    using a concrete fact. Example: "Although captures_count=0, this is the only
+    move with our_pieces_threatened_after=0; all others leave at least 1 piece
+    at risk (opponent_can_recapture=true for all alternatives)."
+
   - In OPENING, if the chosen move has creates_immediate_threat=false, shot_sequence_available=false, captures_count=0, and blocks_opponent_landing=false, do not justify it mainly using winning_conversion_score, restriction_score, frozen_enemy_pieces, mobility_reduction, or opponent_mobility_after.
   - In that quiet OPENING case, explain the move using minimax_score, development, center_control, back-row discipline, or structure only.
   - In OPENING, if the chosen move has our_pieces_threatened_after <= 1, opponent_can_recapture=false, and moved_piece_is_threatened=false, do not describe it as effectively unsafe or tactically inferior just because a different move had threat_after=0.
@@ -1842,8 +1910,7 @@ then prefer the move with better minimax_score.
 OUTPUT FORMAT — reply with ONLY this JSON object, no markdown, no extra text:
 {
   "chosen_index": 0,
-  "reasoning": "<1-2 sentences: what this move achieves strategically,
-                 citing the most significant facts by name and value>"
+  "reasoning": "<A single coherent paragraph of 3–5 sentences. Do NOT use labeled section headers. Rules: (A) minimax_score must appear ONLY in the final sentence as confirmation — never in an earlier sentence. (B) The final sentence must be phrased as confirmation: e.g., 'The minimax score of X confirms the position is sound'. (C) Sentences 1–2 explain using safety, tactical, and strategic facts only. (E) QUALITY RULES: NEVER use generic phrases like 'stable position', 'no threats', 'solid move', 'no advantage', 'safe choice', or 'good position'. Every sentence before the final confirmation MUST contain at least one concrete fact with its actual value (e.g., our_pieces_threatened_after=0, center_control=true, opponent_can_recapture=false). Sentence structure: S1–S2 = concrete safety/tactical facts with values. S3 = positional or opponent impact with actual values. Final = minimax confirmation. If no strong advantage exists, explain why this is the least harmful option using a concrete fact (e.g., 'Although captures_count=0, this is the only candidate and our_pieces_threatened_after=0'). No alternative comparison needed (only one candidate). Example: 'This is the only legal move. It keeps all pieces safe (our_pieces_threatened_after=0) and lands on a central square (center_control=true), with no recapture risk (opponent_can_recapture=false). The minimax score of X confirms the position remains stable.'>"
 }
 """
 
@@ -2378,6 +2445,1288 @@ def _build_retry_user_prompt(
     return "\n".join(header_lines + move_lines + ctx_lines)
 
 
+# ── Reasoning truthfulness checker ───────────────────────────────────────────
+
+# ── Forbidden vocabulary: terms never allowed unless explicitly seeded ────────
+# Each entry is a substring to look for (case-insensitive) in reasoning text.
+_FORBIDDEN_VOCAB: list[str] = [
+    # Conversion / endgame jargon (invented)
+    "conversion potential",
+    "winning conversion",
+    "trade conversion",
+    "conversion score",
+    "quiet_move_role",
+    "winning_conversion_score",
+    # King / escape concepts (not in any seed)
+    "escape squares",
+    "escape routes",
+    "king escape",
+    "king distance",
+    "king_activity_score",
+    # Diagonal invented concepts
+    "diagonal pressure",
+    "diagonal risks",
+    "long diagonal",
+    # Invented strategic framing
+    "strategic goal",
+    "positional adjustment",
+    "real trap",
+    "no new vulnerabilities",
+    # Internal metric names (LLM pattern-matches from pipeline logs)
+    "counterplay_score",
+    "coordination score",
+    "activity score",
+    "king activity score",
+    "quiet move role",
+    # Material accounting terms not in any seed
+    "regulars_captured",
+    "new vulnerabilities",
+    # Vague positional framing — unsupported positional characterisations
+    "structural restriction",
+    "positional step",
+    "neutral positional",
+]
+
+# Terms that are only forbidden when NOT present verbatim in the seed list.
+# These are allowed when the seed explicitly introduces them.
+_CONTEXT_FORBIDDEN_VOCAB: list[str] = [
+    "conversion",
+    "traps",
+    "escape",
+    "diagonal",
+    "no kings lost",
+    "piece count unchanged",
+    "no vulnerabilities",
+]
+
+
+def _check_reasoning_truthfulness(
+    reasoning: str,
+    facts: dict[str, Any],
+    seeds: Optional[list[str]] = None,
+) -> list[str]:
+    """
+    Post-hoc scan of LLM reasoning for claims that contradict engine-computed
+    facts.  Returns a (possibly empty) list of human-readable warning strings.
+    NEVER raises.  NEVER modifies the chosen move or reasoning text.
+
+    Parameters
+    ----------
+    reasoning : str
+        The LLM-generated reasoning paragraph to check.
+    facts : dict
+        Engine-computed facts for the chosen move.
+    seeds : list[str] or None
+        The exact seed strings that were fed to the LLM.  If provided, the
+        checker verifies that forbidden concepts are absent unless seeded.
+    """
+    if not reasoning or not facts:
+        return []
+
+    warnings: list[str] = []
+    text = reasoning.lower()
+    seeds_text = " ".join(s.lower() for s in (seeds or []))
+
+    # ── Mobility ──────────────────────────────────────────────────────────────
+    mob_after  = facts.get("opponent_mobility_after")
+    mob_before = facts.get("opponent_mobility_before")
+    if mob_after is not None and mob_before is not None:
+        mobility_improvement_claimed = any(p in text for p in [
+            "reduces mobility", "reducing mobility",
+            "reduces opponent mobility", "reducing opponent mobility",
+            "limits mobility", "limiting mobility", "limiting opponent",
+            "restricts mobility", "restricts opponent",
+            "fewer moves for", "cuts opponent moves",
+        ])
+        if mobility_improvement_claimed and mob_after >= mob_before:
+            warnings.append(
+                f"REASONING_CONTRADICTION: claims mobility reduction but "
+                f"opponent_mobility_after={mob_after} >= opponent_mobility_before={mob_before}"
+            )
+
+    # ── Recapture ─────────────────────────────────────────────────────────────
+    recapture = facts.get("opponent_can_recapture")
+    if recapture is True:
+        safe_phrases = [
+            "avoids recapture", "no recapture", "cannot recapture",
+            "without recapture risk", "no recapture risk",
+            "safe from recapture", "safe move",
+        ]
+        if any(p in text for p in safe_phrases):
+            warnings.append(
+                "REASONING_CONTRADICTION: claims avoids recapture but "
+                "opponent_can_recapture=true"
+            )
+
+    # ── Isolation ─────────────────────────────────────────────────────────────
+    isolated = facts.get("leaves_piece_isolated")
+    if isolated is True:
+        no_isolation_phrases = [
+            "does not isolate", "no isolation", "maintains connectivity",
+            "piece not isolated", "stays connected",
+        ]
+        if any(p in text for p in no_isolation_phrases):
+            warnings.append(
+                "REASONING_CONTRADICTION: claims no isolation but "
+                "leaves_piece_isolated=true"
+            )
+
+    # ── Immediate threat ──────────────────────────────────────────────────────
+    creates_threat = facts.get("creates_immediate_threat")
+    if creates_threat is False:
+        threat_phrases = [
+            "creates a threat", "creates immediate threat",
+            "applies pressure next turn", "creates pressure next",
+            "threatens opponent", "creates tactical threat",
+        ]
+        if any(p in text for p in threat_phrases):
+            warnings.append(
+                "REASONING_CONTRADICTION: claims creates_immediate_threat but "
+                "creates_immediate_threat=false"
+            )
+
+    # ── Center control ────────────────────────────────────────────────────────
+    center = facts.get("center_control")
+    if center is False:
+        center_phrases = [
+            "controls the center", "controls center", "central control",
+            "occupies the center", "center control=true",
+        ]
+        if any(p in text for p in center_phrases):
+            warnings.append(
+                "REASONING_CONTRADICTION: claims center_control but "
+                "center_control=false"
+            )
+
+    # ── Capture / material gain ───────────────────────────────────────────────
+    captures_count = facts.get("captures_count", 0)
+    if captures_count == 0:
+        cap_phrases = [
+            "captures a piece", "captures the piece", "captures an opponent",
+            "captures opponent", "gaining a piece",
+        ]
+        if any(p in text for p in cap_phrases):
+            warnings.append(
+                "REASONING_CONTRADICTION: claims capture but captures_count=0"
+            )
+
+    net_gain = facts.get("net_gain", 0)
+    if net_gain <= 0:
+        gain_phrases = ["gains material", "material gain", "gains a piece"]
+        if any(p in text for p in gain_phrases):
+            warnings.append(
+                f"REASONING_CONTRADICTION: claims material gain but net_gain={net_gain}"
+            )
+
+    # ── Promotion ─────────────────────────────────────────────────────────────
+    results_in_king = facts.get("results_in_king", False)
+    if not results_in_king:
+        promo_phrases = ["promotes to king", "promotes a piece", "crowns a piece", "becomes a king"]
+        if any(p in text for p in promo_phrases):
+            warnings.append(
+                "REASONING_CONTRADICTION: claims promotion but results_in_king=false"
+            )
+
+    # ── Block opponent landing ────────────────────────────────────────────────
+    blocks_landing = facts.get("blocks_opponent_landing")
+    if blocks_landing is False:
+        block_phrases = [
+            "blocks opponent landing", "blocks the opponent from landing",
+            "blocks_opponent_landing=true",
+        ]
+        if any(p in text for p in block_phrases):
+            warnings.append(
+                "REASONING_CONTRADICTION: claims blocks_opponent_landing but "
+                "blocks_opponent_landing=false"
+            )
+
+    # ── Forbidden vocabulary (always prohibited) ───────────────────────────────
+    # These phrases are invented concepts that never appear in any seed.
+    for phrase in _FORBIDDEN_VOCAB:
+        if phrase in text:
+            warnings.append(
+                f"REASONING_CONTRADICTION: forbidden term '{phrase}' used — "
+                "not present in any reasoning seed"
+            )
+
+    # ── Context-forbidden vocabulary (prohibited unless explicitly seeded) ─────
+    # These are allowed only if the seed list introduced them first.
+    for phrase in _CONTEXT_FORBIDDEN_VOCAB:
+        if phrase in text and phrase not in seeds_text:
+            warnings.append(
+                f"REASONING_CONTRADICTION: term '{phrase}' used but not in seeds"
+            )
+
+    # ── Unsupported numeric statements ────────────────────────────────────────
+    # Detects "from X to Y" and "remains at X" / "unchanged" patterns where
+    # the specific number cited is not found in the seeds.
+    import re as _re
+    # Pattern: "from N to M" where N and M are integers
+    for m in _re.finditer(r'from\s+(\d+)\s+to\s+(\d+)', text):
+        n1, n2 = m.group(1), m.group(2)
+        # Both numbers must appear somewhere in the seeds to be allowed.
+        if n1 not in seeds_text or n2 not in seeds_text:
+            warnings.append(
+                f"REASONING_CONTRADICTION: unsupported numeric statement "
+                f"'from {n1} to {n2}' — value(s) not found in seeds"
+            )
+    # Pattern: "remains at N" or "stays at N" (single number assertion)
+    for m in _re.finditer(r'(?:remains?\s+at|stays?\s+at|consistent\s+at)\s+(\d+)', text):
+        n = m.group(1)
+        if n not in seeds_text:
+            warnings.append(
+                f"REASONING_CONTRADICTION: unsupported numeric assertion "
+                f"'remains at {n}' — value not found in seeds"
+            )
+
+    # ── Unsupported absence claims ─────────────────────────────────────────────
+    # Flags specific absence claims that require explicit seed support.
+    absence_phrases: list[tuple[str, str]] = [
+        ("no kings lost",       "no_kings_lost seed"),
+        ("piece count unchanged", "piece_count seed"),
+        ("pieces unchanged",    "piece_count seed"),
+        ("no vulnerabilities",  "no_vulnerabilities seed"),
+    ]
+    for phrase, seed_required in absence_phrases:
+        if phrase in text and phrase not in seeds_text:
+            warnings.append(
+                f"REASONING_CONTRADICTION: unsupported absence claim '{phrase}' — "
+                f"requires explicit {seed_required}"
+            )
+
+    # ── Direct inversion detection (seed says X=true → reasoning says X=false) ─
+    # Only fires when seeds are provided and the seed explicitly states a boolean.
+    if seeds:
+        # Comparison seeds (e.g. "Move [1] isolates the moved piece
+        # (leaves_piece_isolated=true vs false here)") describe the ALTERNATIVE
+        # move's facts, not the chosen move's facts.  Including them in seeds_text
+        # causes false-positive inversions: the checker sees "leaves_piece_isolated=true"
+        # and fires when the reasoning correctly says "stays connected" about the
+        # chosen move (which has isolated=false).
+        # Fix: for the inversion check only, exclude seeds that start with "Move [N]".
+        _chosen_only_seeds_text = " ".join(
+            s.lower() for s in seeds
+            if not s.lower().strip().startswith("move [")
+        )
+        _INVERSION_PAIRS: list[tuple[str, str, str]] = [
+            # (seed substring for TRUE, reasoning phrase implying FALSE, label)
+            ("opponent_can_recapture=true",  "no recapture",           "opponent_can_recapture"),
+            ("opponent_can_recapture=true",  "avoids recapture",       "opponent_can_recapture"),
+            ("opponent_can_recapture=true",  "safe from recapture",    "opponent_can_recapture"),
+            ("opponent_can_recapture=false", "opponent can recapture", "opponent_can_recapture"),
+            ("leaves_piece_isolated=true",   "no isolation",           "leaves_piece_isolated"),
+            ("leaves_piece_isolated=true",   "stays connected",        "leaves_piece_isolated"),
+            ("leaves_piece_isolated=true",   "maintains connectivity", "leaves_piece_isolated"),
+            ("leaves_piece_isolated=true",   "does not isolate",       "leaves_piece_isolated"),
+            ("leaves_piece_isolated=true",   "avoids isolation",       "leaves_piece_isolated"),
+            ("leaves_piece_isolated=true",   "remains connected",      "leaves_piece_isolated"),
+            ("leaves_piece_isolated=true",   "maintains structure",    "leaves_piece_isolated"),
+            ("leaves_piece_isolated=true",   "keeping connectivity",   "leaves_piece_isolated"),
+            ("leaves_piece_isolated=false",  "isolates the piece",     "leaves_piece_isolated"),
+            ("leaves_piece_isolated=false",  "piece is isolated",      "leaves_piece_isolated"),
+            ("creates_immediate_threat=true",  "no immediate threat",  "creates_immediate_threat"),
+            ("creates_immediate_threat=false", "creates a threat",     "creates_immediate_threat"),
+            ("creates_immediate_threat=false", "immediate threat",     "creates_immediate_threat"),
+            ("moved_piece_is_threatened=true",  "piece is safe",       "moved_piece_is_threatened"),
+            ("moved_piece_is_threatened=false", "piece is threatened", "moved_piece_is_threatened"),
+            ("weakens_king_row=true",  "back-row discipline maintained", "weakens_king_row"),
+            ("weakens_king_row=true",  "preserves back row",             "weakens_king_row"),
+            ("weakens_king_row=false", "weakens the back row",           "weakens_king_row"),
+            ("weakens_king_row=false", "back-row weakened",              "weakens_king_row"),
+        ]
+        for seed_marker, contradiction_phrase, label in _INVERSION_PAIRS:
+            seed_says_it = seed_marker in _chosen_only_seeds_text
+            reasoning_contradicts = contradiction_phrase in text
+            if seed_says_it and reasoning_contradicts:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: inversion detected — "
+                    f"seed states '{seed_marker}' but reasoning says '{contradiction_phrase}' "
+                    f"(field: {label})"
+                )
+
+    # ── Semantic numeric / quantity leakage detection ────────────────────────────
+    # Flags quantity claims that are not backed by verbatim numbers in the seeds.
+    # Exact numbers that appear in seeds are allowed (mobility before/after, etc.).
+    _numeric_patterns: list[tuple[str, str]] = [
+        # Before→after quantity narratives
+        (
+            r"from\s+(?:three|four|five|six|seven|eight|nine|ten)\s+to\s+"
+            r"(?:one|two|three|four|five|six|seven|eight|nine)",
+            "unsupported before→after numeric claim (e.g. 'from three to two')",
+        ),
+        # Specific reply-count claims
+        (
+            r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+            r"\s+safe\s+repl(?:y|ies)",
+            "unsupported specific safe-reply count",
+        ),
+        # Mobility unchanged assertions
+        (
+            r"unchanged\s+mobility",
+            "unsupported 'unchanged mobility' claim",
+        ),
+        (
+            r"mobility\s+(?:remains|remain|stays|stays at)\s+unchanged",
+            "unsupported 'mobility unchanged' claim",
+        ),
+        # Same-number assertions
+        (
+            r"same\s+number\s+of\s+(?:replies|moves|options|pieces)",
+            "unsupported 'same number of' claim",
+        ),
+        (
+            r"(?:opponent\s+)?(?:retains|maintains)\s+(?:the\s+)?"
+            r"(?:same|equal)\s+(?:number|count)\s+of\s+(?:moves|replies|options)",
+            "unsupported 'same move count' claim",
+        ),
+    ]
+    import re as _re_num
+    for _pat, _label in _numeric_patterns:
+        if _re_num.search(_pat, text, _re_num.IGNORECASE):
+            # Allow if the suspected phrase appears verbatim in seeds.
+            _match = _re_num.search(_pat, text, _re_num.IGNORECASE)
+            _matched_text = _match.group(0) if _match else ""
+            if not seeds or _matched_text.lower() not in seeds_text:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: {_label} — not found in seeds"
+                )
+
+    return warnings
+
+
+# ── Reasoning-only refinement loop ───────────────────────────────────────────
+
+RANKER_REASONING_REFINEMENT_SYSTEM: str = """\
+You are a checkers move explainer. Your previous reasoning paragraph contained
+false claims that contradict the engine-computed facts for the chosen move.
+
+Your task: rewrite ONLY the reasoning paragraph.
+Do NOT change the chosen move. Do NOT suggest a different move.
+
+Rules:
+  - Write a single coherent paragraph of 3-5 sentences.
+  - Do NOT use labeled section headers.
+  - Do NOT repeat any of the false claims listed in the feedback below.
+  - Only state a claim if the facts explicitly support it.
+  - minimax_score may appear ONLY in the final sentence as confirmation.
+
+FORBIDDEN VOCABULARY — never use any of the following terms or phrases:
+  conversion potential, winning conversion, trade conversion, conversion score,
+  quiet_move_role, winning_conversion_score, king_activity_score,
+  escape squares, escape routes, king escape, king distance,
+  diagonal pressure, diagonal risks, long diagonal,
+  strategic goal, positional adjustment, real trap, no new vulnerabilities,
+  counterplay_score, coordination score, activity score, king activity score,
+  quiet move role, regulars_captured, new vulnerabilities.
+
+TRUTHFULNESS RULES — only state a claim if the facts explicitly support it:
+  - Only say "reduces mobility" if opponent_mobility_after < opponent_mobility_before.
+  - Only say "avoids recapture" / "no recapture risk" if opponent_can_recapture = false.
+  - Only say "does not isolate" / "maintains connectivity" if leaves_piece_isolated = false.
+  - Only say "creates a threat" / "applies pressure" if creates_immediate_threat = true.
+  - Only say "controls the center" if center_control = true.
+  - Only say "captures" / "gains material" if captures_count > 0.
+  - Only say "promotes" / "crowns" if results_in_king = true.
+  - INVERSION CHECK: if a seed says X=true, do NOT write that X is false or absent.
+    If a seed says X=false, do NOT write that X is true or present.
+
+OUTPUT FORMAT — reply with ONLY this JSON object, no markdown:
+{"reasoning": "<rewritten paragraph>"}
+"""
+
+
+def _build_refinement_prompt(
+    chosen_move: dict,
+    contradictions: list[str],
+) -> str:
+    """
+    Build the user-prompt for a reasoning-only refinement call.
+    Shows the LLM the chosen move path, its facts, and the exact
+    contradiction list.  The LLM must NOT alter the chosen move.
+    """
+    path  = chosen_move.get("path", [])
+    mtype = chosen_move.get("type", "simple")
+    facts = chosen_move.get("facts") or {}
+
+    lines: list[str] = [
+        f"Chosen move: type={mtype}  path={path}",
+        "",
+        "Selected move facts (use these exact values — do not invent others):",
+    ]
+    for k, v in sorted(facts.items()):
+        lines.append(f"  {k}: {v}")
+
+    lines += [
+        "",
+        "Your previous reasoning contained the following false claims:",
+    ]
+    for c in contradictions:
+        claim = c.replace("REASONING_CONTRADICTION: ", "")
+        lines.append(f"  - {claim}")
+
+    lines += [
+        "",
+        "Instructions:",
+        "  1. Rewrite the reasoning paragraph to remove every false claim above.",
+        "  2. Keep the same chosen move — do NOT suggest a different move.",
+        "  3. Do not mention any claim not supported by the facts listed above.",
+        "  4. Minimax_score may appear ONLY in the final sentence as confirmation.",
+        "  5. Write a single coherent paragraph of 3-5 sentences.",
+        "",
+        'Reply with ONLY: {"reasoning": "<your rewritten paragraph>"}',
+    ]
+    return "\n".join(lines)
+
+
+def _extract_refinement_reasoning(raw: str) -> Optional[str]:
+    """
+    Parse the reasoning string from a refinement LLM response.
+    Accepts {"reasoning": "..."} JSON.  Falls back to regex.
+    Never raises.
+    """
+    import json as _json
+    try:
+        obj = _json.loads(raw.strip())
+        r = obj.get("reasoning", "")
+        if isinstance(r, str) and r.strip():
+            return r.strip()
+    except Exception:
+        pass
+    m = re.search(r'"reasoning"\s*:\s*"((?:\\.|[^"\\])*)"', raw, re.DOTALL)
+    if m:
+        inner = m.group(1).replace("\\n", " ").replace('\\"', '"')
+        inner = re.sub(r"\s+", " ", inner).strip()
+        return inner or None
+    return None
+
+
+# ── Targeted sentence repair helpers ─────────────────────────────────────────
+
+def _split_reasoning_sentences(reasoning: str) -> list[str]:
+    """Split a reasoning paragraph into individual sentences."""
+    import re as _re
+    parts = _re.split(r'(?<=[.!?])\s+(?=[A-Z])', reasoning.strip())
+    return [s.strip() for s in parts if s.strip()]
+
+
+def _extract_detecting_phrases(contradiction: str) -> list[str]:
+    """
+    Given a contradiction warning string, return the concrete phrases that
+    caused it.  Used to identify which sentence(s) in the paragraph are bad.
+    """
+    import re as _re
+    text = contradiction
+
+    # forbidden term 'X'
+    m = _re.search(r"forbidden term '([^']+)'", text, _re.IGNORECASE)
+    if m:
+        return [m.group(1).lower()]
+
+    # term 'X' used but not in seeds
+    m = _re.search(r"term '([^']+)' used but not in seeds", text, _re.IGNORECASE)
+    if m:
+        return [m.group(1).lower()]
+
+    # inversion detected — ... but reasoning says 'X'
+    m = _re.search(r"but reasoning says '([^']+)'", text, _re.IGNORECASE)
+    if m:
+        return [m.group(1).lower()]
+
+    # unsupported numeric statement 'from N to M'
+    m = _re.search(r"unsupported numeric statement '([^']+)'", text, _re.IGNORECASE)
+    if m:
+        return [m.group(1).lower()]
+
+    # unsupported numeric assertion 'remains at N'
+    m = _re.search(r"unsupported numeric assertion '([^']+)'", text, _re.IGNORECASE)
+    if m:
+        return [m.group(1).lower()]
+
+    # unsupported absence claim 'X'
+    m = _re.search(r"unsupported absence claim '([^']+)'", text, _re.IGNORECASE)
+    if m:
+        return [m.group(1).lower()]
+
+    lower = text.lower()
+    if "claims mobility reduction" in lower:
+        return [
+            "reduces mobility", "reducing mobility", "limits mobility",
+            "limiting mobility", "restricts mobility", "restricts opponent",
+            "fewer moves for", "cuts opponent moves",
+            "reduces opponent mobility", "reducing opponent mobility",
+            "limits opponent", "limiting opponent",
+        ]
+    if "claims avoids recapture" in lower:
+        return [
+            "avoids recapture", "no recapture", "cannot recapture",
+            "without recapture risk", "no recapture risk",
+            "safe from recapture", "safe move",
+        ]
+    if "claims no isolation" in lower:
+        return [
+            "does not isolate", "no isolation", "maintains connectivity",
+            "piece not isolated", "stays connected",
+        ]
+    if "claims creates_immediate_threat" in lower:
+        return [
+            "creates a threat", "creates immediate threat",
+            "applies pressure next turn", "creates pressure next",
+            "threatens opponent", "creates tactical threat",
+        ]
+    if "claims center_control" in lower:
+        return [
+            "controls the center", "controls center",
+            "central control", "occupies the center",
+        ]
+    if "claims capture but" in lower:
+        return [
+            "captures a piece", "captures the piece",
+            "captures an opponent", "gaining a piece",
+        ]
+    if "claims material gain" in lower:
+        return ["gains material", "material gain", "gains a piece"]
+    if "claims promotion" in lower:
+        return [
+            "promotes to king", "promotes a piece",
+            "crowns a piece", "becomes a king",
+        ]
+    if "claims blocks_opponent_landing" in lower:
+        return [
+            "blocks opponent landing",
+            "blocks the opponent from landing",
+        ]
+    return []
+
+
+def _partition_sentences_by_contradiction(
+    sentences: list[str],
+    contradictions: list[str],
+) -> tuple[list[int], list[int]]:
+    """
+    Return (bad_indices, good_indices).
+    bad_indices  — sentences that contain at least one contradicting phrase.
+    good_indices — sentences with no detected contradiction.
+    When no bad sentence can be pinpointed, bad_indices is empty so the caller
+    can fall back to full-paragraph regeneration.
+    """
+    bad: set[int] = set()
+    for c in contradictions:
+        phrases = _extract_detecting_phrases(c)
+        for i, sent in enumerate(sentences):
+            sl = sent.lower()
+            if any(p in sl for p in phrases):
+                bad.add(i)
+    good = [i for i in range(len(sentences)) if i not in bad]
+    return sorted(bad), good
+
+
+def _build_targeted_refinement_prompt(
+    chosen_move: dict,
+    bad_sentences: list[str],
+    contradictions: list[str],
+) -> str:
+    """
+    Build a prompt that asks the LLM to replace ONLY the bad sentences.
+    Each bad sentence gets exactly one replacement.
+    """
+    facts = chosen_move.get("facts") or {}
+    path  = chosen_move.get("path", [])
+    mtype = chosen_move.get("type", "simple")
+    n     = len(bad_sentences)
+
+    lines: list[str] = [
+        f"Chosen move: type={mtype}  path={path}",
+        "",
+        "Move facts (use these exact values — do not invent others):",
+    ]
+    for k, v in sorted(facts.items()):
+        lines.append(f"  {k}: {v}")
+
+    lines += [
+        "",
+        "The following sentences are INCORRECT and must each be replaced with "
+        "ONE corrected sentence:",
+    ]
+    for i, sent in enumerate(bad_sentences):
+        lines.append(f'  [{i}] "{sent}"')
+
+    lines += ["", "False claims to fix:"]
+    for c in contradictions:
+        lines.append(f"  - {c.replace('REASONING_CONTRADICTION: ', '')}")
+
+    lines += [
+        "",
+        "Instructions:",
+        "  1. Write exactly one replacement for each numbered sentence above.",
+        "  2. Every replacement must be consistent with the move facts.",
+        "  3. Do not reference any fact not listed above.",
+        "  4. Do not use forbidden vocabulary.",
+        "  5. Keep each replacement concise (one sentence).",
+        "",
+        f'Reply with ONLY this JSON (exactly {n} replacement(s)):',
+        '{"replacements": ["<sentence 0>", "<sentence 1>", ...]}',
+    ]
+    return "\n".join(lines)
+
+
+def _extract_targeted_repair_response(
+    raw: str,
+    expected_count: int,
+) -> Optional[list[str]]:
+    """Parse a targeted repair LLM response into a list of replacement sentences."""
+    import json as _json
+    import re as _re
+    try:
+        obj = _json.loads(raw.strip())
+        reps = obj.get("replacements")
+        if isinstance(reps, list) and len(reps) == expected_count and all(
+            isinstance(r, str) for r in reps
+        ):
+            return reps
+    except Exception:
+        pass
+    m = _re.search(r'"replacements"\s*:\s*(\[[^\]]+\])', raw, _re.DOTALL)
+    if m:
+        try:
+            reps = _json.loads(m.group(1))
+            if isinstance(reps, list) and len(reps) == expected_count:
+                return reps
+        except Exception:
+            pass
+    return None
+
+
+def _sanitize_seed_explanation(text: str) -> str:
+    """
+    Remove raw field-style notation from a seed explanation so it reads as
+    natural language in user-facing output.
+
+    Two kinds of problems are fixed:
+      1. Jargon prefixes added by the seed builder
+         ("immediate tactical safety:", "tactical drawback:", "positional drawback:").
+      2. Field=value patterns that leak in from comparison seeds
+         (e.g. "leaves_piece_isolated=true vs false here").
+
+    Only called by _build_deterministic_seed_summary; never touches move logic.
+    """
+    import re as _re
+
+    # ── 1. Strip leading jargon prefixes ──────────────────────────────────────
+    text = _re.sub(
+        r'^(immediate tactical safety|tactical drawback|positional drawback)\s*:\s*',
+        '',
+        text,
+        flags=_re.IGNORECASE,
+    )
+
+    # ── 2. Replace field=value patterns with natural language ─────────────────
+    _FIELD_TO_NATURAL: list[tuple[str, str]] = [
+        ("opponent_can_recapture=false",     "the opponent cannot recapture"),
+        ("opponent_can_recapture=true",      "the opponent can recapture"),
+        ("leaves_piece_isolated=true",       "the moved piece is isolated"),
+        ("leaves_piece_isolated=false",      "the moved piece stays connected"),
+        ("moved_piece_is_threatened=true",   "the moved piece is threatened"),
+        ("moved_piece_is_threatened=false",  "the moved piece is safe"),
+        ("creates_immediate_threat=true",    "creating an immediate threat"),
+        ("creates_immediate_threat=false",   "no immediate threat created"),
+        ("center_control=true",              "gaining center control"),
+        ("weakens_king_row=true",            "weakening the back row"),
+        ("results_in_king=true",             "promoting to king"),
+        # Numeric variants: our_pieces_threatened_after=0 or =N
+        ("our_pieces_threatened_after=0",    "no allied pieces remain under threat"),
+    ]
+    for field_pat, natural in _FIELD_TO_NATURAL:
+        text = text.replace(field_pat, natural)
+
+    # Replace remaining "field_name=N" patterns (integer values) not covered above
+    text = _re.sub(r'\b\w+=\d+\b', '', text)
+
+    # ── 3. Clean up parenthetical residue from comparison seeds ───────────────
+    # e.g. "(the opponent can recapture vs false here)" — the parens may contain
+    # already-substituted text so the pattern must match any content before "vs".
+    text = _re.sub(r'\([^)]*\bvs\b[^)]*\bhere\b[^)]*\)', '', text)
+    # Lone field names with no value that slipped through
+    text = _re.sub(r'\bcaptures_count difference\b', 'capturing more pieces', text, flags=_re.IGNORECASE)
+
+    # ── 4. Normalise whitespace and punctuation ───────────────────────────────
+    text = _re.sub(r'\s{2,}', ' ', text)
+    text = _re.sub(r'\(\s*\)', '', text)   # empty parens
+    text = text.strip(' ,;')
+
+    return text
+
+
+def _build_deterministic_seed_summary(
+    seeds: list[str],
+    chosen_move: dict,
+) -> str:
+    """
+    Build a grounded reasoning string from seeds without calling the LLM.
+    Hard fallback used when all refinement retries fail to resolve contradictions.
+    Seeds are engine-computed facts; no hallucination is possible here.
+    """
+    if not seeds:
+        path = chosen_move.get("path", [])
+        dest = path[-1] if path else "unknown"
+        return f"Engine evaluation: move to {dest} selected by minimax."
+
+    parts: list[str] = []
+    for seed in seeds:
+        if " — " in seed:
+            explanation = seed.split(" — ", 1)[1].strip()
+        else:
+            explanation = seed.strip()
+        explanation = _sanitize_seed_explanation(explanation)
+        if not explanation:
+            continue
+        s = explanation[0].upper() + explanation[1:]
+        if not s.endswith("."):
+            s += "."
+        parts.append(s)
+
+    return " ".join(parts) if parts else "Move selected by engine evaluation."
+
+
+# ── Reasoning-only refinement loop ────────────────────────────────────────────
+
+def _refine_reasoning(
+    reasoning: str,
+    chosen_move: dict,
+    initial_contradictions: list[str],
+    max_attempts: int = 2,
+    seeds: Optional[list[str]] = None,
+) -> tuple[str, int, bool]:
+    """
+    Post-hoc reasoning refinement loop.
+
+    Uses targeted sentence repair: only the sentences that contain contradicting
+    phrases are sent to the LLM for replacement.  All other sentences are
+    preserved unchanged.  Guarantees:
+      - chosen_move is never mutated or re-evaluated.
+      - _apply_safety_filter is never called.
+      - move-selection override / re-ranking never happen.
+      - reasoning_retry_count is separate from the move-selection retry count.
+
+    Returns:
+        (final_reasoning, reasoning_retry_count, resolved)
+    """
+    import time as _time
+
+    facts             = chosen_move.get("facts") or {}
+    current_reasoning = reasoning
+    retry_count       = 0
+    contradictions    = list(initial_contradictions)
+
+    for attempt in range(1, max_attempts + 1):
+        print(
+            f"[RANKER_REASONING_RETRY] attempt={attempt} "
+            f"contradictions={contradictions}"
+        )
+        retry_count += 1
+
+        sentences   = _split_reasoning_sentences(current_reasoning)
+        bad_indices, good_indices = _partition_sentences_by_contradiction(
+            sentences, contradictions
+        )
+
+        use_targeted = bool(bad_indices)
+
+        if use_targeted:
+            bad_sentences = [sentences[i] for i in bad_indices]
+            print(
+                f"[RANKER_REASONING_RETRY] targeted_repair: "
+                f"bad_count={len(bad_sentences)} "
+                f"preserved_count={len(good_indices)} "
+                f"bad_sentences={bad_sentences}"
+            )
+            user_prompt = _build_targeted_refinement_prompt(
+                chosen_move, bad_sentences, contradictions
+            )
+        else:
+            print(
+                f"[RANKER_REASONING_RETRY] cannot isolate bad sentences; "
+                "falling back to full-paragraph refinement"
+            )
+            user_prompt = _build_refinement_prompt(chosen_move, contradictions)
+
+        raw: Optional[str] = None
+        for api_try in range(2):
+            try:
+                raw = call_ranker(RANKER_REASONING_REFINEMENT_SYSTEM, user_prompt)
+                break
+            except Exception as e:
+                wait = 5 * (2 ** api_try)
+                print(
+                    f"[RANKER_REASONING_RETRY] api error "
+                    f"(attempt={attempt}, api_try={api_try + 1}): {e} "
+                    f"— waiting {wait}s"
+                )
+                _time.sleep(wait)
+
+        if raw is None:
+            print(
+                f"[RANKER_REASONING_RETRY] api call failed on attempt {attempt}; "
+                "keeping previous reasoning"
+            )
+            break
+
+        if use_targeted:
+            replacements = _extract_targeted_repair_response(raw, len(bad_sentences))
+            if replacements:
+                repaired = list(sentences)
+                for idx, new_sent in zip(bad_indices, replacements):
+                    repaired[idx] = new_sent
+                current_reasoning = " ".join(repaired)
+            else:
+                # Targeted parse failed; try extracting a full paragraph instead.
+                fallback = _extract_refinement_reasoning(raw)
+                if fallback:
+                    current_reasoning = fallback
+                else:
+                    print(
+                        f"[RANKER_REASONING_RETRY] targeted parse and fallback both "
+                        f"failed on attempt {attempt}; keeping previous reasoning"
+                    )
+                    break
+        else:
+            new_reasoning = _extract_refinement_reasoning(raw)
+            if not new_reasoning:
+                print(
+                    f"[RANKER_REASONING_RETRY] could not parse refinement response "
+                    f"on attempt {attempt}; keeping previous reasoning"
+                )
+                break
+            current_reasoning = new_reasoning
+
+        if attempt < max_attempts:
+            contradictions = _check_reasoning_truthfulness(
+                current_reasoning, facts, seeds=seeds
+            )
+            if not contradictions:
+                print("[RANKER_TRUTHFULNESS] intermediate_check_clean: breaking early")
+                break  # paragraph is already clean — fall through to final check
+
+    # Final full-paragraph validation always runs, regardless of how the loop ended.
+    # This is the single authoritative validation point for the returned reasoning.
+    final_contradictions = _check_reasoning_truthfulness(
+        current_reasoning, facts, seeds=seeds
+    )
+    resolved = len(final_contradictions) == 0
+    print(f"[RANKER_TRUTHFULNESS] reasoning_refinement_resolved={resolved}")
+    if not resolved:
+        print(
+            f"[RANKER_TRUTHFULNESS] reasoning_still_contradicts_after_"
+            f"{retry_count}_attempt(s)={final_contradictions}"
+        )
+    return current_reasoning, retry_count, resolved
+
+
+# ── Grounded reasoning seeds ───────────────────────────────────────────────────
+
+RANKER_SEED_REASONING_SYSTEM: str = """\
+You are a checkers move coach. You have been given a verified list of engine-computed
+factual claims about the chosen move ("reasoning seeds").
+
+Your task: rewrite these seeds into a single fluent paragraph of 3-5 sentences.
+
+STRICT RULES:
+  - Use ONLY the provided reasoning seeds. Do NOT introduce any new strategic claims,
+    positional assessments, or concepts not present in the seed list.
+  - NEVER add phrases like: "structural pressure", "stable position", "limits options",
+    "good position", "no advantage", "better structure", or any vague evaluation.
+  - You may rephrase, connect, and shorten the seeds into natural English prose.
+  - Every sentence except the final minimax confirmation MUST reference a concrete
+    fact from the seed list (e.g., opponent_can_recapture=false, captures_count=1).
+  - minimax_score may appear ONLY in the final sentence as confirmation.
+  - Do NOT use labeled section headers.
+  - Write a single coherent paragraph only.
+  - DRAWBACKS: If the seeds contain any drawback (e.g., opponent_can_recapture=true,
+    our_pieces_threatened_after>0, moved_piece_is_threatened=true,
+    leaves_piece_isolated=true, weakens_king_row=true), you MUST acknowledge that
+    drawback explicitly in the paragraph. Do NOT hide, omit, or downplay negative seeds.
+  - PRIORITY: When safety/tactical seeds (opponent_can_recapture, our_pieces_threatened_after,
+    captures_count, creates_immediate_threat) and strategic interpretation seeds
+    (develops a piece forward, positional move, central board presence, back-row) both
+    exist, address safety/tactical seeds in the first 1–2 sentences. Strategic seeds
+    may only appear as supporting context, never as the primary justification.
+    Do NOT use any of the following words or phrases under any circumstances:
+      "initiative", "dominance", "control the game", "pressure", "strong position",
+      "conversion potential", "winning conversion", "trade conversion", "conversion score",
+      "quiet_move_role", "winning_conversion_score", "king_activity_score",
+      "counterplay_score", "coordination score", "activity score",
+      "escape squares", "escape routes", "king escape", "king distance",
+      "diagonal pressure", "diagonal risks", "long diagonal",
+      "strategic goal", "positional adjustment", "real traps",
+      "no new vulnerabilities", "regulars_captured", "new vulnerabilities".
+    Do NOT state any number ("from X to Y", "remains at N", "unchanged at N")
+    unless that exact number appears verbatim in the seed list.
+    Do NOT claim "no kings lost", "piece count unchanged", or "no vulnerabilities"
+    unless an explicit seed states it.
+
+  TACTICAL EXPOSURE CONTEXT:
+    When a seed states opponent_can_recapture=true, our_pieces_threatened_after>0,
+    or moved_piece_is_threatened=true, acknowledge that drawback honestly.
+    Then explain WHY the move is still chosen: e.g., material gain, threat creation,
+    minimax advantage, or constrained opponent reply.
+    Do NOT invert the seed: if a seed says threat_after=1, do NOT write "no threats remain".
+    If a seed says opponent_can_recapture=true, do NOT write "avoids recapture".
+
+OUTPUT FORMAT — reply with ONLY this JSON, no markdown:
+{"reasoning": "<your paragraph>"}
+"""
+
+
+def _find_comparison_seed(
+    chosen_facts: dict,
+    alt_facts: dict,
+    alt_index: int,
+) -> Optional[str]:
+    """
+    Return a concrete factual comparison seed vs one alternative, or None.
+    Priority order: recapture > moved-threatened > pieces-at-risk >
+                    captures > isolation > immediate-threat > center.
+    NEVER uses vague words like 'worse', 'weaker', 'no advantage'.
+    """
+    # 1. Recapture safety
+    if chosen_facts.get("opponent_can_recapture") is False \
+            and alt_facts.get("opponent_can_recapture") is True:
+        return (
+            f"Move [{alt_index}] allows recapture (opponent_can_recapture=true) "
+            "vs false here — chosen move is safer."
+        )
+    # 2. Moved piece threatened
+    if chosen_facts.get("moved_piece_is_threatened") is False \
+            and alt_facts.get("moved_piece_is_threatened") is True:
+        return (
+            f"Move [{alt_index}] leaves the moved piece threatened "
+            "(moved_piece_is_threatened=true vs false here)."
+        )
+    # 3. Pieces at risk count
+    c_pta = chosen_facts.get("our_pieces_threatened_after")
+    a_pta = alt_facts.get("our_pieces_threatened_after")
+    if c_pta is not None and a_pta is not None and c_pta < a_pta:
+        return (
+            f"Move [{alt_index}] leaves {a_pta} piece(s) threatened "
+            f"(our_pieces_threatened_after={a_pta} vs {c_pta} here)."
+        )
+    # 4. Captures
+    c_cap = chosen_facts.get("captures_count", 0)
+    a_cap = alt_facts.get("captures_count", 0)
+    if c_cap > a_cap:
+        return (
+            f"Chosen move captures {c_cap} piece(s) while move [{alt_index}] "
+            f"captures only {a_cap} (captures_count difference)."
+        )
+    # 5. Isolation
+    if chosen_facts.get("leaves_piece_isolated") is False \
+            and alt_facts.get("leaves_piece_isolated") is True:
+        return (
+            f"Move [{alt_index}] isolates the moved piece "
+            "(leaves_piece_isolated=true vs false here)."
+        )
+    # 6. Immediate threat
+    if chosen_facts.get("creates_immediate_threat") is True \
+            and alt_facts.get("creates_immediate_threat") is False:
+        return (
+            f"Chosen move creates an immediate threat (creates_immediate_threat=true) "
+            f"while move [{alt_index}] does not."
+        )
+    # 7. Center control
+    if chosen_facts.get("center_control") is True \
+            and alt_facts.get("center_control") is False:
+        return (
+            f"Chosen move gains center control (center_control=true) "
+            f"while move [{alt_index}] does not."
+        )
+    return None
+
+
+# Semantic thresholds for minimax score wording.
+# Below CLEARLY_LOSING the position is materially hopeless; below SLIGHTLY_LOSING
+# it is noticeably unfavourable.  These are wording-layer constants only and have
+# no effect on scoring, search, or move selection.
+_MINIMAX_CLEARLY_LOSING: float = -100.0
+_MINIMAX_SLIGHTLY_LOSING: float = -20.0
+
+
+def _minimax_wording_label(mm: float) -> str:
+    """
+    Return a score-appropriate minimax confirmation label for the seed.
+    Only adjusts wording for losing evaluations; non-losing positions
+    keep the existing 'highest-evaluated option' phrasing unchanged.
+    """
+    if mm < _MINIMAX_CLEARLY_LOSING:
+        return "least harmful available continuation"
+    if mm < _MINIMAX_SLIGHTLY_LOSING:
+        return "best available option in a difficult position"
+    return "highest-evaluated option"
+
+
+def _build_grounded_reasoning_seeds(
+    chosen_move: dict,
+    all_candidates: list,
+    player: int = 0,
+) -> list[str]:
+    """
+    Build a list of truthful, fact-derived reasoning seeds for chosen_move.
+    NEVER emits claims that are not backed by actual fact values.
+    NEVER uses forbidden vague language.
+    chosen_move is READ-ONLY.
+
+    player  INT constant (RED or BLACK from checkers.engine.board).
+            When 0 (unknown), direction-sensitive seeds fall back to safe defaults.
+    """
+    seeds: list[str] = []
+    facts = chosen_move.get("facts") or {}
+    chosen_path = chosen_move.get("path")
+
+    # ── Safety ──────────────────────────────────────────────────────────────
+    recapture = facts.get("opponent_can_recapture")
+    if recapture is False:
+        seeds.append(
+            "opponent_can_recapture=false — immediate tactical safety: "
+            "opponent cannot recapture this piece next turn"
+        )
+    elif recapture is True:
+        seeds.append(
+            "opponent_can_recapture=true — tactical drawback: "
+            "opponent can recapture this piece next turn"
+        )
+
+    pta = facts.get("our_pieces_threatened_after")
+    if pta is not None:
+        if pta == 0:
+            seeds.append(
+                "our_pieces_threatened_after=0 — no defensive burden remains after the move"
+            )
+        else:
+            seeds.append(
+                f"our_pieces_threatened_after={pta} — tactical drawback: "
+                f"{pta} allied piece(s) remain under attack after the move"
+            )
+
+    mpt = facts.get("moved_piece_is_threatened")
+    if mpt is True:
+        seeds.append(
+            "moved_piece_is_threatened=true — moved piece remains tactically exposed"
+        )
+
+    # ── Tactical ───────────────────────────────────────────────────────────
+    cap = facts.get("captures_count", 0)
+    net = facts.get("net_gain", 0)
+    if cap > 0:
+        seeds.append(
+            f"captures_count={cap}, net_gain={net} — "
+            f"wins material while advancing the position"
+        )
+
+    if facts.get("creates_immediate_threat") is True:
+        seeds.append(
+            "creates_immediate_threat=true — puts opponent on the defensive next turn"
+        )
+
+    if facts.get("shot_sequence_available") is True:
+        seeds.append(
+            "shot_sequence_available=true — a multi-jump sequence is available to extend the attack"
+        )
+
+    if facts.get("blocks_opponent_landing") is True:
+        seeds.append(
+            "blocks_opponent_landing=true — denies the opponent a key landing square"
+        )
+
+    fjr = facts.get("forced_opponent_jump_reply")
+    mjc = facts.get("max_opponent_jump_captures")
+    if fjr is True and mjc is not None:
+        seeds.append(
+            f"forced_opponent_jump_reply=true, max_opponent_jump_captures={mjc} — "
+            "opponent response is constrained to a jump"
+        )
+
+    # ── Structure ───────────────────────────────────────────────────────────
+    isolated = facts.get("leaves_piece_isolated")
+    if isolated is True:
+        seeds.append(
+            "leaves_piece_isolated=true — positional drawback: "
+            "moved piece is not supported by adjacent allies"
+        )
+    elif isolated is False:
+        seeds.append(
+            "leaves_piece_isolated=false — preserves piece coordination "
+            "by keeping the moved piece connected"
+        )
+
+    if facts.get("weakens_king_row") is True:
+        seeds.append(
+            "weakens_king_row=true — back-row defense is weakened"
+        )
+
+    # center_control ONLY if True (never claim it when False)
+    if facts.get("center_control") is True:
+        seeds.append(
+            "center_control=true — improves influence over central lanes"
+        )
+
+    # ── Promotion ───────────────────────────────────────────────────────────
+    if facts.get("results_in_king") is True:
+        seeds.append(
+            "results_in_king=true — immediately converts the piece into a king"
+        )
+    elif facts.get("near_promotion") is True:
+        seeds.append(
+            "near_promotion=true — creates a future promotion threat"
+        )
+
+    # ── Mobility (ONLY when numeric before/after exists and actually changes) ───
+    mob_after  = facts.get("opponent_mobility_after")
+    mob_before = facts.get("opponent_mobility_before")
+    if mob_after is not None and mob_before is not None and mob_after < mob_before:
+        delta = mob_before - mob_after
+        seeds.append(
+            f"opponent_mobility_before={mob_before}, opponent_mobility_after={mob_after} — "
+            f"reduces opponent mobility by {delta}, restricting available replies"
+        )
+    # If mob_after >= mob_before: NO seed (avoids false mobility claims)
+
+    # ── Strategic interpretation (LOW-STRENGTH, supporting context only) ────────────
+    # Derived purely from path geometry and fact values. No risky assumptions.
+    # These seeds must NEVER be the primary justification in the paragraph.
+    _path    = chosen_path or []
+    _mtype   = chosen_move.get("type", "")
+    _src     = _path[0]  if len(_path) >= 1 else None
+    _dst     = _path[-1] if len(_path) >= 2 else None
+    _src_row = _src[0]   if isinstance(_src, (list, tuple)) and len(_src) >= 1 else None
+    _dst_row = _dst[0]   if isinstance(_dst, (list, tuple)) and len(_dst) >= 1 else None
+    _dst_col = _dst[1]   if isinstance(_dst, (list, tuple)) and len(_dst) >= 2 else None
+
+    # (A) Development: simple non-capture move, color-aware forward direction.
+    # RED moves toward lower row numbers; BLACK moves toward higher row numbers.
+    # ONLY emitted when player is explicitly RED or BLACK — never when unknown (0).
+    if _mtype == "simple" and cap == 0 and player != 0:
+        if _src_row is not None and _dst_row is not None:
+            _is_forward = (_dst_row < _src_row) if player == RED else (_dst_row > _src_row)
+        else:
+            _is_forward = False
+        if _is_forward:
+            seeds.append(
+                "develops a piece forward — "
+                "improves piece activity from its starting position"
+            )
+
+    # (B) Back-row origin: color-aware back row detection.
+    # RED back row = row 7; BLACK back row = row 0.
+    # ONLY emitted when player is explicitly RED or BLACK — never when unknown (0).
+    if _src_row is not None and player != 0:
+        _is_back_row = (_src_row == 7) if player == RED else (_src_row == 0)
+        if _is_back_row:
+            seeds.append(
+                "moves a back-row piece — "
+                "slightly weakens back-row defensive structure"
+            )
+
+    # (C) Positional (quiet) move: no captures
+    if cap == 0:
+        seeds.append(
+            "captures_count=0 — positional move focused on improving piece placement"
+        )
+
+    # (D) Center direction: destination column in center range {2,3,4,5}
+    if _dst_col is not None and _dst_col in {2, 3, 4, 5}:
+        seeds.append(
+            "destination column in center range — "
+            "contributes to central board presence"
+        )
+
+    # ── Comparison vs next-best alternative ──────────────────────────────
+    alternatives = [
+        (i, m) for i, m in enumerate(all_candidates)
+        if m.get("path") != chosen_path
+    ]
+    if alternatives:
+        best_alt_idx, best_alt = max(
+            alternatives,
+            key=lambda im: _get_minimax_score(im[1]) if _get_minimax_score(im[1]) is not None else float("-inf"),
+        )
+        cmp = _find_comparison_seed(
+            facts,
+            best_alt.get("facts") or {},
+            best_alt_idx,
+        )
+        if cmp:
+            seeds.append(cmp)
+
+    # ── Minimax confirmation (always last) ──────────────────────────────
+    mm = _get_minimax_score(chosen_move)
+    if mm is not None:
+        seeds.append(f"minimax_score={mm:.2f} — {_minimax_wording_label(mm)}")
+
+    return seeds
+
+
+def _build_seed_reasoning_prompt(chosen_move: dict, seeds: list[str]) -> str:
+    """Build the user prompt for a seed-based reasoning call."""
+    path  = chosen_move.get("path", [])
+    mtype = chosen_move.get("type", "simple")
+    lines = [
+        f"Chosen move: type={mtype}  path={path}",
+        "",
+        "Verified reasoning seeds (use ONLY these — do not add unsupported claims):",
+    ]
+    for i, s in enumerate(seeds, 1):
+        lines.append(f"  {i}. {s}")
+    lines += [
+        "",
+        "Rewrite these seeds into a single fluent paragraph of 3-5 sentences.",
+        "minimax_score must appear only in the final sentence as confirmation.",
+        'Reply with ONLY: {"reasoning": "<your paragraph>"}',
+    ]
+    return "\n".join(lines)
+
+
+def _generate_seeded_reasoning(
+    chosen_move: dict,
+    all_candidates: list,
+    player: int = 0,
+) -> tuple[Optional[str], list[str]]:
+    """
+    Build grounded seeds for chosen_move, then call the LLM once to turn them
+    into a fluent paragraph.
+    NEVER modifies chosen_move or any candidate.
+    NEVER calls safety_filter, override, or scoring.
+    player  INT constant (RED or BLACK); 0 = unknown (safe fallback).
+    Returns (reasoning_string_or_None, seeds_list).
+    """
+    import time as _time
+
+    seeds = _build_grounded_reasoning_seeds(chosen_move, all_candidates, player=player)
+    if not seeds:
+        return None, []
+
+    user_prompt = _build_seed_reasoning_prompt(chosen_move, seeds)
+    print(f"[RANKER_SEED_REASONING] seeds={seeds}")
+
+    raw: Optional[str] = None
+    for api_try in range(2):
+        try:
+            raw = call_ranker(RANKER_SEED_REASONING_SYSTEM, user_prompt)
+            break
+        except Exception as e:
+            wait = 5 * (2 ** api_try)
+            print(f"[RANKER_SEED_REASONING] api error (try={api_try + 1}): {e} — waiting {wait}s")
+            _time.sleep(wait)
+
+    if raw is None:
+        print("[RANKER_SEED_REASONING] api call failed; keeping previous reasoning")
+        return None, seeds
+
+    result = _extract_refinement_reasoning(raw)  # reuse existing JSON parser
+    if not result:
+        print("[RANKER_SEED_REASONING] could not parse response; keeping previous reasoning")
+        return None, seeds
+
+    return result, seeds
+
+
 # ── Main node ─────────────────────────────────────────────────────────────────
 
 def ranker_agent(state: CheckersState) -> dict:
@@ -2636,6 +3985,24 @@ def ranker_agent(state: CheckersState) -> dict:
 
             _retry_idx_legal, _retry_reasoning = _interpret_ranker_response(_retry_raw, len(legal))
 
+            # ── Task 1: Retry-path truthfulness pre-validation ─────────────────
+            # Validate retry reasoning immediately after extraction — before it
+            # can reach the final output via any path (including seeding failure).
+            # Seeds are not yet available here; the final truthfulness check at
+            # the end of the ranker will re-validate with seeds. This early check
+            # ensures forbidden-vocab violations are logged and that dirty retry
+            # reasoning is flagged so the downstream refinement loop can clean it.
+            if _retry_reasoning and _retry_idx_legal is not None and (
+                0 <= _retry_idx_legal < len(legal)
+            ):
+                _retry_pre_facts = legal[_retry_idx_legal].get("facts") or {}
+                _retry_pre_contradictions = _check_reasoning_truthfulness(
+                    _retry_reasoning, _retry_pre_facts, seeds=None
+                )
+                if _retry_pre_contradictions:
+                    for _rpc in _retry_pre_contradictions:
+                        print(f"[RANKER_TRUTHFULNESS][RETRY_RAW] {_rpc}")
+
             if _retry_idx_legal is None or not (0 <= _retry_idx_legal < len(legal)):
                 # Bad parse — burn retry slot
                 print(
@@ -2853,9 +4220,55 @@ def ranker_agent(state: CheckersState) -> dict:
                 f"maintaining piece connectivity and structure."
             )
 
+    # ── Seed-based reasoning generation ───────────────────────────────────
+    # chosen_move is fully locked. Build grounded seeds from its facts,
+    # then ask the LLM to rewrite them into a paragraph.
+    # Safety filter, override, scoring, and move selection are NEVER called.
+    _candidates_for_seeds = locals().get("filtered", [chosen])
+    _seeded, _active_seeds = _generate_seeded_reasoning(
+        chosen, _candidates_for_seeds, player=state.current_player
+    )
+    if _seeded:
+        reasoning = _seeded
+
+    # ── Reasoning truthfulness check + refinement loop ───────────────────────
+    # chosen_move is fully determined above.  The refinement loop below only
+    # rewrites the text; it never calls safety_filter, override, or scoring.
+    _chosen_facts           = chosen.get("facts") or {}
+    _initial_contradictions = _check_reasoning_truthfulness(
+        reasoning, _chosen_facts, seeds=_active_seeds
+    )
+    _reasoning_retry_count  = 0
+
+    if _initial_contradictions:
+        for _w in _initial_contradictions:
+            print(f"[RANKER_TRUTHFULNESS] {_w}")
+
+        # Refine reasoning only — chosen_move, candidates, safety filter untouched.
+        reasoning, _reasoning_retry_count, _rr_resolved = _refine_reasoning(
+            reasoning=reasoning,
+            chosen_move=chosen,
+            initial_contradictions=_initial_contradictions,
+            max_attempts=2,
+            seeds=_active_seeds,
+        )
+        if not _rr_resolved:
+            print(
+                f"[RANKER_TRUTHFULNESS] reasoning still contains contradictions "
+                f"after {_reasoning_retry_count} refinement attempt(s); "
+                "falling back to deterministic seed summary"
+            )
+            _seed_fallback = _build_deterministic_seed_summary(_active_seeds, chosen)
+            print(
+                f"[RANKER_TRUTHFULNESS] seed_fallback_reasoning={_seed_fallback!r}"
+            )
+            reasoning = _seed_fallback
+
+
     reasoning = re.sub(r"\s+", " ", reasoning).strip()
-    if len(reasoning) > 400:
-        reasoning = reasoning[:397] + "..."
+    if len(reasoning) > 1500:
+        reasoning = reasoning[:1497] + "..."
+
 
     # ── Phase 8: thesis instrumentation ──────────────────────────────────────
     # Compare chosen path to the symbolic engine's top-1 path.

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# run_full_trace.py — original pipeline runner
+# (symbolic_decision → proposal_agent → format_checker → validator → minimax_scorer → ranker_agent → state_manager → win_condition → logger_node)
 """
 Full game trace: RED via LangGraph (proposal + ranker pipeline), BLACK via human input.
 Logs still go to logs/ via logger_node (terminal logger output suppressed by default env).
