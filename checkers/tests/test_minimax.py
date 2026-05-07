@@ -7,23 +7,13 @@ Run with:
 
 from __future__ import annotations
 
-from copy import deepcopy
-
 import pytest
 
-from checkers.engine.board import (
-    RED,
-    BLACK,
-    RED_KING,
-    BLACK_KING,
-    EMPTY,
-)
-from checkers.engine.rules import get_all_legal_moves, apply_move
+from checkers.engine.board import RED, BLACK, RED_KING, EMPTY
+from checkers.engine.rules import get_all_legal_moves
 from checkers.engine.evaluation import evaluate_board
-from checkers.engine.minimax import score_move_with_minimax, minimax_score
-from checkers.engine.move_facts import compute_move_facts
-from checkers.nodes.minimax_scorer import minimax_scorer
-from checkers.state.state import CheckersState
+from checkers.engine.minimax import score_move_with_minimax
+from checkers.agents.scorer_agent import score_all_legal_moves
 
 
 def empty_board() -> list[list[int]]:
@@ -139,9 +129,9 @@ def test_king_minimax_prefers_higher_scoring_active_line() -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Test 6: minimax_scorer node attaches minimax_score to every move
+# Test 6: scorer attaches minimax_score to every move
 # ──────────────────────────────────────────────────────────────────────────────
-def test_minimax_scorer_node_attaches_score() -> None:
+def test_scorer_attaches_score_to_every_move() -> None:
     board = empty_board()
     board[5][0] = RED
     board[2][1] = BLACK
@@ -149,24 +139,11 @@ def test_minimax_scorer_node_attaches_score() -> None:
     legal = get_all_legal_moves(board, RED)
     assert legal, "Expected legal moves"
 
-    enriched = []
-    for move in legal:
-        mc = deepcopy(move)
-        mc["facts"] = compute_move_facts(board, move, RED)
-        enriched.append(mc)
+    enriched, *_ = score_all_legal_moves(board, RED)
 
-    state = CheckersState(
-        board=board,
-        current_player=RED,
-        legal_moves=enriched,
-    )
+    assert len(enriched) == len(legal), "Move count should stay unchanged"
 
-    result = minimax_scorer(state)
-    updated = result["legal_moves"]
-
-    assert len(updated) == len(enriched), "Move count should stay unchanged"
-
-    for move in updated:
+    for move in enriched:
         assert "facts" in move
         assert "minimax_score" in move["facts"]
         assert isinstance(move["facts"]["minimax_score"], float)

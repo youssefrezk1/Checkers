@@ -47,8 +47,8 @@ from checkers.engine.board import (
 )
 from checkers.engine.rules import get_all_legal_moves
 from checkers.nodes.inter_turn_memory import inter_turn_memory
-from checkers.agents.proposal_agent import proposal_agent
-from checkers.nodes.format_checker import format_checker
+from checkers.oldfiles.proposal_agent import proposal_agent
+from checkers.oldfiles.format_checker import format_checker
 from checkers.engine.move_facts import compute_move_facts
 from checkers.state.state import CheckersState
 

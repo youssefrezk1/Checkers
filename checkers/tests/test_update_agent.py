@@ -39,12 +39,9 @@ Run:
 """
 from __future__ import annotations
 
-import os
-import pytest
-
 from checkers.engine.board import RED, BLACK
 from checkers.engine.rules import get_all_legal_moves
-from checkers.graph.graph import _orchestrator_routing
+from checkers.graph.graph import _update_agent_routing
 from checkers.agents.update_agent import update_agent
 from checkers.state.state import CheckersState
 
@@ -64,15 +61,6 @@ def _start_board() -> list[list[int]]:
                 b[r][c] = BLACK
     return b
 
-
-def _one_piece_board(player: int) -> list[list[int]]:
-    """Board with a single piece for *player* and no opponent pieces."""
-    b = [[0] * 8 for _ in range(8)]
-    if player == RED:
-        b[5][0] = RED     # RED piece, no opponent
-    else:
-        b[2][1] = BLACK   # BLACK piece, no opponent
-    return b
 
 
 def _legal_move(board: list[list[int]], player: int) -> dict:
@@ -102,62 +90,16 @@ def _normal_state(player: int = RED) -> CheckersState:
 # ── Group 1: Routing ──────────────────────────────────────────────────────────
 
 class TestRouting:
+    # The simplified graph uses _update_agent_routing as the only conditional edge.
 
-    def test_ranker_routes_to_update_agent_with_move(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        state = _state(
-            last_completed_node="ranker_agent",
-            chosen_move={"type": "simple", "path": [[5, 0], [4, 1]], "captured": []},
-        )
-        assert _orchestrator_routing(state) == "update_agent"
-
-    def test_ranker_routes_to_update_agent_terminal(self, monkeypatch):
-        """chosen_move=None (terminal) still routes to update_agent in simplified mode."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        state = _state(last_completed_node="ranker_agent", chosen_move=None)
-        assert _orchestrator_routing(state) == "update_agent"
-
-    def test_update_agent_routes_to_end_by_default_when_continuing(self, monkeypatch):
-        """Default single-turn mode: game not over → END (not scorer_node)."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        monkeypatch.delenv("AUTO_PLAY_UNTIL_GAME_OVER", raising=False)
+    def test_update_agent_routes_to_scorer_node_when_continuing(self):
+        """Game continues: update_agent always loops to scorer_node."""
         state = _state(last_completed_node="update_agent", game_over=False)
-        assert _orchestrator_routing(state) == "end"
+        assert _update_agent_routing(state) == "scorer_node"
 
-    def test_update_agent_routes_to_end_when_game_over(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
+    def test_update_agent_routes_to_end_when_game_over(self):
         state = _state(last_completed_node="update_agent", game_over=True)
-        assert _orchestrator_routing(state) == "end"
-
-    # Old pipeline must be unchanged ─────────────────────────────────────────
-
-    def test_old_pipeline_ranker_with_move_routes_to_state_manager(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "false")
-        state = _state(
-            last_completed_node="ranker_agent",
-            chosen_move={"type": "simple", "path": [[5, 0], [4, 1]], "captured": []},
-        )
-        assert _orchestrator_routing(state) == "state_manager"
-
-    def test_old_pipeline_ranker_terminal_routes_to_win_condition(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "false")
-        state = _state(last_completed_node="ranker_agent", chosen_move=None)
-        assert _orchestrator_routing(state) == "win_condition"
-
-    def test_old_pipeline_state_manager_routes_to_win_condition(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "false")
-        state = _state(last_completed_node="state_manager")
-        assert _orchestrator_routing(state) == "win_condition"
-
-    def test_old_pipeline_logger_not_over_routes_to_inter_turn_memory(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "false")
-        state = _state(last_completed_node="logger_node", game_over=False)
-        assert _orchestrator_routing(state) == "inter_turn_memory"
-
-    def test_old_pipeline_win_condition_routes_to_logger_node(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "false")
-        state = _state(last_completed_node="win_condition")
-        assert _orchestrator_routing(state) == "logger_node"
+        assert _update_agent_routing(state) == "end"
 
 
 # ── Group 2: Normal turn ──────────────────────────────────────────────────────
@@ -379,134 +321,45 @@ class TestLogging:
         assert result.get("game_log_id") is not None
 
 
-# ── Group 6: Simplified pipeline start routing ────────────────────────────────
+# ── Group 6: Simplified pipeline routing ──────────────────────────────────────
 
-class TestSimplifiedPipelineStart:
-    """The simplified pipeline now starts at scorer_node — no inter_turn_memory."""
+class TestSimplifiedPipelineRouting:
+    """The simplified pipeline: scorer_node is the entry point, update_agent loops."""
 
-    def test_turn_start_routes_to_scorer_node(self, monkeypatch):
-        """orchestrator entry (last_completed_node=None) → scorer_node in simplified mode."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        state = _state(last_completed_node=None)
-        assert _orchestrator_routing(state) == "scorer_node"
-
-    def test_turn_start_routes_to_inter_turn_memory_in_old_mode(self, monkeypatch):
-        """Old pipeline is unchanged: orchestrator entry → inter_turn_memory."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "false")
-        state = _state(last_completed_node=None)
-        assert _orchestrator_routing(state) == "inter_turn_memory"
-
-    def test_inter_turn_memory_routes_to_symbolic_decision_always(self, monkeypatch):
-        """inter_turn_memory now always goes to symbolic_decision regardless of flag.
-        It is dead code in the simplified pipeline (never reached from turn start).
-        """
-        for flag in ("true", "false"):
-            monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", flag)
-            state = _state(last_completed_node="inter_turn_memory")
-            assert _orchestrator_routing(state) == "symbolic_decision", (
-                f"flag={flag!r}: inter_turn_memory should always route to symbolic_decision"
-            )
-
-    def test_update_agent_ends_turn_by_default(self, monkeypatch):
-        """Without AUTO_PLAY_UNTIL_GAME_OVER, update_agent → END (no loop)."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        monkeypatch.delenv("AUTO_PLAY_UNTIL_GAME_OVER", raising=False)
+    def test_update_agent_loops_to_scorer_node(self):
+        """Game continues: update_agent always routes back to scorer_node."""
         state = _state(last_completed_node="update_agent", game_over=False)
-        assert _orchestrator_routing(state) == "end"
+        assert _update_agent_routing(state) == "scorer_node"
 
-    def test_update_agent_loops_to_scorer_node_when_auto_play(self, monkeypatch):
-        """AUTO_PLAY_UNTIL_GAME_OVER=true: update_agent → scorer_node for continuous play."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        monkeypatch.setenv("AUTO_PLAY_UNTIL_GAME_OVER", "true")
+    def test_auto_play_env_var_has_no_effect(self, monkeypatch):
+        """AUTO_PLAY_UNTIL_GAME_OVER is ignored; game_over=False always loops to scorer_node."""
+        monkeypatch.setenv("AUTO_PLAY_UNTIL_GAME_OVER", "false")
         state = _state(last_completed_node="update_agent", game_over=False)
-        assert _orchestrator_routing(state) == "scorer_node"
+        assert _update_agent_routing(state) == "scorer_node"
 
-    def test_simplified_full_turn_sequence_ends_at_update_agent(self, monkeypatch):
-        """Walk the full single-turn simplified sequence: None → scorer → proposal → ranker → update → END."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        monkeypatch.delenv("AUTO_PLAY_UNTIL_GAME_OVER", raising=False)
-        sequence = [
-            (None,                        "scorer_node"),
-            ("scorer_node",               "deterministic_proposal_node"),
-            ("deterministic_proposal_node", "ranker_agent"),
-            ("ranker_agent",              "update_agent"),
-            ("update_agent",              "end"),   # single-turn: stop here
-        ]
-        for last_node, expected in sequence:
-            s = _state(
-                last_completed_node=last_node,
-                chosen_move={"type": "simple", "path": [[5, 0], [4, 1]], "captured": []}
-                if last_node == "ranker_agent" else None,
-                game_over=False,
-            )
-            got = _orchestrator_routing(s)
-            assert got == expected, (
-                f"last_completed_node={last_node!r}: expected {expected!r}, got {got!r}"
-            )
+    def test_simplified_full_turn_sequence_loops_back_to_scorer_node(self):
+        """update_agent → scorer_node when game continues (direct edge loop)."""
+        # scorer_node → deterministic_proposal_node → ranker_agent → update_agent
+        # are all direct edges verified by graph compilation tests.
 
-    def test_game_over_always_ends_regardless_of_auto_play(self, monkeypatch):
-        """game_over=True must always route to end, even with AUTO_PLAY_UNTIL_GAME_OVER=true."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        monkeypatch.setenv("AUTO_PLAY_UNTIL_GAME_OVER", "true")
+        # update_agent → scorer_node (via _update_agent_routing)
+        assert _update_agent_routing(_state(
+            last_completed_node="update_agent",
+            game_over=False,
+        )) == "scorer_node"
+
+    def test_game_over_routes_to_end(self):
+        """game_over=True always routes to end."""
         state = _state(last_completed_node="update_agent", game_over=True)
-        assert _orchestrator_routing(state) == "end"
+        assert _update_agent_routing(state) == "end"
 
-    # ── Regression: stale last_completed_node bug ──────────────────────────────
-    # Root cause: orchestrator is a pure passthrough (returns {}) — it does NOT
-    # reset last_completed_node.  After turn N, last_completed_node="update_agent".
-    # If the runner does NOT clear it before turn N+1, routing reads
-    # "update_agent" → "end" immediately, so no nodes run and the board
-    # never changes.  The fix is to clear last_completed_node=None in the
-    # runner before each graph invocation for RED's ply.
+    def test_simplified_pipeline_loops_continuously(self):
+        """update_agent loops to scorer_node when game continues, to END when over."""
+        after_turn = _state(last_completed_node="update_agent", game_over=False)
+        assert _update_agent_routing(after_turn) == "scorer_node"
 
-    def test_stale_update_agent_routes_to_end_not_scorer(self, monkeypatch):
-        """
-        Demonstrates the bug: if last_completed_node is left as "update_agent"
-        from the previous turn (and AUTO_PLAY is off), the graph immediately
-        routes to end without running any pipeline nodes.
-        The runner MUST reset last_completed_node=None before each RED ply.
-        """
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        monkeypatch.delenv("AUTO_PLAY_UNTIL_GAME_OVER", raising=False)
-        # Simulate start of turn 2: state has "update_agent" from turn 1
-        state = _state(last_completed_node="update_agent", game_over=False)
-        # Routing goes to "end" — graph would terminate immediately (the bug)
-        assert _orchestrator_routing(state) == "end"
-
-    def test_reset_to_none_fixes_stale_routing(self, monkeypatch):
-        """
-        After clearing last_completed_node=None (the fix applied by the runner),
-        routing correctly goes to scorer_node at turn start.
-        """
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        monkeypatch.delenv("AUTO_PLAY_UNTIL_GAME_OVER", raising=False)
-        state = _state(last_completed_node=None, game_over=False)
-        assert _orchestrator_routing(state) == "scorer_node"
-
-    def test_two_turn_routing_with_reset(self, monkeypatch):
-        """
-        Walk two consecutive RED ply sequences to confirm the reset pattern.
-        Turn 1: last_completed_node=None  → scorer_node (runner sets None at start)
-        … pipeline runs … update_agent sets last_completed_node="update_agent"
-        Turn 2: runner resets to None     → scorer_node again  (not "end")
-        """
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        monkeypatch.delenv("AUTO_PLAY_UNTIL_GAME_OVER", raising=False)
-
-        # Turn 1 start (runner set None)
-        assert _orchestrator_routing(_state(last_completed_node=None)) == "scorer_node"
-
-        # Simulate end of turn 1: update_agent has run
-        after_turn_1 = _state(last_completed_node="update_agent", game_over=False)
-
-        # Without the reset — routing goes to end (the bug)
-        assert _orchestrator_routing(after_turn_1) == "end"
-
-        # Apply the fix: runner resets last_completed_node=None
-        after_turn_1_reset = _state(last_completed_node=None, game_over=False)
-
-        # Turn 2 start — correctly routes to scorer_node
-        assert _orchestrator_routing(after_turn_1_reset) == "scorer_node"
+        game_over = _state(last_completed_node="update_agent", game_over=True)
+        assert _update_agent_routing(game_over) == "end"
 
 
 # ── Group 7: scorer_node first-turn context injection ─────────────────────────
@@ -592,4 +445,94 @@ class TestScorerNodeFirstTurnContext:
         result = scorer_node(state)
         assert result["legal_moves"], "scorer_node must still produce legal_moves"
         assert result["last_completed_node"] == "scorer_node"
+
+
+# ── Group 8: Human move not overwritten ───────────────────────────────────────
+
+class TestHumanMoveNotOverwritten:
+    """
+    Regression group: calling update_agent directly preserves the human's
+    pre-selected chosen_move.
+
+    This is the pattern _run_black_ply in run_simplified_trace.py uses:
+    build a CheckersState from the accumulated dict and call update_agent(state)
+    directly instead of streaming through the graph (which would restart at
+    scorer_node and overwrite chosen_move via ranker_agent).
+    """
+
+    def test_human_chosen_move_applied_to_board(self):
+        """The board must reflect the human's move, not any LLM choice."""
+        board = _start_board()
+        human_move = _legal_move(board, BLACK)
+        state = CheckersState(
+            board=board,
+            current_player=BLACK,
+            chosen_move=human_move,
+            turn_number=1,
+            last_move_reasoning="BLACK human move",
+        )
+        result = update_agent(state)
+
+        assert result["board"] != board, "board must change after applying the move"
+
+        mh = result.get("move_history", [])
+        assert len(mh) == 1, "exactly one move_history entry expected"
+        applied = mh[0]["move"]
+        assert applied["type"] == human_move["type"]
+        assert [list(sq) for sq in applied["path"]] == [list(sq) for sq in human_move["path"]]
+
+    def test_chosen_move_cleared_after_application(self):
+        """state_manager clears chosen_move after application; must be None."""
+        board = _start_board()
+        move = _legal_move(board, BLACK)
+        state = CheckersState(
+            board=board,
+            current_player=BLACK,
+            chosen_move=move,
+            turn_number=1,
+        )
+        result = update_agent(state)
+        assert result["chosen_move"] is None
+
+    def test_last_completed_node_is_update_agent(self):
+        """last_completed_node must be 'update_agent', never 'scorer_node' or 'ranker_agent'."""
+        board = _start_board()
+        move = _legal_move(board, BLACK)
+        state = CheckersState(
+            board=board,
+            current_player=BLACK,
+            chosen_move=move,
+            turn_number=1,
+        )
+        result = update_agent(state)
+        assert result["last_completed_node"] == "update_agent"
+
+    def test_game_not_over_after_normal_move(self):
+        """A normal mid-game move must not trigger game_over."""
+        board = _start_board()
+        move = _legal_move(board, BLACK)
+        state = CheckersState(
+            board=board,
+            current_player=BLACK,
+            chosen_move=move,
+            turn_number=1,
+        )
+        result = update_agent(state)
+        assert result["game_over"] is False
+
+    def test_strategic_context_produced_for_next_player(self):
+        """Phase D must run and produce context for RED (next to move after BLACK)."""
+        board = _start_board()
+        move = _legal_move(board, BLACK)
+        state = CheckersState(
+            board=board,
+            current_player=BLACK,
+            chosen_move=move,
+            turn_number=1,
+        )
+        result = update_agent(state)
+        ctx = result.get("strategic_context")
+        assert ctx is not None, "strategic_context must be produced when game continues"
+        assert "strategic_priorities" in ctx
+        assert "game_phase" in ctx
 

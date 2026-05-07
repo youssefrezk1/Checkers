@@ -27,7 +27,7 @@ from checkers.engine.board import (
     is_own_piece,
 )
 from checkers.engine.rules import get_all_legal_moves
-from checkers.nodes.validator import _moves_match
+from checkers.engine.rules import _moves_match
 
 
 # Required fields every proposed move must have

@@ -9,7 +9,7 @@ from checkers.state.state import CheckersState
 from checkers.engine.board import EMPTY, BOARD_SIZE, in_bounds
 from checkers.engine.rules import get_all_legal_moves, apply_move
 from checkers.engine.move_facts import compute_move_facts
-from checkers.nodes.validator import _moves_match
+from checkers.engine.rules import _moves_match
 
 # Scalar facts cheap to recompute and compare (avoid dict identity / ordering noise).
 _FACT_SCALAR_KEYS = (

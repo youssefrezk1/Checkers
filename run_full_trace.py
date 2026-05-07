@@ -357,7 +357,7 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
                     # shared TT, full window — so best_legal_score is on the same scale as
                     # the pipeline scores in lm[*].facts["minimax_score"].
                     from checkers.search.minimax_core import search_root_all_scores as _sra
-                    from checkers.nodes.minimax_scorer import PIPELINE_SCORER_DEPTH as _diag_depth
+                    from checkers.oldfiles.minimax_scorer import PIPELINE_SCORER_DEPTH as _diag_depth
                     _best_legal_score = float("-inf")
                     _best_legal_path  = None
                     _best_legal_missing = False

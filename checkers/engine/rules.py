@@ -279,7 +279,7 @@ def apply_move(board, move):
     """
     Applies a complete move (simple or jump) to the board.
     Returns the new board after the move — does NOT modify original.
-    
+
     move is a dict with "type", "path", and "captured".
     """
     new_board = [row[:] for row in board]
@@ -308,3 +308,20 @@ def apply_move(board, move):
         new_board[to_row][to_col] = BLACK_KING
 
     return new_board
+
+
+def _moves_match(proposed: dict, legal: dict) -> bool:
+    """
+    True if proposed matches legal by type and full path.
+    Path is the source of truth for both simple moves and multi-jump sequences.
+    """
+    if proposed.get("type") != legal.get("type"):
+        return False
+    proposed_path = proposed.get("path", [])
+    legal_path = legal.get("path", [])
+    if len(proposed_path) != len(legal_path):
+        return False
+    for i in range(len(proposed_path)):
+        if list(proposed_path[i]) != list(legal_path[i]):
+            return False
+    return True

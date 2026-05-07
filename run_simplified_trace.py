@@ -3,17 +3,17 @@
 # (scorer_node → deterministic_proposal_node → ranker_agent → update_agent → END)
 """
 Full game trace using the simplified pipeline.
-RED moves via the simplified graph (scorer → proposal → ranker → update_agent).
-BLACK moves via human input.
+Both players are handled by the AI pipeline (scorer → proposal → ranker →
+update_agent → scorer_node loop).  The graph runs the complete game in a
+single stream invocation, terminating at END when game_over is True.
 
 Key differences from run_full_trace.py:
   - USE_SIMPLIFIED_PIPELINE is forced to "true" before the graph is imported.
-  - The graph terminates at END after update_agent (one move per invocation).
-  - BLACK's move is applied by routing through update_agent inside the graph,
-    not by calling state_manager directly.
-  - Completion is detected by last_completed_node == "update_agent",
-    not by "logger_node" (logger_node is still called internally by update_agent).
-  - AUTO_PLAY_UNTIL_GAME_OVER is intentionally NOT set (single-turn mode).
+  - The graph loops internally: update_agent → scorer_node (game_over=False)
+    or update_agent → END (game_over=True).  No external ply-by-ply looping.
+  - state_manager, win_condition, logger_node and inter_turn_memory are called
+    inside update_agent (not as separate graph nodes).
+  - Completion is detected by last_completed_node == "update_agent".
 
 Usage:
   python run_simplified_trace.py [--max-turns N] [--quiet]
@@ -38,6 +38,7 @@ from typing import Any, Optional
 
 from checkers.graph.graph import checkers_graph
 from checkers.state.state import CheckersState
+from checkers.agents.update_agent import update_agent as _update_agent_fn
 from checkers.engine.board import RED, BLACK, create_initial_board, print_board
 from checkers.engine.move_facts import count_pieces
 from checkers.engine.rules import get_all_legal_moves
@@ -157,16 +158,21 @@ def _stream_one_ply(
     acc: dict[str, Any],
     quiet: bool,
     show_scorer: bool = True,
+    recursion_limit: int = 2000,
 ) -> tuple[dict[str, Any], bool]:
     """
-    Invoke the simplified graph for one ply (one move).
+    Invoke the simplified graph.
     Returns (updated_acc, success) where success means update_agent completed.
 
-    The graph starts from acc["last_completed_node"] (None or "ranker_agent").
-    It ends naturally at END after update_agent — no interrupt_after needed.
+    The graph starts from acc["last_completed_node"] (None at game start) and
+    loops via update_agent → scorer_node until game_over=True → END.
+    recursion_limit must be large enough for the full game (default 2000).
     """
     saw_update_agent = False
-    cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    cfg = {
+        "configurable": {"thread_id": str(uuid.uuid4())},
+        "recursion_limit": recursion_limit,
+    }
 
     try:
         for chunk in checkers_graph.stream(
@@ -330,12 +336,8 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
             print(_fmt_engine_move(i, m))
         print()
 
-    # The orchestrator node is a pure passthrough (returns {}) and does NOT
-    # reset last_completed_node.  After the previous turn, acc still holds
-    # last_completed_node = "update_agent", which the routing function
-    # interprets as "route to END" (single-turn mode, AUTO_PLAY=false).
-    # Clearing it here ensures the routing reads node=None → scorer_node
-    # on every RED ply, regardless of what ran in the previous turn.
+    # scorer_node is the graph entry point; last_completed_node is only
+    # for observability — reset to None so the first turn starts cleanly.
     acc["last_completed_node"] = None
     acc, ok = _stream_one_ply(acc, quiet, show_scorer=not quiet)
 
@@ -392,13 +394,17 @@ def _run_black_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
         print(RULE)
         print()
 
-    # Inject chosen_move and set last_completed_node="ranker_agent" so the
-    # graph routes directly to update_agent → END, bypassing scorer and proposal.
+    # Apply the human move directly via update_agent (Phase A-D).
+    # Calling the graph would restart from scorer_node and overwrite chosen_move
+    # with the LLM's choice.  Calling update_agent directly preserves it.
     acc["chosen_move"]         = move
     acc["last_move_reasoning"] = "BLACK human move"
-    acc["last_completed_node"] = "ranker_agent"
 
-    acc, ok = _stream_one_ply(acc, quiet=True)   # always quiet for BLACK's update
+    _valid = set(CheckersState.model_fields.keys())
+    _state = CheckersState(**{k: v for k, v in acc.items() if k in _valid})
+    _ua_result = _update_agent_fn(_state)
+    acc.update(_ua_result)
+    ok = _ua_result.get("last_completed_node") == "update_agent"
     if not ok:
         print(
             "[run_simplified_trace] warning: BLACK update_agent did not complete.",

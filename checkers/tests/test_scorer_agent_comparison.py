@@ -52,7 +52,6 @@ from __future__ import annotations
 
 import json
 import os
-import importlib
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -67,10 +66,11 @@ from checkers.search.minimax_core import (
     clear_transposition_table,
 )
 
-import checkers.nodes.symbolic_decision as sd_mod
-from checkers.nodes.symbolic_decision import symbolic_decision, SYMBOLIC_DECISION_DEPTH
-import checkers.nodes.minimax_scorer as ms_mod
-from checkers.nodes.minimax_scorer import _build_score_lookup, _apply_selective_d8
+import checkers.oldfiles.symbolic_decision as sd_mod
+from checkers.oldfiles.symbolic_decision import symbolic_decision, SYMBOLIC_DECISION_DEPTH
+from checkers.oldfiles.minimax_scorer import _build_score_lookup
+from checkers.search.selective_d8 import _apply_selective_d8
+import checkers.search.selective_d8 as selective_d8_mod
 import checkers.agents.scorer_agent as sa_mod
 from checkers.agents.scorer_agent import score_all_legal_moves
 from checkers.engine.move_facts import compute_move_facts
@@ -658,7 +658,7 @@ def test_d8_trigger_both_fire_old_on_candidates_new_on_all_legal(
 
     # ── Assertion 2: D8 raw scores for shared paths are identical ─────────────
     # Disable promotion-race-verify on both sides so we isolate pure D8 scores.
-    monkeypatch.setattr(ms_mod, "PROMOTION_RACE_VERIFY_ENABLED", False)
+    monkeypatch.setattr(selective_d8_mod, "PROMOTION_RACE_VERIFY_ENABLED", False)
 
     os.environ["SELECTIVE_D8_ENABLED"]           = "true"
     os.environ["SELECTIVE_D8_PIECE_THRESHOLD"]   = "14"
@@ -692,7 +692,7 @@ def test_d8_trigger_both_fire_old_on_candidates_new_on_all_legal(
     # on different candidate sets (k vs n_legal) → different TT sharing context
     # within each D10 call → different subtree evaluations for later moves.
     # This difference is expected and is exactly what we are documenting.
-    monkeypatch.setattr(ms_mod, "PROMOTION_RACE_VERIFY_ENABLED", True)
+    monkeypatch.setattr(selective_d8_mod, "PROMOTION_RACE_VERIFY_ENABLED", True)
     monkeypatch.setattr(sa_mod, "SELECTIVE_D8_ENABLED", True)
 
     _apply_selective_d8(t35_board, RED, old_candidates)   # run old D8+D10 for side-effects / logging

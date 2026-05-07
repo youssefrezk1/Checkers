@@ -112,14 +112,8 @@ def test_repetition_penalty_applied(monkeypatch):
 
 def test_ablation_mode_neutral_scores(monkeypatch):
     """When MINIMAX_ENABLED=false, all scores should be 0.0."""
-    monkeypatch.setenv("MINIMAX_ENABLED", "false")
-    import importlib
     import checkers.agents.scorer_agent as sa
-    import checkers.nodes.minimax_scorer as ms
-
-    # Reload to pick up env change
-    importlib.reload(ms)
-    importlib.reload(sa)
+    monkeypatch.setattr(sa, "MINIMAX_ENABLED", False)
 
     board = _start_board()
     enriched, best, second, gap = sa.score_all_legal_moves(board, RED)

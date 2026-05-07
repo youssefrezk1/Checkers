@@ -96,7 +96,7 @@ from checkers.search.minimax_core import (
     search_root_all_scores,
 )
 from checkers.state.state import CheckersState
-from checkers.agents.proposal_agent import (
+from checkers.oldfiles.proposal_agent import (
     GROQ_PROPOSAL_MODEL,
     build_proposal_prompts,
     proposal_agent,

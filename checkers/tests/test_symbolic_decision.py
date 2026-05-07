@@ -15,8 +15,8 @@ from checkers.engine.board import RED, BLACK, RED_KING, BLACK_KING
 from checkers.engine.rules import get_all_legal_moves
 from checkers.engine.evaluation import WIN_SCORE, LOSS_SCORE
 from checkers.state.state import CheckersState
-import checkers.nodes.symbolic_decision as sd_module
-from checkers.nodes.symbolic_decision import (
+import checkers.oldfiles.symbolic_decision as sd_module
+from checkers.oldfiles.symbolic_decision import (
     symbolic_decision,
     SYMBOLIC_DECISION_DEPTH,
     _score_all_moves,

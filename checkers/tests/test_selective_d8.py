@@ -28,7 +28,7 @@ from checkers.search.minimax_core import (
     get_d6_top_gap,
     clear_transposition_table,
 )
-from checkers.nodes.minimax_scorer import _apply_selective_d8
+from checkers.search.selective_d8 import _apply_selective_d8
 
 # ── Fixtures / helpers ────────────────────────────────────────────────────────
 
@@ -295,15 +295,15 @@ def test_disabled_flag_no_change():
     Verified by checking that the module constant is False when env is false.
     """
     import importlib
-    import checkers.nodes.minimax_scorer as ms_mod
+    import checkers.search.selective_d8 as sd_mod
     os.environ["SELECTIVE_D8_ENABLED"] = "false"
-    importlib.reload(ms_mod)
-    assert ms_mod.SELECTIVE_D8_ENABLED is False, (
+    importlib.reload(sd_mod)
+    assert sd_mod.SELECTIVE_D8_ENABLED is False, (
         "SELECTIVE_D8_ENABLED must be False when env var is 'false'"
     )
     # Restore
     os.environ["SELECTIVE_D8_ENABLED"] = "true"
-    importlib.reload(ms_mod)
+    importlib.reload(sd_mod)
 
 
 # ── Test 7 — D8 result used for scoring only, not legality ───────────────────
@@ -373,7 +373,7 @@ def test_fallback_uses_joint_search_not_per_move_scorer():
     # Reload minimax_scorer with SELECTIVE_D8_ENABLED=false so we isolate the
     # fallback path only (not the D8 upgrade path)
     os.environ["SELECTIVE_D8_ENABLED"] = "false"
-    import checkers.nodes.minimax_scorer as ms_mod
+    import checkers.oldfiles.minimax_scorer as ms_mod
     importlib.reload(ms_mod)
 
     per_move_spy = mock.MagicMock(side_effect=AssertionError(

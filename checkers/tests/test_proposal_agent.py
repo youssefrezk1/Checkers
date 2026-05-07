@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from checkers.engine.board import RED, BLACK
 from checkers.engine.rules import get_all_legal_moves
-from checkers.agents.proposal_agent import (
+from checkers.oldfiles.proposal_agent import (
     _build_legal_moves_with_facts,
     _postprocess_llm_selection,
     _role_pin_moves,
@@ -366,7 +366,7 @@ def test_minimax_rank_markers_use_score_by_path_not_legacy():
     argument.  score_move_with_minimax (legacy per-move scorer) must not be
     called — it is not imported in proposal_agent after the mm_pin fix.
     """
-    import checkers.agents.proposal_agent as _pa
+    import checkers.oldfiles.proposal_agent as _pa
 
     # Confirm the legacy scorer is not reachable from the module namespace.
     assert not hasattr(_pa, "score_move_with_minimax"), (

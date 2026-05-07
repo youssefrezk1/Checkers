@@ -22,7 +22,7 @@ import json
 
 from checkers.engine.board import RED
 from checkers.engine.rules import get_all_legal_moves
-from checkers.nodes.format_checker import format_checker
+from checkers.oldfiles.format_checker import format_checker
 from checkers.state.state import CheckersState
 
 

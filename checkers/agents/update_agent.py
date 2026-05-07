@@ -75,7 +75,7 @@ def update_agent(state: CheckersState) -> dict:
 
     # ── Merge and stamp ───────────────────────────────────────────────────────
     # Merge order: sm → wc → log → itm. Later dicts win on key conflicts.
-    # Override last_completed_node so the orchestrator routes from "update_agent".
+    # Stamp last_completed_node so _update_agent_routing fires on this state.
     merged = {**sm_result, **wc_result, **log_result, **itm_result}
     merged["last_completed_node"] = "update_agent"
     return merged

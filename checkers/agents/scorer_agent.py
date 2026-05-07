@@ -29,6 +29,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from checkers.engine.board import RED, BLACK
@@ -41,11 +42,13 @@ from checkers.search.minimax_core import (
     clear_transposition_table,
 )
 from checkers.engine.minimax import MINIMAX_DEPTH
-from checkers.nodes.minimax_scorer import (
+from checkers.search.selective_d8 import (
     _apply_selective_d8,
-    MINIMAX_ENABLED,
     SELECTIVE_D8_ENABLED,
 )
+
+_minimax_enabled_env = os.environ.get("MINIMAX_ENABLED", "true").lower()
+MINIMAX_ENABLED = _minimax_enabled_env in ("1", "true", "yes", "on")
 
 # Same constant as symbolic_decision — keep in sync if that file changes it.
 REPETITION_PENALTY = 60

@@ -44,7 +44,7 @@ from checkers.state.state import CheckersState
 from checkers.engine.board import RED, BLACK, create_initial_board
 from checkers.engine.rules import get_all_legal_moves
 from checkers.nodes.state_manager import state_manager
-from checkers.nodes.symbolic_decision import _score_all_moves
+from checkers.oldfiles.symbolic_decision import _score_all_moves
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

@@ -8,9 +8,8 @@ import pytest
 import checkers.agents.ranker_agent as ranker_module
 from checkers.engine.board import create_initial_board
 from checkers.engine.board import BLACK, EMPTY, RED
-from checkers.engine.move_facts import compute_move_facts
-from checkers.engine.rules import apply_move, get_all_legal_moves
-from checkers.nodes.minimax_scorer import minimax_scorer
+from checkers.engine.rules import apply_move
+from checkers.agents.scorer_agent import score_all_legal_moves
 from checkers.state.state import CheckersState
 
 
@@ -116,36 +115,17 @@ def _state_from_real_pipeline(
     turn_number: int,
     strategic_priorities: list[str],
 ) -> CheckersState:
-    legal = get_all_legal_moves(board, current_player)
-    enriched = []
-    for move in legal:
-        enriched.append(
-            {
-                "type": move["type"],
-                "path": move["path"],
-                "captured": move["captured"],
-                "facts": compute_move_facts(board, move, current_player),
-            }
-        )
-
+    enriched, *_ = score_all_legal_moves(board, current_player)
     context = {
         "game_phase": "OPENING" if turn_number <= 20 else "MIDGAME",
         "score_state": "EQUAL",
         "strategic_priorities": strategic_priorities or [],
     }
-    state = CheckersState(
-        board=board,
-        current_player=current_player,
-        turn_number=turn_number,
-        legal_moves=enriched,
-        strategic_context=context,
-    )
-    scored = minimax_scorer(state)
     return CheckersState(
         board=board,
         current_player=current_player,
         turn_number=turn_number,
-        legal_moves=scored["legal_moves"],
+        legal_moves=enriched,
         strategic_context=context,
     )
 

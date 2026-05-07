@@ -48,11 +48,11 @@ MINIMAX_NEAR_TIE_EPSILON = float(os.environ.get("MINIMAX_NEAR_TIE_EPSILON", "2.0
 from checkers.engine.board import BLACK, RED, create_initial_board
 from checkers.engine.move_facts import count_pieces
 from checkers.engine.rules import get_all_legal_moves
-from checkers.agents.proposal_agent import proposal_agent
-from checkers.nodes.format_checker import format_checker
+from checkers.oldfiles.proposal_agent import proposal_agent
+from checkers.oldfiles.format_checker import format_checker
 from checkers.nodes.inter_turn_memory import inter_turn_memory
-from checkers.nodes.minimax_scorer import minimax_scorer
-from checkers.nodes.validator import validator
+from checkers.oldfiles.minimax_scorer import minimax_scorer
+from checkers.oldfiles.validator import validator
 from checkers.nodes.state_manager import state_manager
 from checkers.nodes.win_condition import win_condition
 from checkers.state.state import CheckersState

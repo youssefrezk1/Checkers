@@ -1,7 +1,8 @@
 """
 checkers/tests/test_simplified_pipeline.py
 
-Tests for the USE_SIMPLIFIED_PIPELINE experimental routing and the two new nodes.
+Tests for the simplified pipeline graph (scorer_node → deterministic_proposal_node →
+ranker_agent → update_agent) and its constituent nodes.
 
 What is NOT tested:
   - ranker_agent LLM call (network)
@@ -9,9 +10,8 @@ What is NOT tested:
 
 What IS tested:
   Group 1 — Routing (no LLM, no graph invocation)
-    - Old pipeline routing unchanged when USE_SIMPLIFIED_PIPELINE=false/absent
-    - Simplified routing correct when USE_SIMPLIFIED_PIPELINE=true
-    - No old-pipeline nodes appear in the simplified path
+    - _update_agent_routing returns "end" on game_over, "scorer_node" otherwise
+    - No old-pipeline nodes appear in the compiled graph
 
   Group 2 — scorer_node (no LLM)
     - Produces non-empty legal_moves on a normal board
@@ -46,7 +46,7 @@ import pytest
 
 from checkers.engine.board import RED, BLACK, RED_KING, BLACK_KING
 from checkers.engine.rules import get_all_legal_moves
-from checkers.graph.graph import _orchestrator_routing
+from checkers.graph.graph import _update_agent_routing
 from checkers.nodes.scorer_node import scorer_node
 from checkers.nodes.deterministic_proposal_node import deterministic_proposal_node
 from checkers.agents.ranker_agent import _apply_safety_filter, _get_minimax_score
@@ -85,113 +85,55 @@ def _state_with_board(board=None, player=RED, **kwargs) -> CheckersState:
 
 # ── Group 1: Routing ──────────────────────────────────────────────────────────
 
-class TestOldPipelineRoutingUnchanged:
-    """USE_SIMPLIFIED_PIPELINE absent or false → old pipeline must be identical."""
-
-    def test_inter_turn_memory_routes_to_symbolic_decision(self, monkeypatch):
-        monkeypatch.delenv("USE_SIMPLIFIED_PIPELINE", raising=False)
-        state = _state(last_completed_node="inter_turn_memory")
-        assert _orchestrator_routing(state) == "symbolic_decision"
-
-    def test_inter_turn_memory_routes_to_symbolic_decision_when_false(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "false")
-        state = _state(last_completed_node="inter_turn_memory")
-        assert _orchestrator_routing(state) == "symbolic_decision"
-
-    def test_symbolic_decision_routes_to_proposal_agent(self, monkeypatch):
-        monkeypatch.delenv("USE_SIMPLIFIED_PIPELINE", raising=False)
-        state = _state(last_completed_node="symbolic_decision")
-        assert _orchestrator_routing(state) == "proposal_agent"
-
-    def test_proposal_agent_routes_to_format_checker(self, monkeypatch):
-        monkeypatch.delenv("USE_SIMPLIFIED_PIPELINE", raising=False)
-        state = _state(last_completed_node="proposal_agent")
-        assert _orchestrator_routing(state) == "format_checker"
-
-    def test_minimax_scorer_routes_to_ranker_agent(self, monkeypatch):
-        monkeypatch.delenv("USE_SIMPLIFIED_PIPELINE", raising=False)
-        state = _state(last_completed_node="minimax_scorer")
-        assert _orchestrator_routing(state) == "ranker_agent"
-
-    def test_ranker_with_chosen_move_routes_to_state_manager(self, monkeypatch):
-        monkeypatch.delenv("USE_SIMPLIFIED_PIPELINE", raising=False)
-        state = _state(
-            last_completed_node="ranker_agent",
-            chosen_move={"type": "simple", "path": [[5, 0], [4, 1]], "captured": []},
-        )
-        assert _orchestrator_routing(state) == "state_manager"
-
-    def test_state_manager_routes_to_win_condition(self, monkeypatch):
-        monkeypatch.delenv("USE_SIMPLIFIED_PIPELINE", raising=False)
-        state = _state(last_completed_node="state_manager")
-        assert _orchestrator_routing(state) == "win_condition"
-
-
 class TestSimplifiedPipelineRouting:
-    """USE_SIMPLIFIED_PIPELINE=true → new simplified path."""
+    """Simplified pipeline graph routing via _update_agent_routing and graph edges."""
 
-    def test_turn_start_routes_to_scorer_node(self, monkeypatch):
-        """Orchestrator entry (last_completed_node=None) goes straight to scorer_node."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        state = _state(last_completed_node=None)
-        assert _orchestrator_routing(state) == "scorer_node"
+    def test_scorer_node_to_deterministic_proposal_is_direct_edge(self):
+        """scorer_node → deterministic_proposal_node must be present in compiled graph."""
+        from checkers.graph.graph import build_graph
+        g = build_graph()
+        assert "scorer_node" in g.nodes
+        assert "deterministic_proposal_node" in g.nodes
 
-    def test_scorer_node_routes_to_deterministic_proposal(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        state = _state(last_completed_node="scorer_node")
-        assert _orchestrator_routing(state) == "deterministic_proposal_node"
+    def test_deterministic_proposal_to_ranker_is_direct_edge(self):
+        """deterministic_proposal_node → ranker_agent must be present in compiled graph."""
+        from checkers.graph.graph import build_graph
+        g = build_graph()
+        assert "deterministic_proposal_node" in g.nodes
+        assert "ranker_agent" in g.nodes
 
-    def test_deterministic_proposal_routes_to_ranker_agent(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        state = _state(last_completed_node="deterministic_proposal_node")
-        assert _orchestrator_routing(state) == "ranker_agent"
+    def test_ranker_and_update_agent_both_in_graph(self):
+        """ranker_agent → update_agent direct edge — both nodes present."""
+        from checkers.graph.graph import build_graph
+        g = build_graph()
+        assert "ranker_agent" in g.nodes
+        assert "update_agent" in g.nodes
 
-    def test_ranker_routes_to_update_agent(self, monkeypatch):
-        """In simplified mode ranker_agent always routes to update_agent."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        state = _state(
-            last_completed_node="ranker_agent",
-            chosen_move={"type": "simple", "path": [[5, 0], [4, 1]], "captured": []},
-        )
-        assert _orchestrator_routing(state) == "update_agent"
+    def test_update_agent_loops_to_scorer_node(self):
+        """Game continues: update_agent routes back to scorer_node."""
+        state = _state(game_over=False)
+        assert _update_agent_routing(state) == "scorer_node"
 
-    def test_simplified_path_never_reaches_symbolic_decision(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        # Walk the full simplified turn sequence from orchestrator entry onward.
-        # inter_turn_memory is no longer part of this path.
-        sequence = [None, "scorer_node", "deterministic_proposal_node"]
-        destinations = set()
-        for node in sequence:
-            dest = _orchestrator_routing(_state(last_completed_node=node))
-            destinations.add(dest)
-        forbidden = {"symbolic_decision", "proposal_agent", "format_checker",
-                     "validator", "minimax_scorer", "inter_turn_memory"}
-        assert destinations.isdisjoint(forbidden), (
-            f"Simplified path reached old-pipeline node(s): "
-            f"{destinations & forbidden}"
-        )
+    def test_update_agent_routes_to_end_when_game_over(self):
+        state = _state(game_over=True)
+        assert _update_agent_routing(state) == "end"
 
-    def test_format_checker_validator_unreachable_in_simplified_routing(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        # Walk from orchestrator entry through the simplified turn sequence.
-        # Neither format_checker nor validator should ever be a destination.
-        for node in (None, "scorer_node", "deterministic_proposal_node"):
-            dest = _orchestrator_routing(_state(last_completed_node=node))
-            assert dest not in ("format_checker", "validator"), (
-                f"Node last_completed_node={node!r} routed to '{dest}' in simplified mode"
-            )
+    def test_auto_play_env_var_ignored(self, monkeypatch):
+        """AUTO_PLAY_UNTIL_GAME_OVER is not checked; game_over=False always loops."""
+        monkeypatch.setenv("AUTO_PLAY_UNTIL_GAME_OVER", "false")
+        state = _state(game_over=False)
+        assert _update_agent_routing(state) == "scorer_node"
 
-    def test_flag_true_routes_turn_start_to_scorer_node(self, monkeypatch):
-        """USE_SIMPLIFIED_PIPELINE=true: orchestrator entry goes to scorer_node."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
-        state = _state(last_completed_node=None)
-        assert _orchestrator_routing(state) == "scorer_node"
-
-    def test_flag_false_routes_turn_start_to_inter_turn_memory(self, monkeypatch):
-        """USE_SIMPLIFIED_PIPELINE=false: orchestrator entry still goes to inter_turn_memory."""
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "false")
-        state = _state(last_completed_node=None)
-        assert _orchestrator_routing(state) == "inter_turn_memory"
+    def test_old_pipeline_nodes_absent_from_graph(self):
+        """No old-pipeline node must appear in the compiled simplified graph."""
+        from checkers.graph.graph import build_graph
+        g = build_graph()
+        old = {
+            "orchestrator", "inter_turn_memory", "symbolic_decision",
+            "proposal_agent", "format_checker", "validator",
+            "minimax_scorer", "state_manager", "win_condition", "logger_node",
+        }
+        assert not (old & set(g.nodes)), f"Old nodes in graph: {old & set(g.nodes)}"
 
 
 # ── Group 2: scorer_node ──────────────────────────────────────────────────────
@@ -550,20 +492,13 @@ class TestPreRankerPipeline:
 
 class TestGraphCompilation:
 
-    def test_graph_compiles_with_old_pipeline(self, monkeypatch):
-        monkeypatch.delenv("USE_SIMPLIFIED_PIPELINE", raising=False)
-        from checkers.graph.graph import build_graph
-        g = build_graph()
-        assert g is not None
-
-    def test_graph_compiles_with_simplified_pipeline_flag(self, monkeypatch):
-        monkeypatch.setenv("USE_SIMPLIFIED_PIPELINE", "true")
+    def test_graph_compiles(self):
         from checkers.graph.graph import build_graph
         g = build_graph()
         assert g is not None
 
     def test_graph_module_imports_without_error(self):
         import checkers.graph.graph as gg
-        assert hasattr(gg, "_orchestrator_routing")
+        assert hasattr(gg, "_update_agent_routing")
         assert hasattr(gg, "build_graph")
         assert hasattr(gg, "checkers_graph")

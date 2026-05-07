@@ -12,12 +12,12 @@ from __future__ import annotations
 import json
 from pprint import pprint
 
-from checkers.agents.proposal_agent import proposal_agent
+from checkers.oldfiles.proposal_agent import proposal_agent
 from checkers.engine.board import RED, create_initial_board, print_board
 from checkers.engine.rules import get_all_legal_moves
-from checkers.nodes.format_checker import format_checker
+from checkers.oldfiles.format_checker import format_checker
 from checkers.nodes.inter_turn_memory import inter_turn_memory
-from checkers.nodes.validator import _moves_match, validator
+from checkers.oldfiles.validator import _moves_match, validator
 from checkers.state.state import CheckersState
 
 

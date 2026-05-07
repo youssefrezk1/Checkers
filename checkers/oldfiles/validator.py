@@ -22,11 +22,10 @@ DEBUG_ALL_LEGAL_TO_RANKER = os.environ.get("DEBUG_ALL_LEGAL_TO_RANKER", "false")
     "1", "true", "yes", "on"
 )
 from checkers.state.state import CheckersState
-from checkers.engine.rules import get_all_legal_moves
+from checkers.engine.rules import get_all_legal_moves, apply_move, _moves_match
 from checkers.engine.move_facts import compute_move_facts
 from checkers.engine.board import BOARD_SIZE, in_bounds, is_own_piece
 from checkers.engine.zobrist import compute_hash
-from checkers.engine.rules import apply_move
 
 def _classify_error(proposed_move, legal_moves, board, current_player):
     """
@@ -81,26 +80,6 @@ def _classify_error(proposed_move, legal_moves, board, current_player):
     return "INVALID_JUMP"
 
 
-def _moves_match(proposed, legal):
-    """
-    Checks if a proposed move matches a legal move.
-    Compares type and full path — path is the source of truth
-    since it covers both simple moves and multi-jump sequences.
-    """
-    if proposed.get("type") != legal.get("type"):
-        return False
-
-    proposed_path = proposed.get("path", [])
-    legal_path = legal.get("path", [])
-
-    if len(proposed_path) != len(legal_path):
-        return False
-
-    for i in range(len(proposed_path)):
-        if list(proposed_path[i]) != list(legal_path[i]):
-            return False
-
-    return True
 def _deduplicate_moves(valid_enriched, board):
     """
     Removes duplicate moves from the valid enriched list.
