@@ -882,6 +882,207 @@ def test_tier2_does_not_fire_below_threshold(monkeypatch, capsys):
     )
 
 
+def test_turn5_unsafe_best_safe_chosen_gap_below_threshold_no_override(monkeypatch, capsys):
+    # Turn 5 threshold behavior (pinned — do not lower thresholds without updating this test).
+    #
+    # Scenario: best move is unsafe (opponent_can_recapture=True, score=13.0),
+    # chosen move is safe (score=0.0), gap=13.0.
+    #
+    # Safety filter (single-safe-move branch): rank1 passes _unsafe_qualifies because
+    # gap=13.0 >= MINIMAX_ALL_UNSAFE_MARGIN (3.0) — both moves reach the LLM.
+    # LLM prefers safe rank2 (safety-first bias). Override check:
+    #   safe_vs_unsafe_large_gap: gap=13.0 < SAFE_VS_UNSAFE_OVERRIDE_GAP (15.0) → does NOT fire.
+    #   All other branches need best_safe=True — blocked.
+    # Result: override_triggered=False, LLM choice preserved (rank2, 0.0).
+    #
+    # This is intended gate behavior, not a bug. The 2-point margin below the threshold
+    # is deliberate: depth-6 minimax scores can be noisy; 13.0 is not unambiguous enough
+    # to override an explicit safety preference. Threshold changes must update this test.
+    move_unsafe_best = {
+        "type": "simple",
+        "path": [(5, 0), (4, 1)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 1,
+            "forced_opponent_jump_reply": False,
+            "max_opponent_jump_captures": 1,
+            "opponent_jump_count": 1,
+            "net_gain": 0,
+            "leaves_piece_isolated": False,
+            "weakens_king_row": False,
+            "center_control": False,
+            "minimax_score": 13.0,
+            "quiet_move_role": "QUIET_DEFAULT",
+            "counterplay_score": 0,
+            "king_activity_score": 0,
+            "simplification_value": 0,
+        },
+    }
+    move_safe_chosen = {
+        "type": "simple",
+        "path": [(5, 2), (4, 3)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": False,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 0,
+            "forced_opponent_jump_reply": False,
+            "max_opponent_jump_captures": 0,
+            "opponent_jump_count": 0,
+            "net_gain": 0,
+            "leaves_piece_isolated": False,
+            "weakens_king_row": False,
+            "center_control": False,
+            "minimax_score": 0.0,
+            "quiet_move_role": "QUIET_DEFAULT",
+            "counterplay_score": 0,
+            "king_activity_score": 0,
+            "simplification_value": 0,
+        },
+    }
+    legal_moves = [move_unsafe_best, move_safe_chosen]
+
+    # LLM picks index 1 (the safe move, second in the filtered list).
+    # After the safety filter (single-safe-move path): rank1 passes _unsafe_qualifies
+    # because gap=13.0 >= MINIMAX_ALL_UNSAFE_MARGIN (3.0), so filtered = [rank1, rank2].
+    _patch_ranker_choice(monkeypatch, chosen_index=1)
+
+    board = _empty_board()
+    board[5][0] = RED
+    board[5][2] = RED
+    board[0][1] = BLACK
+
+    from checkers.state.state import CheckersState as _CS
+    state = _CS(
+        board=board,
+        current_player=RED,
+        turn_number=5,
+        legal_moves=legal_moves,
+        strategic_context={
+            "game_phase": "OPENING",
+            "score_state": "EQUAL",
+            "strategic_priorities": ["DEVELOP_PIECES", "CONTROL_CENTER"],
+        },
+    )
+
+    patch = ranker_module.ranker_agent(state)
+
+    assert patch["chosen_move"]["path"] == [(5, 2), (4, 3)], (
+        f"LLM safe choice should be preserved when gap ({13.0}) < "
+        f"SAFE_VS_UNSAFE_OVERRIDE_GAP ({ranker_module.SAFE_VS_UNSAFE_OVERRIDE_GAP}); "
+        f"got {patch['chosen_move']['path']}"
+    )
+
+    out = capsys.readouterr().out
+    assert "override_triggered=False" in out, (
+        f"No override should fire at gap=13.0 < {ranker_module.SAFE_VS_UNSAFE_OVERRIDE_GAP}; "
+        f"output: {out}"
+    )
+
+
+def test_unsafe_best_safe_chosen_gap_at_threshold_fires_override(monkeypatch, capsys):
+    # Complement to the Turn 5 test: verify safe_vs_unsafe_large_gap fires when
+    # gap >= SAFE_VS_UNSAFE_OVERRIDE_GAP (15.0). Uses gap=16.0 to be clearly above.
+    move_unsafe_best = {
+        "type": "simple",
+        "path": [(5, 0), (4, 1)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": True,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 1,
+            "forced_opponent_jump_reply": False,
+            "max_opponent_jump_captures": 1,
+            "opponent_jump_count": 1,
+            "net_gain": 0,
+            "leaves_piece_isolated": False,
+            "weakens_king_row": False,
+            "center_control": False,
+            "minimax_score": 16.0,
+            "quiet_move_role": "QUIET_DEFAULT",
+            "counterplay_score": 0,
+            "king_activity_score": 0,
+            "simplification_value": 0,
+        },
+    }
+    move_safe_chosen = {
+        "type": "simple",
+        "path": [(5, 2), (4, 3)],
+        "captured": [],
+        "facts": {
+            "captures_count": 0,
+            "creates_immediate_threat": False,
+            "shot_sequence_available": False,
+            "blocks_opponent_landing": False,
+            "opponent_can_recapture": False,
+            "moved_piece_is_threatened": False,
+            "our_pieces_threatened_after": 0,
+            "forced_opponent_jump_reply": False,
+            "max_opponent_jump_captures": 0,
+            "opponent_jump_count": 0,
+            "net_gain": 0,
+            "leaves_piece_isolated": False,
+            "weakens_king_row": False,
+            "center_control": False,
+            "minimax_score": 0.0,
+            "quiet_move_role": "QUIET_DEFAULT",
+            "counterplay_score": 0,
+            "king_activity_score": 0,
+            "simplification_value": 0,
+        },
+    }
+    legal_moves = [move_unsafe_best, move_safe_chosen]
+
+    _patch_ranker_choice(monkeypatch, chosen_index=1)
+
+    board = _empty_board()
+    board[5][0] = RED
+    board[5][2] = RED
+    board[0][1] = BLACK
+
+    from checkers.state.state import CheckersState as _CS
+    state = _CS(
+        board=board,
+        current_player=RED,
+        turn_number=5,
+        legal_moves=legal_moves,
+        strategic_context={
+            "game_phase": "OPENING",
+            "score_state": "EQUAL",
+            "strategic_priorities": ["DEVELOP_PIECES", "CONTROL_CENTER"],
+        },
+    )
+
+    patch = ranker_module.ranker_agent(state)
+
+    assert patch["chosen_move"]["path"] == [(5, 0), (4, 1)], (
+        f"Override should fire at gap=16.0 >= SAFE_VS_UNSAFE_OVERRIDE_GAP "
+        f"({ranker_module.SAFE_VS_UNSAFE_OVERRIDE_GAP}); got {patch['chosen_move']['path']}"
+    )
+
+    diag = patch["ranker_diagnostics"]
+    assert diag["override_branch_name"] == "safe_vs_unsafe_large_gap", (
+        f"Expected safe_vs_unsafe_large_gap branch, got {diag['override_branch_name']}"
+    )
+
+    out = capsys.readouterr().out
+    assert "override_triggered=True" in out
+
+
 def test_tier2_fires_above_threshold(monkeypatch, capsys):
     # TIER-2 fire: bt=2 > ct=1 (best has MORE threatened pieces), gap=160 >= 150.
     # After the fix, TIER-2 fires when gap is extreme despite counter-intuitive threat direction.

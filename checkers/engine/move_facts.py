@@ -880,6 +880,8 @@ def compute_move_facts(board, move, current_player):
     opponent_moves_before = get_all_legal_moves(board, opponent)
     opponent_moves_before_unfiltered = get_all_moves_unfiltered(board, opponent)
     opponent_mobility_before = len(opponent_moves_before_unfiltered)
+    our_moves_before_unfiltered = get_all_moves_unfiltered(board, current_player)
+    our_mobility_before = len(our_moves_before_unfiltered)
     board_after = apply_move(board, move)
 
     our_before = count_pieces(board, current_player)
@@ -1026,6 +1028,8 @@ def compute_move_facts(board, move, current_player):
     opponent_moves_after_unfiltered = get_all_moves_unfiltered(board_after, opponent)
     opponent_mobility_after = len(opponent_moves_after_unfiltered)
     mobility_reduction = opponent_mobility_before - opponent_mobility_after
+    our_moves_after_unfiltered = get_all_moves_unfiltered(board_after, current_player)
+    our_mobility_after = len(our_moves_after_unfiltered)
 
     forces_exchange, forces_exchange_count = _forces_exchange_profile(
         board_after, current_player, opponent,
@@ -1372,6 +1376,8 @@ def compute_move_facts(board, move, current_player):
         "opponent_mobility_before": opponent_mobility_before,
         "opponent_mobility_after": opponent_mobility_after,
         "mobility_reduction": mobility_reduction,
+        "our_mobility_before": our_mobility_before,
+        "our_mobility_after": our_mobility_after,
 
         "creates_immediate_threat": creates_immediate_threat,
         "shot_sequence_available": shot_sequence_available,

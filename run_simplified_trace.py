@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-# run_simplified_trace.py — simplified pipeline runner
-# (scorer_node → deterministic_proposal_node → ranker_agent → update_agent → END)
+# run_simplified_trace.py — simplified pipeline runner (AI-vs-human)
+# RED: scorer_node → deterministic_proposal_node → ranker_agent → update_agent
+# BLACK: human terminal input → update_agent (AI pipeline bypassed entirely)
 """
-Full game trace using the simplified pipeline.
-Both players are handled by the AI pipeline (scorer → proposal → ranker →
-update_agent → scorer_node loop).  The graph runs the complete game in a
-single stream invocation, terminating at END when game_over is True.
+Game trace using the simplified pipeline: RED = AI, BLACK = human.
+
+Per-turn flow:
+  RED turn  — graph runs scorer → proposal → ranker → update_agent then
+              stops (interrupt_after update_agent).  The graph does NOT loop.
+  BLACK turn — legal moves printed with indices; human enters a move index;
+              update_agent is called directly (scorer/proposal/ranker skipped).
 
 Key differences from run_full_trace.py:
   - USE_SIMPLIFIED_PIPELINE is forced to "true" before the graph is imported.
-  - The graph loops internally: update_agent → scorer_node (game_over=False)
-    or update_agent → END (game_over=True).  No external ply-by-ply looping.
   - state_manager, win_condition, logger_node and inter_turn_memory are called
     inside update_agent (not as separate graph nodes).
   - Completion is detected by last_completed_node == "update_agent".
@@ -158,15 +160,15 @@ def _stream_one_ply(
     acc: dict[str, Any],
     quiet: bool,
     show_scorer: bool = True,
-    recursion_limit: int = 2000,
+    recursion_limit: int = 50,
 ) -> tuple[dict[str, Any], bool]:
     """
-    Invoke the simplified graph.
-    Returns (updated_acc, success) where success means update_agent completed.
+    Run exactly one RED ply through the simplified graph.
+    scorer_node → deterministic_proposal_node → ranker_agent → update_agent,
+    then the stream is interrupted (interrupt_after=["update_agent"]) so the
+    graph does NOT loop back to scorer_node for BLACK.
 
-    The graph starts from acc["last_completed_node"] (None at game start) and
-    loops via update_agent → scorer_node until game_over=True → END.
-    recursion_limit must be large enough for the full game (default 2000).
+    Returns (updated_acc, success) where success means update_agent completed.
     """
     saw_update_agent = False
     cfg = {
@@ -178,6 +180,7 @@ def _stream_one_ply(
         for chunk in checkers_graph.stream(
             acc,
             stream_mode="updates",
+            interrupt_after=["update_agent"],
             config=cfg,
         ):
             for node_name, delta in chunk.items():
@@ -410,6 +413,33 @@ def _run_black_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
             "[run_simplified_trace] warning: BLACK update_agent did not complete.",
             file=sys.stderr,
         )
+
+    # ── Smoke test: human move was applied, not overwritten by AI pipeline ──
+    # update_agent calls state_manager which records the applied move in
+    # move_history[-1]["move"].  Verify it matches what the human chose.
+    # Paths are normalized to list-of-lists so tuple/list representation
+    # differences (introduced by Pydantic validation) do not cause false fails.
+    def _norm_path(p: Any) -> list:
+        return [list(sq) for sq in (p or [])]
+
+    mh = acc.get("move_history") or []
+    if mh:
+        applied = mh[-1].get("move") or {}
+        if (
+            applied.get("type") != move.get("type")
+            or _norm_path(applied.get("path")) != _norm_path(move.get("path"))
+        ):
+            print(
+                "[SMOKE TEST FAIL] BLACK applied move does not match human's choice!\n"
+                f"  chosen : {move.get('type')} {move.get('path')}\n"
+                f"  applied: {applied.get('type')} {applied.get('path')}",
+                file=sys.stderr,
+            )
+        elif not quiet:
+            print(
+                f"[SMOKE TEST OK] BLACK move applied correctly: "
+                f"{move.get('type')} {move.get('path')}"
+            )
 
     return acc
 

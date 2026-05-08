@@ -598,19 +598,21 @@ class TestBuildGroundedReasoningSeeds:
         text = self._text()  # _FULL_FACTS has after=8 < before=12
         assert "opponent_mobility_after=8" in text
 
-    def test_no_mobility_seed_when_equal(self):
-        """No mobility seed when after == before."""
+    def test_mobility_seed_emitted_when_equal(self):
+        """Mobility seed always emitted (FIX 2) — equal values still get a seed."""
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS,
             "opponent_mobility_after": 10, "opponent_mobility_before": 10}}
         text = self._text(move, [move])
-        assert "opponent_mobility" not in text
+        assert "opponent_mobility_before=10" in text
+        assert "opponent_mobility_after=10" in text
 
-    def test_no_mobility_seed_when_after_greater(self):
-        """No mobility seed when after > before."""
+    def test_mobility_seed_emitted_when_after_greater(self):
+        """Mobility seed always emitted (FIX 2) — increasing values still get a seed."""
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS,
             "opponent_mobility_after": 14, "opponent_mobility_before": 10}}
         text = self._text(move, [move])
-        assert "opponent_mobility" not in text
+        assert "opponent_mobility_before=10" in text
+        assert "opponent_mobility_after=14" in text
 
     # ── center_control guard ──────────────────────────────────────────────────
 
@@ -3114,4 +3116,347 @@ class TestMinimaxSeedWordingInDeterministicSummary:
         assert contradictions == [], (
             f"Softened wording introduced contradiction: {contradictions}\n"
             f"Summary: {summary!r}"
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FIX 2 — our_mobility and unconditional opponent_mobility seeds
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _move_with_mobility(
+    opp_before: int, opp_after: int,
+    our_before: int, our_after: int,
+    **extra_facts,
+) -> dict:
+    """Synthetic move with all four mobility facts."""
+    facts = {
+        "minimax_score": 5.0,
+        "opponent_mobility_before": opp_before,
+        "opponent_mobility_after": opp_after,
+        "our_mobility_before": our_before,
+        "our_mobility_after": our_after,
+        "captures_count": 0,
+        "net_gain": 0,
+        "results_in_king": False,
+        "near_promotion": False,
+        "opponent_can_recapture": False,
+        "leaves_piece_isolated": False,
+        "creates_immediate_threat": False,
+        "center_control": False,
+        "blocks_opponent_landing": False,
+        "our_pieces_threatened_after": 0,
+    }
+    facts.update(extra_facts)
+    return {
+        "type": "simple",
+        "path": [[5, 0], [4, 1]],
+        "captured": [],
+        "facts": facts,
+    }
+
+
+class TestFix2MobilitySeeds:
+    """Seeds for our_mobility and opponent_mobility must always be emitted."""
+
+    def test_opponent_mobility_seed_emitted_when_reduced(self):
+        move = _move_with_mobility(opp_before=12, opp_after=8, our_before=6, our_after=6)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        seeds_text = " ".join(seeds)
+        assert "opponent_mobility_before=12" in seeds_text
+        assert "opponent_mobility_after=8" in seeds_text
+
+    def test_opponent_mobility_seed_emitted_when_equal(self):
+        """Previously suppressed (mob_after >= mob_before) — now always emitted."""
+        move = _move_with_mobility(opp_before=10, opp_after=10, our_before=6, our_after=6)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        seeds_text = " ".join(seeds)
+        assert "opponent_mobility_before=10" in seeds_text
+        assert "opponent_mobility_after=10" in seeds_text
+
+    def test_opponent_mobility_seed_emitted_when_increased(self):
+        """mob_after > mob_before — was suppressed before FIX 2."""
+        move = _move_with_mobility(opp_before=8, opp_after=12, our_before=6, our_after=6)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        seeds_text = " ".join(seeds)
+        assert "opponent_mobility_before=8" in seeds_text
+        assert "opponent_mobility_after=12" in seeds_text
+
+    def test_our_mobility_seed_emitted_when_improved(self):
+        move = _move_with_mobility(opp_before=10, opp_after=10, our_before=5, our_after=8)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        seeds_text = " ".join(seeds)
+        assert "our_mobility_before=5" in seeds_text
+        assert "our_mobility_after=8" in seeds_text
+
+    def test_our_mobility_seed_emitted_when_reduced(self):
+        move = _move_with_mobility(opp_before=10, opp_after=10, our_before=8, our_after=5)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        seeds_text = " ".join(seeds)
+        assert "our_mobility_before=8" in seeds_text
+        assert "our_mobility_after=5" in seeds_text
+
+    def test_our_mobility_seed_emitted_when_unchanged(self):
+        move = _move_with_mobility(opp_before=10, opp_after=10, our_before=7, our_after=7)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        seeds_text = " ".join(seeds)
+        assert "our_mobility_before=7" in seeds_text
+        assert "our_mobility_after=7" in seeds_text
+
+    def test_type_b_no_contradiction_opponent_mobility_from_to(self):
+        """
+        Type B check: 'from X to Y' where X=opp_before, Y=opp_after must pass
+        truthfulness checker after FIX 2 (seeds provide both numbers).
+        """
+        move = _move_with_mobility(opp_before=12, opp_after=8, our_before=6, our_after=6)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        reasoning = (
+            "This move reduces opponent mobility from 12 to 8, "
+            "restricting available replies."
+        )
+        contradictions = _check_reasoning_truthfulness(
+            reasoning, move["facts"], seeds=seeds
+        )
+        assert contradictions == [], (
+            f"Grounded 'from 12 to 8' should pass; got: {contradictions}"
+        )
+
+    def test_type_b_no_contradiction_our_mobility_from_to(self):
+        """
+        Type B check: 'from X to Y' for our_mobility must pass after FIX 2.
+        """
+        move = _move_with_mobility(opp_before=10, opp_after=10, our_before=5, our_after=8)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        reasoning = (
+            "This move improves our mobility from 5 to 8, "
+            "giving us more active replies."
+        )
+        contradictions = _check_reasoning_truthfulness(
+            reasoning, move["facts"], seeds=seeds
+        )
+        assert contradictions == [], (
+            f"Grounded 'from 5 to 8' should pass; got: {contradictions}"
+        )
+
+    def test_type_b_contradiction_still_fires_for_wrong_numbers(self):
+        """
+        If LLM uses numbers NOT in seeds (fabricated), Type B check must still fire.
+        """
+        move = _move_with_mobility(opp_before=12, opp_after=8, our_before=6, our_after=6)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        reasoning = "This move reduces opponent mobility from 15 to 3."
+        contradictions = _check_reasoning_truthfulness(
+            reasoning, move["facts"], seeds=seeds
+        )
+        assert len(contradictions) > 0, (
+            "Fabricated 'from 15 to 3' should trigger Type B contradiction"
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Truthfulness checker — unchanged mobility false-positive fix
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestUnchangedMobilityFalsePositives:
+    """
+    After FIX 2, seeds always emit opponent/our mobility values even when
+    before == after.  The seed says 'no change in opponent mobility' — not
+    'unchanged mobility' — so the verbatim pattern match used to fire as a
+    false positive.  These tests pin the corrected behaviour.
+    """
+
+    def _check(self, reasoning: str, opp_b: int, opp_a: int,
+                our_b: int, our_a: int) -> list[str]:
+        move = _move_with_mobility(
+            opp_before=opp_b, opp_after=opp_a,
+            our_before=our_b, our_after=our_a,
+        )
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        return _check_reasoning_truthfulness(reasoning, move["facts"], seeds=seeds)
+
+    # ── unchanged mobility supported by seed passes ────────────────────────────
+
+    def test_unchanged_mobility_phrasing_passes_when_seed_supports(self):
+        """'unchanged mobility' must not fire when opp mob is actually unchanged."""
+        contradictions = self._check(
+            "This move results in unchanged mobility for the opponent.",
+            opp_b=10, opp_a=10, our_b=6, our_a=6,
+        )
+        assert contradictions == [], (
+            f"False positive for 'unchanged mobility' when equal: {contradictions}"
+        )
+
+    def test_mobility_remains_unchanged_passes_when_seed_supports(self):
+        """'mobility remains unchanged' must not fire when mob is equal."""
+        contradictions = self._check(
+            "Opponent mobility remains unchanged after this move.",
+            opp_b=8, opp_a=8, our_b=5, our_a=5,
+        )
+        assert contradictions == [], (
+            f"False positive for 'mobility remains unchanged': {contradictions}"
+        )
+
+    def test_same_number_of_moves_passes_when_seed_supports(self):
+        """'same number of moves' must not fire when opponent mobility is unchanged."""
+        contradictions = self._check(
+            "The opponent retains the same number of moves as before.",
+            opp_b=7, opp_a=7, our_b=5, our_a=5,
+        )
+        assert contradictions == [], (
+            f"False positive for 'same number of moves': {contradictions}"
+        )
+
+    def test_our_mob_unchanged_also_suppresses_pattern(self):
+        """Suppression applies when OUR mobility is unchanged, even if opp changed."""
+        contradictions = self._check(
+            "Our mobility stays unchanged throughout this sequence.",
+            opp_b=10, opp_a=8, our_b=6, our_a=6,
+        )
+        assert contradictions == [], (
+            f"False positive when our_mob is unchanged: {contradictions}"
+        )
+
+    # ── fabricated mobility values still fail ─────────────────────────────────
+
+    def test_fabricated_numbers_still_fail_when_mobility_unchanged(self):
+        """Type B check must still fire if LLM uses numbers NOT in seeds."""
+        contradictions = self._check(
+            "Opponent mobility from 15 to 10.",
+            opp_b=10, opp_a=10, our_b=6, our_a=6,
+        )
+        assert len(contradictions) > 0, (
+            "Fabricated 'from 15 to 10' should still trigger Type B"
+        )
+
+    # ── false unchanged claim when seed says changed still fails ──────────────
+
+    def test_unchanged_mobility_claim_fires_when_mobility_actually_changed(self):
+        """'unchanged mobility' must still fire if mob_before != mob_after."""
+        contradictions = self._check(
+            "This move results in unchanged mobility for the opponent.",
+            opp_b=10, opp_a=7, our_b=6, our_a=6,
+        )
+        assert len(contradictions) > 0, (
+            "'unchanged mobility' claimed but mob_before=10, mob_after=7 — must fire"
+        )
+
+    def test_mobility_remains_unchanged_fires_when_mobility_changed(self):
+        """'mobility remains unchanged' must still fire when opp mob changed."""
+        contradictions = self._check(
+            "Opponent mobility remains unchanged after this move.",
+            opp_b=12, opp_a=8, our_b=6, our_a=6,
+        )
+        assert len(contradictions) > 0, (
+            "'mobility remains unchanged' claimed but mob reduced 12→8 — must fire"
+        )
+
+    def test_same_number_of_moves_fires_when_mobility_changed(self):
+        """'same number of moves' must still fire when opp mob changed."""
+        contradictions = self._check(
+            "The opponent has the same number of moves as before.",
+            opp_b=10, opp_a=6, our_b=5, our_a=5,
+        )
+        assert len(contradictions) > 0, (
+            "'same number of moves' claimed but mob reduced 10→6 — must fire"
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Strategic context perspective proof
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestStrategicContextPerspective:
+    """
+    Proves that score_state in strategic_context is always computed from the
+    perspective of the player who is ABOUT TO MOVE in the upcoming turn.
+
+    Pipeline: update_agent calls state_manager (switches player) then
+    inter_turn_memory with post_switch current_player.  By the time ranker_agent
+    reads strategic_context in the next turn, score_state reflects the current
+    mover's own perspective — never the opponent's.
+
+    Safety-filter losing_mode depends only on score_state and losing priorities
+    (SEEK_COUNTERPLAY, COMPLICATE, CREATE_THREATS), all of which are gated on
+    score_state in priority construction.  The turn_history perspective mixing
+    only affects material_trend-based DEFEND priorities — not losing_mode.
+    """
+
+    def _make_state_for_player(self, board, player, turn_number=15):
+        from checkers.engine.rules import get_all_legal_moves
+        from checkers.state.state import CheckersState
+        return CheckersState(
+            board=board,
+            current_player=player,
+            turn_number=turn_number,
+            legal_moves=get_all_legal_moves(board, player),
+            strategic_context={},
+        )
+
+    def _build_board_red_winning(self):
+        """RED has 6 pieces, BLACK has 3 — RED is materially ahead."""
+        from checkers.engine.board import EMPTY, RED, BLACK
+        b = [[EMPTY] * 8 for _ in range(8)]
+        for pos in [(7, 0), (7, 2), (6, 1), (5, 0), (4, 1), (3, 2)]:
+            b[pos[0]][pos[1]] = RED
+        for pos in [(0, 1), (1, 2), (2, 3)]:
+            b[pos[0]][pos[1]] = BLACK
+        return b
+
+    def test_score_state_reflects_red_winning_when_red_to_move(self):
+        """When RED is clearly winning and it is RED's turn, score_state == CLEARLY_WINNING."""
+        from checkers.engine.board import RED
+        from checkers.nodes.inter_turn_memory import inter_turn_memory
+        board = self._build_board_red_winning()
+        state = self._make_state_for_player(board, RED)
+        ctx = inter_turn_memory(state)["strategic_context"]
+        assert ctx["player_perspective"] == "RED"
+        assert ctx["score_state"] in ("SLIGHTLY_WINNING", "CLEARLY_WINNING"), (
+            f"RED has material advantage; expected winning score_state, got {ctx['score_state']}"
+        )
+
+    def test_score_state_reflects_black_losing_when_black_to_move(self):
+        """When RED is materially ahead and BLACK is to move, score_state reflects BLACK losing."""
+        from checkers.engine.board import BLACK
+        from checkers.nodes.inter_turn_memory import inter_turn_memory
+        board = self._build_board_red_winning()
+        state = self._make_state_for_player(board, BLACK)
+        ctx = inter_turn_memory(state)["strategic_context"]
+        assert ctx["player_perspective"] == "BLACK"
+        assert ctx["score_state"] in ("SLIGHTLY_LOSING", "CLEARLY_LOSING"), (
+            f"BLACK is behind; expected losing score_state from BLACK perspective, "
+            f"got {ctx['score_state']}"
+        )
+
+    def test_safety_filter_not_in_losing_mode_when_player_is_winning(self):
+        """
+        safety_filter losing_mode must be False when the current player is winning.
+        Checks that score_state → losing_mode path has no sign inversion.
+        """
+        from checkers.engine.board import RED
+        from checkers.nodes.inter_turn_memory import inter_turn_memory
+        from checkers.agents.ranker_agent import _apply_safety_filter
+        from checkers.engine.rules import get_all_legal_moves
+        board = self._build_board_red_winning()
+        state = self._make_state_for_player(board, RED)
+        ctx = inter_turn_memory(state)["strategic_context"]
+        score_state = ctx["score_state"]
+        priorities = ctx.get("strategic_priorities", [])
+        legal = get_all_legal_moves(board, RED)
+        # Build minimal move dicts for filter (safe moves)
+        from checkers.engine.board import EMPTY
+        legal_with_facts = [
+            {"type": m["type"], "path": m["path"], "captured": m.get("captured", []),
+             "facts": {"opponent_can_recapture": False, "minimax_score": 1.0,
+                       "results_in_king": False}}
+            for m in legal
+        ]
+        _, _ = _apply_safety_filter(
+            legal_with_facts, strategic_priorities=priorities, score_state=score_state
+        )
+        # Verify score_state is winning (not losing) so losing_mode is False
+        assert score_state not in ("CLEARLY_LOSING", "SLIGHTLY_LOSING"), (
+            f"RED is winning but score_state={score_state!r} — sign inversion detected"
+        )
+        losing_priorities = {"SEEK_COUNTERPLAY", "COMPLICATE", "CREATE_THREATS"}
+        assert not losing_priorities.intersection(priorities), (
+            f"Losing priorities present when RED is winning: {losing_priorities.intersection(priorities)}"
         )

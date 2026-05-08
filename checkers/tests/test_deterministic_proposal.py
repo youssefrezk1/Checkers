@@ -11,7 +11,6 @@ from __future__ import annotations
 import pytest
 
 from checkers.engine.board import RED, BLACK
-from checkers.engine.rules import get_all_legal_moves
 from checkers.agents.scorer_agent import score_all_legal_moves
 from checkers.agents.deterministic_proposal import select_proposal_candidates
 
@@ -231,3 +230,277 @@ def test_facts_preserved_in_result():
         assert "facts" in r
         assert "minimax_score" in r["facts"]
         assert "symbolic_rank" in r["facts"]
+
+
+# ── Turn 9 regression ─────────────────────────────────────────────────────────
+
+def _fake_move(path_tag: int, minimax_score: float, threatened_after: int = 0) -> dict:
+    """Create a synthetic scored move for unit testing."""
+    return {
+        "type": "simple",
+        "path": [[path_tag, 0], [path_tag - 1, 1]],
+        "captured": [],
+        "facts": {
+            "minimax_score": minimax_score,
+            "symbolic_rank": int(100 - minimax_score),
+            "captures_count": 0,
+            "results_in_king": False,
+            "near_promotion": False,
+            "our_pieces_threatened_after": threatened_after,
+            "unsafe_simple_move": threatened_after > 0,
+            "opponent_can_recapture": False,
+            "leaves_piece_isolated": False,
+            "center_control": False,
+            "mobility_reduction": 0,
+            "winning_conversion_score": 0,
+            "counterplay_score": 0,
+            "quiet_move_role": "QUIET_DEFAULT",
+        },
+    }
+
+
+def test_turn9_rank1_rank2_rank3_always_included():
+    """
+    Regression: Turn 9 produced [rank5, rank8, rank4, rank9, rank3] because the old
+    _mm_pin used pop+insert in a loop — pinning rank 2 inserted it before rank 1,
+    pushing rank 1 back outside the window and ejecting it from the shortlist.
+
+    Reproduces the failure condition: symbolic sort puts ranks 1 and 2 LAST
+    (high our_pieces_threatened_after makes them appear unsafe) while ranks 3-9
+    appear safe and fill the first 5 slots of the symbolic window.
+
+    The fix guarantees rank 1 is always in the output, and ranks 2 and 3 are
+    included when target >= 2 / >= 3.
+    """
+    # 9 moves sorted best-first by minimax_score (as scorer_agent produces).
+    # Ranks 1 and 2 have threatened_after > 0 so the symbolic sort pushes them
+    # to the END of the list, replicating the Turn 9 condition.
+    scored_moves = [
+        _fake_move(9, minimax_score=99.0, threatened_after=3),  # rank 1 (best, symbolically unsafe)
+        _fake_move(8, minimax_score=98.0, threatened_after=2),  # rank 2 (symbolically unsafe)
+        _fake_move(7, minimax_score=97.0, threatened_after=0),  # rank 3
+        _fake_move(6, minimax_score=96.0, threatened_after=0),  # rank 4
+        _fake_move(5, minimax_score=95.0, threatened_after=0),  # rank 5
+        _fake_move(4, minimax_score=94.0, threatened_after=0),  # rank 6
+        _fake_move(3, minimax_score=93.0, threatened_after=0),  # rank 7
+        _fake_move(2, minimax_score=92.0, threatened_after=0),  # rank 8
+        _fake_move(1, minimax_score=91.0, threatened_after=0),  # rank 9
+    ]
+
+    result = select_proposal_candidates(scored_moves)
+    assert len(result) == 5, f"expected 5 candidates, got {len(result)}"
+
+    result_paths = {_path_key(m) for m in result}
+    rank1_pk = _path_key(scored_moves[0])
+    rank2_pk = _path_key(scored_moves[1])
+    rank3_pk = _path_key(scored_moves[2])
+
+    assert rank1_pk in result_paths, (
+        "rank 1 (best minimax) must always be in output; "
+        f"got symbolic_ranks: {[m['facts']['symbolic_rank'] for m in result]}"
+    )
+    assert rank2_pk in result_paths, (
+        "rank 2 must be in output when target=5; "
+        f"got symbolic_ranks: {[m['facts']['symbolic_rank'] for m in result]}"
+    )
+    assert rank3_pk in result_paths, (
+        "rank 3 must be in output when target=5; "
+        f"got symbolic_ranks: {[m['facts']['symbolic_rank'] for m in result]}"
+    )
+
+
+def test_top1_always_included_regardless_of_symbolic_sort():
+    """Rank 1 must be in output even for k=1 or k=2."""
+    scored_moves = [
+        _fake_move(5, minimax_score=99.0, threatened_after=5),  # rank 1, very unsafe symbolically
+        _fake_move(4, minimax_score=98.0, threatened_after=0),
+        _fake_move(3, minimax_score=97.0, threatened_after=0),
+        _fake_move(2, minimax_score=96.0, threatened_after=0),
+        _fake_move(1, minimax_score=95.0, threatened_after=0),
+    ]
+    rank1_pk = _path_key(scored_moves[0])
+
+    for target_k in (1, 2, 3, 4, 5):
+        result = select_proposal_candidates(scored_moves, k=target_k)
+        result_paths = {_path_key(m) for m in result}
+        assert rank1_pk in result_paths, (
+            f"rank 1 missing from output with k={target_k}: "
+            f"got {[m['facts']['symbolic_rank'] for m in result]}"
+        )
+
+
+# ── FIX 1: diversity pool constraint and minimax-heavy mode ───────────────────
+
+def _fake_move_scored(row: int, minimax_score: float, **fact_overrides) -> dict:
+    """Synthetic move with explicit minimax_score; all other facts default to safe."""
+    facts = {
+        "minimax_score": minimax_score,
+        "symbolic_rank": 0,
+        "captures_count": 0,
+        "results_in_king": False,
+        "near_promotion": False,
+        "our_pieces_threatened_after": 0,
+        "unsafe_simple_move": False,
+        "opponent_can_recapture": False,
+        "leaves_piece_isolated": False,
+        "center_control": False,
+        "mobility_reduction": 0,
+        "winning_conversion_score": 0,
+        "counterplay_score": 0,
+        "quiet_move_role": "QUIET_DEFAULT",
+    }
+    facts.update(fact_overrides)
+    return {
+        "type": "simple",
+        "path": [[row, 0], [row - 1, 1]],
+        "captured": [],
+        "facts": facts,
+    }
+
+
+def test_diversity_fill_never_exceeds_rank6():
+    """
+    T33/T35-style regression: symbolic sort must not inject rank-7..10 moves
+    into the shortlist when the position is not minimax-heavy.
+
+    Setup: 10 moves. Ranks 1-3 have threatened_after=0 (safe, good minimax).
+    Ranks 4-6 also safe. Ranks 7-10 also safe but low minimax score.
+    The score gap between rank-1 and rank-2 is < _TOP_GAP_HEAVY (19 pts, threshold=20)
+    so minimax-heavy mode does NOT fire.
+
+    Expectation: all 5 slots come from ranks 1-6 only; no rank-7..10 move appears.
+    """
+    scored_moves = [
+        _fake_move_scored(10, 50.0),   # rank 1
+        _fake_move_scored(9,  31.0),   # rank 2  — gap=19.0, well below _TOP_GAP_HEAVY=200
+        _fake_move_scored(8,  30.0),   # rank 3
+        _fake_move_scored(7,  29.0),   # rank 4
+        _fake_move_scored(6,  28.0),   # rank 5
+        _fake_move_scored(5,  27.0),   # rank 6  ← pool boundary
+        _fake_move_scored(4,  10.0),   # rank 7  — must NOT appear
+        _fake_move_scored(3,   9.0),   # rank 8  — must NOT appear
+        _fake_move_scored(2,   8.0),   # rank 9  — must NOT appear
+        _fake_move_scored(1,   7.0),   # rank 10 — must NOT appear
+    ]
+    pool_paths = {_path_key(m) for m in scored_moves[:6]}
+    excluded_paths = {_path_key(m) for m in scored_moves[6:]}
+
+    result = select_proposal_candidates(
+        scored_moves,
+        strategic_context={"game_phase": "MIDGAME", "score_state": "EQUAL"},
+    )
+    assert len(result) == 5
+    for m in result:
+        pk = _path_key(m)
+        assert pk in pool_paths, (
+            f"rank-7+ move appeared in shortlist: path={m['path']}, "
+            f"score={m['facts']['minimax_score']}"
+        )
+        assert pk not in excluded_paths
+
+
+def test_minimax_heavy_fires_on_endgame():
+    """ENDGAME game_phase triggers minimax-heavy mode — result is pure top-k by score."""
+    scored_moves = [
+        _fake_move_scored(10, 40.0),   # rank 1
+        _fake_move_scored(9,  39.0),   # rank 2
+        _fake_move_scored(8,  38.0),   # rank 3
+        _fake_move_scored(7,  10.0),   # rank 4
+        _fake_move_scored(6,   9.0),   # rank 5
+        _fake_move_scored(5,   8.0),   # rank 6
+        _fake_move_scored(4,   7.0),   # rank 7
+    ]
+    result = select_proposal_candidates(
+        scored_moves,
+        strategic_context={"game_phase": "ENDGAME", "score_state": "EQUAL"},
+    )
+    assert len(result) == 5
+    # Result must be exactly the top-5 by minimax score (ranks 1-5)
+    expected_paths = {_path_key(m) for m in scored_moves[:5]}
+    result_paths   = {_path_key(m) for m in result}
+    assert result_paths == expected_paths, (
+        f"endgame minimax-heavy should yield top-5; got scores "
+        f"{[m['facts']['minimax_score'] for m in result]}"
+    )
+
+
+def test_minimax_heavy_fires_on_saturation():
+    """abs(best_score) >= 9_000.0 (near WIN_SCORE=10_000) triggers minimax-heavy mode."""
+    scored_moves = [
+        _fake_move_scored(10, 9500.0),  # rank 1 — near win sentinel
+        _fake_move_scored(9,  9480.0),  # rank 2
+        _fake_move_scored(8,  9460.0),  # rank 3
+        _fake_move_scored(7,   100.0),  # rank 4
+        _fake_move_scored(6,    90.0),  # rank 5
+        _fake_move_scored(5,    80.0),  # rank 6
+    ]
+    result = select_proposal_candidates(
+        scored_moves,
+        strategic_context={"game_phase": "MIDGAME", "score_state": "CLEARLY_WINNING"},
+    )
+    assert len(result) == 5
+    expected_paths = {_path_key(m) for m in scored_moves[:5]}
+    result_paths   = {_path_key(m) for m in result}
+    assert result_paths == expected_paths
+
+
+def test_minimax_heavy_fires_on_large_top_gap():
+    """top_gap >= 200.0 (>=2 full pieces) triggers minimax-heavy mode."""
+    scored_moves = [
+        _fake_move_scored(10, 300.0),  # rank 1
+        _fake_move_scored(9,   90.0),  # rank 2  — gap=210 >= _TOP_GAP_HEAVY
+        _fake_move_scored(8,   80.0),  # rank 3
+        _fake_move_scored(7,   10.0),  # rank 4
+        _fake_move_scored(6,    9.0),  # rank 5
+        _fake_move_scored(5,    8.0),  # rank 6
+    ]
+    result = select_proposal_candidates(
+        scored_moves,
+        strategic_context={"game_phase": "MIDGAME", "score_state": "EQUAL"},
+    )
+    assert len(result) == 5
+    expected_paths = {_path_key(m) for m in scored_moves[:5]}
+    result_paths   = {_path_key(m) for m in result}
+    assert result_paths == expected_paths, (
+        f"large top-gap (>=200) should yield minimax top-5; got scores "
+        f"{[m['facts']['minimax_score'] for m in result]}"
+    )
+
+
+def test_rank4_rank5_not_displaced_by_rank9_when_normal_gap():
+    """
+    Top-4/top-5 exclusion regression (T35 variant): symbolic sort must not eject
+    rank-4 or rank-5 in favor of rank-9 when the position is NOT minimax-heavy.
+
+    Gap between rank-1 and rank-2 = 1.0 (well below _TOP_GAP_HEAVY=20).
+    Ranks 4 and 5 have slightly higher symbolic priority (center_control=True)
+    than ranks 7-10, but all are within the pool.
+    After fix: rank-7..10 paths are excluded from fill; rank-4 and rank-5 appear.
+    """
+    scored_moves = [
+        _fake_move_scored(10, 20.0),   # rank 1
+        _fake_move_scored(9,  19.0),   # rank 2
+        _fake_move_scored(8,  18.0),   # rank 3
+        _fake_move_scored(7,  17.0),   # rank 4
+        _fake_move_scored(6,  16.0),   # rank 5
+        _fake_move_scored(5,  15.0),   # rank 6  ← pool boundary
+        _fake_move_scored(4,   1.0, center_control=True),  # rank 7 (boosted symb rank)
+        _fake_move_scored(3,   0.5, center_control=True),  # rank 8
+        _fake_move_scored(2,   0.4),   # rank 9
+        _fake_move_scored(1,   0.3),   # rank 10
+    ]
+    rank4_pk = _path_key(scored_moves[3])
+    rank5_pk = _path_key(scored_moves[4])
+    excluded = {_path_key(m) for m in scored_moves[6:]}
+
+    result = select_proposal_candidates(
+        scored_moves,
+        strategic_context={"game_phase": "MIDGAME", "score_state": "EQUAL"},
+    )
+    assert len(result) == 5
+    result_paths = {_path_key(m) for m in result}
+
+    assert rank4_pk in result_paths, "rank-4 should appear; rank-7+ must not displace it"
+    assert rank5_pk in result_paths, "rank-5 should appear; rank-7+ must not displace it"
+    for pk in excluded:
+        assert pk not in result_paths, f"rank-7+ move should not appear: {pk}"

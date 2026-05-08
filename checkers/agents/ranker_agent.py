@@ -2747,6 +2747,30 @@ def _check_reasoning_truthfulness(
     # ── Semantic numeric / quantity leakage detection ────────────────────────────
     # Flags quantity claims that are not backed by verbatim numbers in the seeds.
     # Exact numbers that appear in seeds are allowed (mobility before/after, etc.).
+
+    # Unchanged-mobility support: when facts confirm opp or our mobility did not
+    # change (before == after), the four "unchanged mobility" patterns below are
+    # valid claims and must NOT fire as false positives.  Seeds say "no change in
+    # opponent mobility" — not "unchanged mobility" — so verbatim matching would
+    # incorrectly flag them.  Gating on facts is precise and avoids weakening the
+    # general hallucination check.
+    _opp_mob_unchanged = (
+        mob_before is not None and mob_after is not None and mob_before == mob_after
+    )
+    _our_mb = facts.get("our_mobility_before")
+    _our_ma = facts.get("our_mobility_after")
+    _our_mob_unchanged = (
+        _our_mb is not None and _our_ma is not None and _our_mb == _our_ma
+    )
+    # Labels of the four patterns that should be skipped when mobility is confirmed
+    # unchanged.  Explicitly listed so no other patterns are accidentally suppressed.
+    _MOBILITY_UNCHANGED_LABELS = frozenset({
+        "unsupported 'unchanged mobility' claim",
+        "unsupported 'mobility unchanged' claim",
+        "unsupported 'same number of' claim",
+        "unsupported 'same move count' claim",
+    })
+
     _numeric_patterns: list[tuple[str, str]] = [
         # Before→after quantity narratives
         (
@@ -2782,6 +2806,23 @@ def _check_reasoning_truthfulness(
     ]
     import re as _re_num
     for _pat, _label in _numeric_patterns:
+        # Skip unchanged-mobility patterns when facts explicitly confirm no change.
+        # Use context cues in the text to identify which mobility type is claimed:
+        #   "opponent"/"their"/"foe" → check opponent mobility
+        #   "our"/"my"/"we"/"own"   → check our mobility
+        #   ambiguous               → suppress when EITHER mobility is confirmed unchanged
+        if _label in _MOBILITY_UNCHANGED_LABELS:
+            _opp_ctx = any(w in text for w in ("opponent", "their", "enemy", "foe"))
+            _our_ctx = any(w in text for w in (" our ", "my ", " we ", "own "))
+            if _opp_ctx and not _our_ctx:
+                if _opp_mob_unchanged:
+                    continue
+            elif _our_ctx and not _opp_ctx:
+                if _our_mob_unchanged:
+                    continue
+            else:  # ambiguous: suppress when either is confirmed unchanged
+                if _opp_mob_unchanged or _our_mob_unchanged:
+                    continue
         if _re_num.search(_pat, text, _re_num.IGNORECASE):
             # Allow if the suspected phrase appears verbatim in seeds.
             _match = _re_num.search(_pat, text, _re_num.IGNORECASE)
@@ -3577,16 +3618,48 @@ def _build_grounded_reasoning_seeds(
             "near_promotion=true — creates a future promotion threat"
         )
 
-    # ── Mobility (ONLY when numeric before/after exists and actually changes) ───
+    # ── Mobility — always emit numeric before/after so LLM reasoning can't contradict ──
     mob_after  = facts.get("opponent_mobility_after")
     mob_before = facts.get("opponent_mobility_before")
-    if mob_after is not None and mob_before is not None and mob_after < mob_before:
-        delta = mob_before - mob_after
-        seeds.append(
-            f"opponent_mobility_before={mob_before}, opponent_mobility_after={mob_after} — "
-            f"reduces opponent mobility by {delta}, restricting available replies"
-        )
-    # If mob_after >= mob_before: NO seed (avoids false mobility claims)
+    if mob_after is not None and mob_before is not None:
+        if mob_after < mob_before:
+            delta = mob_before - mob_after
+            seeds.append(
+                f"opponent_mobility_before={mob_before}, opponent_mobility_after={mob_after} — "
+                f"reduces opponent mobility by {delta}, restricting available replies"
+            )
+        elif mob_after > mob_before:
+            delta = mob_after - mob_before
+            seeds.append(
+                f"opponent_mobility_before={mob_before}, opponent_mobility_after={mob_after} — "
+                f"increases opponent mobility by {delta}"
+            )
+        else:
+            seeds.append(
+                f"opponent_mobility_before={mob_before}, opponent_mobility_after={mob_after} — "
+                f"no change in opponent mobility"
+            )
+
+    our_mob_before = facts.get("our_mobility_before")
+    our_mob_after  = facts.get("our_mobility_after")
+    if our_mob_before is not None and our_mob_after is not None:
+        if our_mob_after > our_mob_before:
+            delta = our_mob_after - our_mob_before
+            seeds.append(
+                f"our_mobility_before={our_mob_before}, our_mobility_after={our_mob_after} — "
+                f"increases our mobility by {delta}"
+            )
+        elif our_mob_after < our_mob_before:
+            delta = our_mob_before - our_mob_after
+            seeds.append(
+                f"our_mobility_before={our_mob_before}, our_mobility_after={our_mob_after} — "
+                f"decreases our mobility by {delta}"
+            )
+        else:
+            seeds.append(
+                f"our_mobility_before={our_mob_before}, our_mobility_after={our_mob_after} — "
+                f"no change in our mobility"
+            )
 
     # ── Strategic interpretation (LOW-STRENGTH, supporting context only) ────────────
     # Derived purely from path geometry and fact values. No risky assumptions.
@@ -3874,19 +3947,22 @@ def ranker_agent(state: CheckersState) -> dict:
         #   idx_legal          — same choice expressed in legal[] space
 
         # Diagnostic accumulators
-        _or_retry_attempts:   int           = 0
-        _or_retry_resolved:   bool          = False
-        _or_fallback_applied: bool          = False
-        _or_branch_name:      Optional[str] = None
-        _or_retry_full:       bool          = False
-        _last_override_debug: dict[str, Any] = {}
+        _or_retry_attempts:    int           = 0
+        _or_retry_resolved:    bool          = False
+        _or_fallback_applied:  bool          = False
+        _or_branch_name:       Optional[str] = None
+        _or_retry_full:        bool          = False
+        _last_override_debug:  dict[str, Any] = {}
         _last_override_reason: Optional[str] = None
-        _retry_reasoning:     Optional[str] = None   # text from most-recent retry LLM call
+        _retry_reasoning:      Optional[str] = None   # text from most-recent retry LLM call
+        _last_retry_llm_idx:   Optional[int]  = None  # legal[] index of last retry parse
+        _last_retry_llm_path:  Optional[list] = None  # path of last retry LLM choice
 
         # Attempt-0 setup
         attempt_moves        = filtered                    # NEVER overwrite filtered
         idx_in_attempt_moves = idx                         # in filtered space
         idx_legal            = index_map[idx]              # same move in legal space
+        _raw_llm_idx_legal   = idx_legal                   # raw LLM choice in legal[] space
 
         _chosen_final: Optional[dict[str, Any]] = None
 
@@ -4020,6 +4096,9 @@ def ranker_agent(state: CheckersState) -> dict:
                 f"chosen_minimax={_get_minimax_score(_retry_chosen_move):.1f}  "
                 f"reasoning_prefix=\"{(_retry_reasoning or '')[:80]}\""
             )
+            # Track last successfully-parsed retry for attribution logging.
+            _last_retry_llm_idx  = _retry_idx_legal
+            _last_retry_llm_path = _retry_chosen_move.get("path")
 
             # ── Set up next audit iteration ───────────────────────────────
             # Retries always audit against the full proposal list.
@@ -4033,19 +4112,17 @@ def ranker_agent(state: CheckersState) -> dict:
         # attempt_moves and idx_in_attempt_moves resolved; _chosen_final is set.
         # filtered, legal, index_map, idx are all still their original values.
 
-        # ── Emit DECISION_DEBUG (unchanged structure) ─────────────────────
+        # ── Emit DECISION_DEBUG ──────────────────────────────────────────────
         _override_debug  = _last_override_debug
         override_reason  = _last_override_reason
         if _or_retry_resolved and _retry_reasoning:
-            # Retry LLM chose a corrected move — use its own reasoning.
             reasoning = _retry_reasoning
         elif override_reason and not _or_retry_resolved:
-            # Override triggered but retries exhausted without resolving — use override message.
             reasoning = override_reason
 
         best_idx, _, _ = _best_and_second_best_minimax(legal)
         best_move = legal[best_idx] if best_idx is not None else None
-        chosen_before_override = filtered[idx]          # original LLM choice (unchanged)
+        chosen_before_override = filtered[idx]          # original LLM choice (never mutated)
         legal_scores = [_get_minimax_score(m) for m in legal]
         legal_best_score = max(legal_scores) if legal_scores else None
         legal_best_idxs = (
@@ -4058,28 +4135,52 @@ def ranker_agent(state: CheckersState) -> dict:
             and legal_best_score is not None
             and _get_minimax_score(legal[best_idx]) == legal_best_score
         )
-        chosen_path_internal = (_chosen_final or {}).get("path")
-        best_path_internal = best_move.get("path") if best_move else None
-        chosen_path_matches_llm_idx = (
-            idx is not None
-            and 0 <= idx < len(filtered)
-            and filtered[idx].get("path") == chosen_before_override.get("path")
+
+        # ── Attribution snapshot (pre-tiebreak) ─────────────────────────────
+        _raw_llm_choice_path_d   = chosen_before_override.get("path")
+        _retry_llm_idx_d         = _last_retry_llm_idx                  # None if no retry
+        _retry_llm_choice_path_d = _last_retry_llm_path                 # None if no retry
+        _pre_tb_path             = (_chosen_final or {}).get("path")
+
+        def _norm_pre(p: Any) -> list:
+            return [list(sq) for sq in (p or [])]
+
+        _pre_tb_idx = next(
+            (i for i, m in enumerate(legal) if m.get("path") == _pre_tb_path), None
         )
+        _final_matches_raw   = _norm_pre(_pre_tb_path) == _norm_pre(_raw_llm_choice_path_d)
+        _final_matches_retry = (
+            _retry_llm_idx_d is not None
+            and _norm_pre(_pre_tb_path) == _norm_pre(_retry_llm_choice_path_d)
+        )
+
+        if _or_fallback_applied:
+            _pre_tb_source = "python_fallback"
+        elif _or_retry_resolved:
+            _pre_tb_source = "retry_llm"
+        else:
+            _pre_tb_source = "raw_llm"
+
         chosen_debug_facts = (_chosen_final or {}).get("facts", {}) or {}
         best_debug_facts = (best_move.get("facts", {}) if best_move else {}) or {}
         print(
             "[DECISION_DEBUG] "
-            f"chosen={(_chosen_final or {}).get('path')} "
-            f"best={(best_move.get('path') if best_move else None)} "
+            f"raw_llm_idx={idx} "
+            f"raw_llm_idx_legal={_raw_llm_idx_legal} "
+            f"raw_llm_choice_path={_raw_llm_choice_path_d} "
+            f"retry_llm_idx={_retry_llm_idx_d} "
+            f"retry_llm_choice_path={_retry_llm_choice_path_d} "
+            f"final_chosen_idx={_pre_tb_idx} "
+            f"final_chosen_path={_pre_tb_path} "
+            f"final_choice_source={_pre_tb_source} "
+            f"final_matches_raw_llm={_final_matches_raw} "
+            f"final_matches_retry_llm={_final_matches_retry} "
+            f"best_path={(best_move.get('path') if best_move else None)} "
             f"gap={_override_debug.get('best_vs_chosen_minimax_gap')} "
-            f"llm_idx={idx} "
             f"best_idx={best_idx} "
             f"filtered_menu_size={len(filtered)} "
-            f"chosen_minimax_internal={_get_minimax_score(_chosen_final) if _chosen_final else None} "
-            f"best_minimax_internal={_get_minimax_score(best_move) if best_move else None} "
-            f"chosen_path_internal={chosen_path_internal} "
-            f"best_path_internal={best_path_internal} "
-            f"chosen_path_matches_llm_idx={chosen_path_matches_llm_idx} "
+            f"final_minimax={_get_minimax_score(_chosen_final) if _chosen_final else None} "
+            f"best_minimax={_get_minimax_score(best_move) if best_move else None} "
             f"best_idx_is_argmax={best_idx_is_argmax} "
             f"best_score_tie_count={len(legal_best_idxs)} "
             f"chosen_passive_safe={_override_debug.get('is_passive_safe_structural', {}).get('chosen')} "
@@ -4098,8 +4199,8 @@ def ranker_agent(state: CheckersState) -> dict:
         )
         print(
             "[DECISION_DEBUG] "
-            f"chosen_move_facts={{"
-            f"'path': {(_chosen_final or {}).get('path')}, "
+            f"final_move_facts={{"
+            f"'path': {_pre_tb_path}, "
             f"'is_passive_safe_structural': {_override_debug.get('is_passive_safe_structural', {}).get('chosen')}, "
             f"'is_low_danger_active': {_override_debug.get('is_low_danger_active', {}).get('chosen')}, "
             f"'threat_after': {chosen_debug_facts.get('our_pieces_threatened_after')}, "
@@ -4112,7 +4213,7 @@ def ranker_agent(state: CheckersState) -> dict:
             f"'threat_after': {best_debug_facts.get('our_pieces_threatened_after')}, "
             f"'minimax_score': {_get_minimax_score(best_move) if best_move else None}"
             f"}} "
-            f"llm_choice_path={chosen_before_override.get('path')}"
+            f"raw_llm_choice_path={_raw_llm_choice_path_d}"
         )
 
         chosen = _chosen_final
@@ -4155,6 +4256,7 @@ def ranker_agent(state: CheckersState) -> dict:
                     f"gap={promo_score_tb - chosen_score_tb:.1f} "
                     f"reason=results_in_king_near_tie"
                 )
+                _promo_tiebreak_applied = True
                 chosen = promo_candidate
                 if not reasoning or reasoning.startswith("Fallback"):
                     reasoning = (
@@ -4280,14 +4382,72 @@ def ranker_agent(state: CheckersState) -> dict:
             llm_agreed = (sym_path == chosen_path)
 
     # ── Build structured override diagnostics ────────────────────────────────
-    # These variables are set inside the multi-candidate branch (n >= 2).
-    # For the single-candidate branch (n == 1) they default to None/False.
+    # Override/retry variables are only set in the multi-candidate branch (n >= 2).
+    # For single-candidate (n == 1) they default to None/False via locals().get().
+    _or_retry_res    = locals().get("_or_retry_resolved",   False)
+    _or_fallback_res = locals().get("_or_fallback_applied", False)
+    _or_branch       = locals().get("_or_branch_name",      None)
+
+    # Attribution: what was the initial LLM choice and what drove the final move?
+    _llm_initial_path = (locals().get("chosen_before_override") or {}).get("path")
+    _final_path       = (chosen or {}).get("path")
+    _promo_tb         = locals().get("_promo_tiebreak_applied", False)
+
+    if _promo_tb:
+        _final_choice_source = "tiebreak"
+    elif _or_fallback_res:
+        _final_choice_source = "python_fallback"
+    elif _or_retry_res:
+        _final_choice_source = "retry_llm"
+    elif _llm_initial_path is None:
+        _final_choice_source = "single_candidate"
+    else:
+        _final_choice_source = "raw_llm"
+
+    def _norm_diag_path(p: Any) -> list:
+        return [list(sq) for sq in (p or [])]
+
+    _raw_llm_path_diag   = _llm_initial_path
+    _retry_llm_path_diag = locals().get("_last_retry_llm_path", None)
+    _retry_llm_idx_diag  = locals().get("_last_retry_llm_idx", None)
+    _raw_llm_idx_diag    = locals().get("_raw_llm_idx_legal", None)
+
+    _legal_for_diag   = locals().get("legal", [])
+    _final_chosen_idx = next(
+        (i for i, m in enumerate(_legal_for_diag) if m.get("path") == _final_path), None
+    )
+
+    _final_matches_raw   = (
+        _raw_llm_path_diag is not None
+        and _final_path is not None
+        and _norm_diag_path(_raw_llm_path_diag) == _norm_diag_path(_final_path)
+    )
+    _final_matches_retry = (
+        _retry_llm_path_diag is not None
+        and _final_path is not None
+        and _norm_diag_path(_retry_llm_path_diag) == _norm_diag_path(_final_path)
+    )
+
     _ranker_diagnostics: dict[str, Any] = {
-        "override_retry_attempts":   locals().get("_or_retry_attempts",   0),
-        "override_retry_resolved":   locals().get("_or_retry_resolved",   False),
-        "override_fallback_applied": locals().get("_or_fallback_applied", False),
-        "override_branch_name":      locals().get("_or_branch_name",      None),
-        "retry_used_full_proposal":  locals().get("_or_retry_full",       False),
+        # ── Override/retry state (existing tests depend on these keys) ───────
+        "override_retry_attempts":    locals().get("_or_retry_attempts", 0),
+        "override_retry_resolved":    _or_retry_res,
+        "override_fallback_applied":  _or_fallback_res,
+        "override_branch_name":       _or_branch,
+        "retry_used_full_proposal":   locals().get("_or_retry_full", False),
+        # ── Attribution (new) ────────────────────────────────────────────────
+        "raw_llm_idx":                _raw_llm_idx_diag,
+        "raw_llm_choice_path":        _raw_llm_path_diag,
+        "retry_llm_idx":              _retry_llm_idx_diag,
+        "retry_llm_choice_path":      _retry_llm_path_diag,
+        "final_chosen_idx":           _final_chosen_idx,
+        "final_chosen_path":          _final_path,
+        "final_choice_source":        _final_choice_source,
+        "final_matches_raw_llm":      _final_matches_raw,
+        "final_matches_retry_llm":    _final_matches_retry,
+        "promotion_tiebreak_applied": _promo_tb,
+        # ── Legacy alias ─────────────────────────────────────────────────────
+        "llm_initial_choice_path":    _llm_initial_path,
     }
 
     out = {

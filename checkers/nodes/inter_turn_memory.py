@@ -473,6 +473,7 @@ def inter_turn_memory(state: CheckersState) -> dict:
 
     # ── strategic_context output ─────────────────────────────────────────────
     strategic_context = {
+        "player_perspective": "RED" if player == RED else "BLACK",
         "stagnation_detected": stagnation_detected,
         "score_state": score_state,
         "material_advantage": material_advantage,

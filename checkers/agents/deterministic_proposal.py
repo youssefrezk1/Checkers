@@ -207,73 +207,22 @@ def _role_pin_moves(
     pinned_new_positions = frozenset(range(1, 1 + len(to_pin)))
     return result, pinned_new_positions
 
-logger = logging.getLogger(__name__)
 
+# ── Diversity-pool and minimax-heavy-mode constants ───────────────────────────
+# Diversity fill slots are drawn ONLY from these top-N moves by minimax rank.
+# This prevents bottom-ranked moves from appearing in the shortlist when a large
+# score gap separates them from the leaders.
+_DIVERSITY_POOL_RANKS: int = 6
 
-def _mm_pin(
-    moves_with_facts: list[tuple[dict, dict]],
-    n_slots: int,
-) -> list[tuple[dict, dict]]:
-    """
-    Guarantee that the three highest-minimax-score moves appear within
-    positions 0..n_slots-1 of moves_with_facts.
+# When the best minimax score reaches this magnitude (absolute value), the
+# position is near material saturation — minimax is decisive, diversity hurts.
+_MINIMAX_SATURATION: float = 9_000.0  # near WIN_SCORE=10_000 territory only
 
-    Mirrors the inline mm-pin block in _build_legal_moves_with_facts.
-    Mutates and returns the list.  No-op when n_slots < 5 or no scores.
-    """
-    if n_slots < 5 or len(moves_with_facts) < n_slots:
-        return moves_with_facts
-
-    def _score(mv: dict, facts: dict) -> float | None:
-        sc = facts.get("minimax_score")
-        if sc is None or sc == float("-inf"):
-            return None
-        try:
-            return float(sc)
-        except (TypeError, ValueError):
-            return None
-
-    def _path_key(mv: dict) -> tuple:
-        return tuple(tuple(sq) for sq in mv.get("path", []))
-
-    def _top3_indices() -> list[int]:
-        scored = []
-        for i, (mv, facts) in enumerate(moves_with_facts):
-            sc = _score(mv, facts)
-            if sc is not None:
-                scored.append((sc, i))
-        scored.sort(key=lambda t: (-t[0], t[1]))
-        return [i for _, i in scored[:3]]
-
-    top3 = _top3_indices()
-
-    for top_i in top3:
-        if top_i < n_slots:
-            continue
-
-        top3_set = set(top3)
-        displace_at: int | None = None
-        for j in range(n_slots - 1, -1, -1):
-            if j not in top3_set:
-                displace_at = j
-                break
-        if displace_at is None:
-            continue
-
-        # Locate the target move by path (position may have shifted after earlier pins).
-        target_pk = _path_key(moves_with_facts[top_i][0])
-        current_idx = next(
-            (ci for ci, (mv, _) in enumerate(moves_with_facts)
-             if _path_key(mv) == target_pk),
-            top_i,
-        )
-        pin_item = moves_with_facts.pop(current_idx)
-        actual = displace_at if current_idx >= displace_at else displace_at - 1
-        actual = max(0, min(actual, n_slots - 1))
-        moves_with_facts.insert(actual, pin_item)
-        top3 = _top3_indices()
-
-    return moves_with_facts
+# When the gap between rank-1 and rank-2 scores is this large (≥2 full pieces),
+# diversity is noise: the best move dominates and filler adds weak alternatives.
+# Empirical: gap>=200 fires in ~12% of positions (genuine dominance only),
+# vs gap>=20 which fires in ~35% (too aggressive, catches ordinary positional noise).
+_TOP_GAP_HEAVY: float = 200.0
 
 
 def select_proposal_candidates(
@@ -307,11 +256,13 @@ def select_proposal_candidates(
     list[dict]
         Ordered list of move dicts, each a direct reference to an element of
         scored_moves (no copies, no new fields added).
-        Guarantees:
+        Guarantees (mirrors old proposal_agent + format_checker contract):
           - len(result) == min(k, len(scored_moves))
           - every element is in scored_moves
-          - when len(scored_moves) >= 5 and k >= 5, the top-3 moves by
-            minimax_score are always included
+          - rank 1 (best by minimax_score) is always first in the result
+          - ranks 2 and 3 are always included when target >= 2 / >= 3
+          - remaining slots filled from the symbolic pre-sort + role-pin
+            pipeline, deduped against the already-included top moves
     """
     n = len(scored_moves)
     if n == 0:
@@ -324,20 +275,60 @@ def select_proposal_candidates(
     game_phase           = ctx.get("game_phase", "MIDGAME")
     strategic_priorities = ctx.get("strategic_priorities", [])
 
+    # ── Minimax-heavy mode: skip diversity, return pure minimax top-k ──────────
+    # Fires when the position is decisive enough that diversity adds noise:
+    #   • ENDGAME phase (few pieces, conversion is critical)
+    #   • Best score near material saturation (|score| >= _MINIMAX_SATURATION)
+    #   • Very large gap between rank-1 and rank-2 (>= _TOP_GAP_HEAVY)
+    best_score = scored_moves[0]["facts"].get("minimax_score", 0.0)
+    second_score = scored_moves[1]["facts"].get("minimax_score", 0.0) if n >= 2 else best_score
+    top_gap = abs(best_score - second_score)
+
+    minimax_heavy = (
+        game_phase == "ENDGAME"
+        or abs(best_score) >= _MINIMAX_SATURATION
+        or top_gap >= _TOP_GAP_HEAVY
+    )
+
+    if minimax_heavy:
+        result = scored_moves[:target]
+        logger.info(
+            "[deterministic_proposal] minimax_heavy=True n_legal=%d target=%d "
+            "best_score=%.1f top_gap=%.1f game_phase=%s selected=%d scores=%s",
+            n, target, best_score, top_gap, game_phase, len(result),
+            [round(m["facts"].get("minimax_score", 0.0), 2) for m in result],
+        )
+        return result
+
+    # scored_moves is sorted best-first by minimax_score (scorer_agent guarantees).
+    # Reserve the first min(3, target) slots for the minimax top moves so they
+    # can never be displaced by symbolic sort or role-pin reordering.
+    top_n = min(3, target)
+    top_minimax = scored_moves[:top_n]
+
+    # Diversity pool: fill slots are drawn from the top-max(_DIVERSITY_POOL_RANKS, target)
+    # moves by minimax rank. The cap prevents injecting bottom-ranked moves when a large
+    # score gap exists; the max(…, target) ensures completeness when k > pool size.
+    pool_size = max(_DIVERSITY_POOL_RANKS, target)
+    diversity_pool_moves = scored_moves[:pool_size]
+    diversity_pool_paths: set[tuple] = {
+        tuple(tuple(sq) for sq in m["path"]) for m in diversity_pool_moves
+    }
+
     # Build lookup: path_key -> original scored_move dict for final reconstruction.
     path_to_original: dict[tuple, dict] = {
         tuple(tuple(sq) for sq in m["path"]): m
         for m in scored_moves
     }
 
-    # Decompose each scored move into the (move_meta, facts) format that the
-    # imported proposal_agent helpers expect.
+    # Build (move_meta, facts) pairs for the symbolic pre-sort and role-pin.
+    # Only include moves from the diversity pool.
     moves_with_facts: list[tuple[dict, dict]] = [
         (
             {"type": m["type"], "path": m["path"], "captured": m.get("captured", [])},
             m["facts"],
         )
-        for m in scored_moves
+        for m in diversity_pool_moves
     ]
 
     # ── Step 1: symbolic pre-sort ──────────────────────────────────────────────
@@ -348,26 +339,36 @@ def select_proposal_candidates(
     )
 
     # ── Step 2: strategic role-pinning ─────────────────────────────────────────
-    n_slots = min(5, n)
+    n_slots = min(5, len(moves_with_facts))
     moves_with_facts, _ = _role_pin_moves(moves_with_facts, score_state, n_slots)
 
-    # ── Step 3: minimax top-3 inclusion guarantee ──────────────────────────────
-    if target >= 5:
-        moves_with_facts = _mm_pin(moves_with_facts, n_slots)
-
-    # ── Step 4: reconstruct and return min(k, n) original move dicts ──────────
+    # ── Step 3: build result — top-3 minimax first, then diversity fill ────────
+    # top-3 are unconditionally included first; remaining slots come from the
+    # symbolic-sorted + role-pinned list restricted to the diversity pool,
+    # deduped against the top-3 paths.
     result: list[dict] = []
-    for mv, _ in moves_with_facts[:target]:
-        pk = tuple(tuple(sq) for sq in mv.get("path", []))
-        orig = path_to_original.get(pk)
-        if orig is not None:
-            result.append(orig)
+    seen: set[tuple] = set()
+
+    for m in top_minimax:
+        pk = tuple(tuple(sq) for sq in m["path"])
+        if pk not in seen:
+            result.append(m)
+            seen.add(pk)
+
+    for mv, _ in moves_with_facts:
+        if len(result) >= target:
+            break
+        pk = tuple(tuple(sq) for sq in mv["path"])
+        if pk not in seen and pk in diversity_pool_paths:
+            orig = path_to_original.get(pk)
+            if orig is not None:
+                result.append(orig)
+                seen.add(pk)
 
     logger.info(
-        "[deterministic_proposal] n_legal=%d target=%d selected=%d scores=%s",
-        n,
-        target,
-        len(result),
+        "[deterministic_proposal] n_legal=%d target=%d selected=%d "
+        "pool=%d scores=%s",
+        n, target, len(result), len(diversity_pool_moves),
         [round(m["facts"].get("minimax_score", 0.0), 2) for m in result],
     )
 
