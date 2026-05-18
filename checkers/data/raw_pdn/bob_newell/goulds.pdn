@@ -1,0 +1,9850 @@
+[Event "Gould's Problems #1"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK27,K23:BK28,12."]
+0-1
+
+[Event "Gould's Problems #2"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W13,12,K8:B6,3,K1."]
+1-0
+
+[Event "Gould's Problems #3"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W13,12,K8:B6,3,K1."]
+1-0
+
+[Event "Gould's Problems #4A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK32,K31,30:BK28,K23,K22,21."]
+1-0
+
+[Event "Gould's Problems #4B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK32,K31,30:BK28,K23,K22,21."]
+1/2-1/2
+
+[Event "Gould's Problems #5"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:WK30,12:B13,5."]
+0-1
+
+[Event "Gould's Problems #6"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K26:BK28,19."]
+0-1
+
+[Event "Gould's Problems #7A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK27,K26:BK25,21."]
+0-1
+
+[Event "Gould's Problems #7B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:WK27,K26:BK25,21."]
+0-1
+
+[Event "Gould's Problems #8"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W21,K7:B15,9."]
+0-1
+
+[Event "Gould's Problems #9"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W26,K18:BK16,9."]
+0-1
+
+[Event "Gould's Problems #10"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK15,12:BK24,4."]
+1/2-1/2
+
+[Event "Gould's Problems #11"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,16,11:BK32,3."]
+0-1
+
+[Event "Gould's Problems #12"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK27,K17:BK30,K29,18."]
+0-1
+
+[Event "Gould's Problems #13"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,K10:B5,K2."]
+0-1
+
+[Event "Gould's Problems #14"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:WK19,K14,K7:BK27,K6."]
+0-1
+
+[Event "Gould's Problems #15"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK31,30,K19:BK28,K22,21."]
+0-1
+
+[Event "Gould's Problems #16"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK25,K17:BK23,9."]
+0-1
+
+[Event "Gould's Problems #17"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK11,K2:BK29,10."]
+0-1
+
+[Event "Gould's Problems #18"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK21,K2:BK26,3."]
+0-1
+
+[Event "Gould's Problems #19"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK26,K11:BK4,2."]
+0-1
+
+[Event "Gould's Problems #20"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK24,K4:BK12,3."]
+0-1
+
+[Event "Gould's Problems #21"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK20,K18:BK29,K26,16."]
+1-0
+
+[Event "Gould's Problems #22"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W21,11,9:BK26,3."]
+0-1
+
+[Event "Gould's Problems #23"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK29,K27,K9:BK30,K21,K4."]
+0-1
+
+[Event "Gould's Problems #24"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,22,15:BK26,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #25"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK30,K22,19:BK32,23,12."]
+0-1
+
+[Event "Gould's Problems #26"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK28,K6,K4:B16,7,3."]
+1/2-1/2
+
+[Event "Gould's Problems #27"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK23,K18,K14:BK24,K6."]
+0-1
+
+[Event "Gould's Problems #28"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK15,K10:BK12,K4,K3."]
+1/2-1/2
+
+[Event "Gould's Problems #29"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK23,K22:BK15,K14,13."]
+1/2-1/2
+
+[Event "Gould's Problems #30"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,K27:B28,K19,K18."]
+1/2-1/2
+
+[Event "Gould's Problems #31A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:WK17,K13,K5:BK6,K1."]
+0-1
+
+[Event "Gould's Problems #31B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK17,K13,K5:BK6,K1."]
+0-1
+
+[Event "Gould's Problems #32A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:WK32,K31:B28,K23,K22."]
+1-0
+
+[Event "Gould's Problems #32B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK32,K31:B28,K23,K22."]
+1-0
+
+[Event "Gould's Problems #33"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,K23,22:BK29,K21,20."]
+0-1
+
+[Event "Gould's Problems #34"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,K27,K22:BK32,K29,25."]
+0-1
+
+[Event "Gould's Problems #35"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,26,K10:BK31,18,13."]
+0-1
+
+[Event "Gould's Problems #36"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK30,26,K13:BK29,21,K18."]
+0-1
+
+[Event "Gould's Problems #37"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W20,7:BK15,K9."]
+1-0
+
+[Event "Gould's Problems #38"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK16,K1:BK4,K3."]
+0-1
+
+[Event "Gould's Problems #39"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W18,K17:BK25,10."]
+0-1
+
+[Event "Gould's Problems #40"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K6:B16,15."]
+0-1
+
+[Event "Gould's Problems #41"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK16,K15:BK27,8,K3."]
+1/2-1/2
+
+[Event "Gould's Problems #42"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W25,17,6:BK26,K18."]
+0-1
+
+[Event "Gould's Problems #43"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK14,13,K5:BK6,K1."]
+1/2-1/2
+
+[Event "Gould's Problems #44"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK24,K23,K22:BK30,K28,1."]
+0-1
+
+[Event "Gould's Problems #45"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W16,15,6:BK19,K14,K4."]
+1/2-1/2
+
+[Event "Gould's Problems #46"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK28,K22,K14:BK21,13,K12."]
+0-1
+
+[Event "Gould's Problems #47"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,23,19:B26,12,10."]
+0-1
+
+[Event "Gould's Problems #48"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK19,K15,K6:BK20,K14,K5."]
+1-0
+
+[Event "Gould's Problems #49"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,19,10:BK15,2."]
+0-1
+
+[Event "Gould's Problems #50"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W24,19,K3:BK18,K11."]
+1/2-1/2
+
+[Event "Gould's Problems #51"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK27,K18:B19,K17,K10."]
+1/2-1/2
+
+[Event "Gould's Problems #52"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,28,26,K7:BK27,20,18,14."]
+0-1
+
+[Event "Gould's Problems #53"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,10:B3,1."]
+0-1
+
+[Event "Gould's Problems #54"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W26,K13:BK2,K1."]
+1-0
+
+[Event "Gould's Problems #55"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,15:BK31,22."]
+1/2-1/2
+
+[Event "Gould's Problems #56"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30:BK15,7."]
+1-0
+
+[Event "Gould's Problems #57"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,29:B14,2."]
+1/2-1/2
+
+[Event "Gould's Problems #58"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,K12:BK19,14."]
+1-0
+
+[Event "Gould's Problems #59"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K24:BK29,3."]
+0-1
+
+[Event "Gould's Problems #60A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:WK22,19:B14,K11."]
+1-0
+
+[Event "Gould's Problems #60B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:WK22,19:B14,K11."]
+0-1
+
+
+
+[Event "Gould's Problems #61"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W15,K13:B3,1."]
+0-1
+
+[Event "Gould's Problems #62"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,29:B7,2."]
+1/2-1/2
+
+[Event "Gould's Problems #63"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK23,K1:B4,K2."]
+0-1
+
+[Event "Gould's Problems #64"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W24,16:BK25,K17."]
+1-0
+
+[Event "Gould's Problems #65"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W26,K10:BK17,2."]
+1/2-1/2
+
+[Event "Gould's Problems #66"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,K11:BK3,1."]
+0-1
+
+[Event "Gould's Problems #67"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK32,30:B5,K4."]
+1/2-1/2
+
+[Event "Gould's Problems #68"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK14,9:BK4,2."]
+0-1
+
+[Event "Gould's Problems #69"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK29,K26:B15,K6."]
+0-1
+
+[Event "Gould's Problems #70"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK29,K18:BK21,7."]
+0-1
+
+[Event "Gould's Problems #71"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK31,K9:BK30,1."]
+0-1
+
+[Event "Gould's Problems #72"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK27,K5:BK22,6."]
+0-1
+
+[Event "Gould's Problems #73"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W9,K3:BK29,1."]
+0-1
+
+[Event "Gould's Problems #74"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK28,K21:BK4,1."]
+0-1
+
+[Event "Gould's Problems #75"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK32,K30:B24,2."]
+0-1
+
+[Event "Gould's Problems #76"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK32,K10:BK29,2."]
+0-1
+
+[Event "Gould's Problems #77"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,K12:B27,K5."]
+1/2-1/2
+
+[Event "Gould's Problems #78"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,20:BK13,K12."]
+1-0
+
+[Event "Gould's Problems #79"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK20,K16:B8,K7."]
+0-1
+
+[Event "Gould's Problems #80"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,18:BK7,1."]
+1-0
+
+[Event "Gould's Problems #81"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W27,21:B9,K3."]
+1-0
+
+[Event "Gould's Problems #82"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK30,K28:B21,19."]
+0-1
+
+[Event "Gould's Problems #83"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,25:B19,1."]
+1-0
+
+[Event "Gould's Problems #84"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W20,K12:BK30,K19."]
+1-0
+
+[Event "Gould's Problems #85"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK28,K10:BK19,15."]
+0-1
+
+[Event "Gould's Problems #86"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K30:B13,5."]
+0-1
+
+[Event "Gould's Problems #87"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,21,9:BK23,1."]
+0-1
+
+[Event "Gould's Problems #88"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK23,12,3:BK15,K11."]
+1/2-1/2
+
+[Event "Gould's Problems #89"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W13,K9,K3:BK10,K2."]
+0-1
+
+[Event "Gould's Problems #90"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK32,K23:BK31,24,16."]
+1/2-1/2
+
+[Event "Gould's Problems #91"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,K25,24:BK26,20."]
+0-1
+
+[Event "Gould's Problems #92"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK15,K14:B23,K20,12."]
+1/2-1/2
+
+[Event "Gould's Problems #93"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W23,19,18:BK11,K10."]
+0-1
+
+[Event "Gould's Problems #94"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK15,K14:BK32,13,5."]
+1/2-1/2
+
+[Event "Gould's Problems #95"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK22,11:BK30,21,4."]
+1/2-1/2
+
+[Event "Gould's Problems #96"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W15,K11,K4:BK8,K2."]
+0-1
+
+[Event "Gould's Problems #97"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W22,21,K11:BK23,K3."]
+0-1
+
+[Event "Gould's Problems #98"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,15,11:BK18,13."]
+0-1
+
+[Event "Gould's Problems #99"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W8,K6:B22,18,7."]
+1/2-1/2
+
+[Event "Gould's Problems #100"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK23,K22:BK30,K29,10."]
+1-0
+
+[Event "Gould's Problems #101"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:WK10,K2:BK9,5,K3."]
+1-0
+
+[Event "Gould's Problems #102"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W26,K6:BK24,10,9."]
+1-0
+
+[Event "Gould's Problems #103"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK25,K14:B26,K23,13."]
+1-0
+
+[Event "Gould's Problems #104"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,24,12:B22,7,4."]
+1-0
+
+[Event "Gould's Problems #105"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,24,22:B14,8,7."]
+1/2-1/2
+
+[Event "Gould's Problems #106"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W26,19,17:B18,10,2."]
+1-0
+
+[Event "Gould's Problems #107"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK29,K15,13:B22,18,1."]
+0-1
+
+[Event "Gould's Problems #108"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W26,20,19:B27,12,1."]
+1/2-1/2
+
+[Event "Gould's Problems #109"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,28,9:B20,16,11."]
+0-1
+
+[Event "Gould's Problems #110"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK28,K6,K4:B16,7,3."]
+1/2-1/2
+
+[Event "Gould's Problems #111"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,27,K6:B15,14,13."]
+0-1
+
+[Event "Gould's Problems #112"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,27,23:B20,15,11,9."]
+0-1
+
+[Event "Gould's Problems #113"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,24,20,15,10:B12,8,4,3,1."]
+0-1
+
+[Event "Gould's Problems #114"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W25,14,11,10,9,6,5:B24,23,19,18,15,12,8,4,3."]
+1/2-1/2
+
+[Event "Gould's Problems #115"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,28,25,24,21,20,14,13:B23,19,16,15,11,5,3,2,1."]
+1-0
+
+[Event "Gould's Problems #116"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,28,26,23,22,21,19,18,15:B14,13,12,11,9,8,6,5,4,3,1."]
+1-0
+
+[Event "Gould's Problems #117"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK17,K2:BK18,3."]
+1/2-1/2
+
+[Event "Gould's Problems #118"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK23,K10:BK32,22,14."]
+1-0
+
+[Event "Gould's Problems #119"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W19,16,K3:BK23,10,4."]
+0-1
+
+[Event "Gould's Problems #120"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W25,20,K14:BK23,12,5."]
+0-1
+
+[Event "Gould's Problems #121"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,12,K11:B23,K14,3."]
+1-0
+
+[Event "Gould's Problems #122"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,K14,12:BK23,K22,3."]
+1-0
+
+[Event "Gould's Problems #123"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,20,K1:BK17,15,12."]
+1-0
+
+[Event "Gould's Problems #124"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,30,20:BK32,22,12."]
+1-0
+
+[Event "Gould's Problems #125"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK30,28,13:BK27,14,6."]
+1/2-1/2
+
+[Event "Gould's Problems #126"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,16,14:B21,K18,4."]
+1/2-1/2
+
+[Event "Gould's Problems #127"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,28,K15:B26,12,3."]
+1/2-1/2
+
+[Event "Gould's Problems #128"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,K18:BK25,16,3."]
+0-1
+
+[Event "Gould's Problems #129"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W29,22,21,K18:B28,23,K3."]
+1/2-1/2
+
+[Event "Gould's Problems #130"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,22,21,K18:B28,23,K3."]
+1/2-1/2
+
+[Event "Gould's Problems #131"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,28,K15:BK31,23,22,12."]
+1/2-1/2
+
+[Event "Gould's Problems #132"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,24,15,K7:B21,K19,13,5."]
+1/2-1/2
+
+[Event "Gould's Problems #133"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,21,20,18:B13,12,10,5."]
+0-1
+
+[Event "Gould's Problems #134"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,21,K11,K2:BK30,24,18,15."]
+1/2-1/2
+
+[Event "Gould's Problems #135"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,21,12,11:B18,17,3,1."]
+1-0
+
+[Event "Gould's Problems #136"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K24,20,K8:BK32,15,12,K10."]
+0-1
+
+[Event "Gould's Problems #137"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,21,16,9:B19,14,3,1."]
+1-0
+
+[Event "Gould's Problems #138"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,13,11,6:B26,14,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #139"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W21,20,K13,12:B26,K6,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #140"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,20,K17,12:B26,K6,5,3."]
+1-0
+
+[Event "Gould's Problems #141"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,K17,12,11:BK30,5,3,K2."]
+1-0
+
+[Event "Gould's Problems #142"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W29,28,16,12:B22,14,4,2."]
+1/2-1/2
+
+[Event "Gould's Problems #143"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,22,21,20:BK32,15,14,12."]
+1/2-1/2
+
+[Event "Gould's Problems #144"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,22,K11,K2:B23,K20,9,5."]
+0-1
+
+[Event "Gould's Problems #145"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK23,22,21,K10:BK31,K28,20,5."]
+0-1
+
+[Event "Gould's Problems #146"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK23,22,21,K15:BK31,K28,20,13."]
+1/2-1/2
+
+[Event "Gould's Problems #147"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W23,21,13,K2:BK32,K22,5,3."]
+1-0
+
+[Event "Gould's Problems #148"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W20,13,K7,5:BK14,12,6,1."]
+1-0
+
+[Event "Gould's Problems #149"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,20,19,14,10:B23,15,13,12,8."]
+1/2-1/2
+
+[Event "Gould's Problems #150"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,29,28,18,K3:BK30,20,16,10,2."]
+1-0
+
+[Event "Gould's Problems #151"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,23,21,20,9:B15,14,12,3,1."]
+1-0
+
+[Event "Gould's Problems #152"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,25,14,13,11:B27,20,6,3,1."]
+1-0
+
+[Event "Gould's Problems #153"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:W31,21,20,13,K4:BK30,K29,12,5,1."]
+1-0
+
+[Event "Gould's Problems #154"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,28,27,12,10:B21,20,18,16,3."]
+1-0
+
+[Event "Gould's Problems #155"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,20,16,12,K6:BK19,14,8,5,3."]
+1-0
+
+[Event "Gould's Problems #156"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,29,27,21,20:B18,13,12,9,3."]
+0-1
+
+[Event "Gould's Problems #157"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,26,23,18,10,K1:B25,19,16,12,2."]
+1/2-1/2
+
+[Event "Gould's Problems #158"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,28,26,23,21,10:B19,16,14,13,3,2."]
+0-1
+
+[Event "Gould's Problems #159"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,28,26,23,21,19:B25,20,14,12,11,3."]
+1/2-1/2
+
+[Event "Gould's Problems #160"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,23,21,K19,13:BK25,20,11,8,5,1."]
+0-1
+
+[Event "Gould's Problems #161"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W24,22,21,20,17,13:BK26,12,11,7,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #162"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W24,22,21,20,17,13:BK30,12,11,7,6,5."]
+1-0
+
+[Event "Gould's Problems #163"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,28,27,24,19,K16:BK31,22,21,20,4,1."]
+1-0
+
+[Event "Gould's Problems #164"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,28,27,25,24,22,13:B21,15,14,11,5,4,1."]
+1/2-1/2
+
+[Event "Gould's Problems #165"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W21,16,12,10,K2:BK23,20,13,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #166"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,28,23,18,K15:BK26,21,16,4,1."]
+1/2-1/2
+
+[Event "Gould's Problems #167"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,29,27,21,14,K8,K4:BK30,24,K19,18,13,5,2."]
+1-0
+
+[Event "Gould's Problems #168"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK16,14,K11,10,9:B20,K18,K17,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #169"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W26,22,20,18,15,9:BK21,12,11,8,7,1."]
+1/2-1/2
+
+[Event "Gould's Problems #170"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,23,22,20,18,17:B15,13,11,10,9,3."]
+1/2-1/2
+
+[Event "Gould's Problems #171"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,16,14:BK23,21,4."]
+1-0
+
+[Event "Gould's Problems #172"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W25,17,13,7:B20,K15,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #173"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,26,23,20,19,18,16:B21,13,12,10,8,5,2."]
+1-0
+
+[Event "Gould's Problems #174"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,27,25,23,22,21,20,19,13:B16,14,12,11,10,7,5,2,1."]
+1-0
+
+[Event "Gould's Problems #175"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,25,K7:B26,19,K14."]
+1-0
+
+[Event "Gould's Problems #176"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,22,K11:BK27,19,K14."]
+1-0
+
+[Event "Gould's Problems #177"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,21,K11:BK20,19,K14."]
+1-0
+
+[Event "Gould's Problems #178"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,22,K19:B26,K20,K14."]
+1-0
+
+[Event "Gould's Problems #179"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,27,21:B25,K14."]
+1/2-1/2
+
+[Event "Gould's Problems #180"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,K11,10,5:B21,K17,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #181"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,K15,K11:BK27,13,12."]
+1/2-1/2
+
+[Event "Gould's Problems #182"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,21,K15,9:BK22,20,14,5."]
+0-1
+
+[Event "Gould's Problems #183"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,17,13,K11:BK22,6,5,2."]
+1-0
+
+[Event "Gould's Problems #184"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,27,23,19,9:B20,12,11,10,2."]
+0-1
+
+[Event "Gould's Problems #185"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,21,K19,12,11:B28,K14,13,4,2."]
+0-1
+
+[Event "Gould's Problems #186"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,K15,13,12,K8:BK22,K16,14,6,3."]
+1-0
+
+[Event "Gould's Problems #187"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W20,K8:BK10,K9."]
+1-0
+
+[Event "Gould's Problems #188"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W21,15:BK22,K2."]
+1/2-1/2
+
+[Event "Gould's Problems #189"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK32,11,K2:BK10,3."]
+0-1
+
+[Event "Gould's Problems #190"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W19,15,11:BK14,K12."]
+0-1
+
+[Event "Gould's Problems #191"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK15,K10:B25,13,5."]
+1/2-1/2
+
+[Event "Gould's Problems #192"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK27,K23,19:BK28,K20."]
+0-1
+
+[Event "Gould's Problems #193"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W14,9,7:BK18,8,K1."]
+1-0
+
+[Event "Gould's Problems #194"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK31,30,18:B28,23,11."]
+0-1
+
+[Event "Gould's Problems #195"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W10,9,K2:BK17,11,K1."]
+1-0
+
+[Event "Gould's Problems #196"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK26,K9,K1:BK24,18,14."]
+1/2-1/2
+
+[Event "Gould's Problems #197"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK23,13,5:B24,15,6."]
+1/2-1/2
+
+[Event "Gould's Problems #198"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,19,K15:B26,20,8."]
+1/2-1/2
+
+[Event "Gould's Problems #199"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W24,23,K22:BK32,21,13."]
+0-1
+
+[Event "Gould's Problems #200"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W18,12,K4:BK17,7,3."]
+1-0
+
+[Event "Gould's Problems #201"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,K19,18:BK28,K27,12."]
+1/2-1/2
+
+[Event "Gould's Problems #202"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W17,12,K8:BK15,K9,3."]
+1-0
+
+[Event "Gould's Problems #203"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,15,14,K4:B7,6,3."]
+0-1
+
+[Event "Gould's Problems #204"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W24,11,K7:B16,14,10,5."]
+1/2-1/2
+
+[Event "Gould's Problems #205"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K31,20:B28,23,19,11."]
+0-1
+
+[Event "Gould's Problems #206"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,K10,6:BK31,19,15,K11."]
+1-0
+
+[Event "Gould's Problems #207"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,K18,11,K2:BK19,K17,3."]
+0-1
+
+[Event "Gould's Problems #208"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W17,K16,13,12:BK10,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #209"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,19,17,10:BK27,14,12,2."]
+1-0
+
+[Event "Gould's Problems #210"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,17,13,K7:BK23,20,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #211"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,24,23,7:B20,16,K14,1."]
+1/2-1/2
+
+[Event "Gould's Problems #212"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W26,25,22,K6:B15,13,11,10."]
+0-1
+
+[Event "Gould's Problems #213"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,28,K18,K11:BK31,K30,20,19."]
+1/2-1/2
+
+[Event "Gould's Problems #214"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W20,19,8,K7:BK27,12,K10,3."]
+1/2-1/2
+
+[Event "Gould's Problems #215"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K19,16,K2:BK22,21,17,12."]
+0-1
+
+[Event "Gould's Problems #216"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,22,K10,K6:BK16,13,9,5."]
+0-1
+
+[Event "Gould's Problems #217"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,20,K19,K6:BK32,K25,21,17."]
+1/2-1/2
+
+[Event "Gould's Problems #218"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W23,18,K10,K2:BK27,K25,12,8."]
+1-0
+
+[Event "Gould's Problems #219"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK30,24,21,7:BK22,K18,13,12."]
+1-0
+
+[Event "Gould's Problems #220"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,K23,K19,9:BK32,K31,21,13."]
+1/2-1/2
+
+[Event "Gould's Problems #221"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,K14,K2:B23,K19,16,13."]
+0-1
+
+[Event "Gould's Problems #222"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,25,21,K11:BK27,23,14,13."]
+1-0
+
+[Event "Gould's Problems #223"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,19,15,13:BK31,12,10,6."]
+1-0
+
+[Event "Gould's Problems #224"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,26,24,21:B16,14,9,8."]
+1-0
+
+[Event "Gould's Problems #225"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,19,18,K15:BK31,17,12,3."]
+1/2-1/2
+
+[Event "Gould's Problems #226A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W20,19,15,K11,K1:BK24,K18,12,5."]
+0-1
+
+[Event "Gould's Problems #226B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W20,19,15,K11,K1:BK24,K18,12,5."]
+0-1
+
+[Event "Gould's Problems #227"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W24,20,K14,K10:BK21,K16,12,11,8."]
+1/2-1/2
+
+[Event "Gould's Problems #228"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W23,20,19,K18,K15:B21,13,12."]
+0-1
+
+[Event "Gould's Problems #229"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W25,22,21,20,K3:BK31,14,13,10,2."]
+1-0
+
+[Event "Gould's Problems #230"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W25,24,22,11,10:BK26,12,5,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #231"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,23,20,19,6:BK17,14,12,11,3."]
+1/2-1/2
+
+[Event "Gould's Problems #232"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,23,22,19,13:B12,11,10,6,1."]
+1-0
+
+[Event "Gould's Problems #233"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W26,19,15,13,5:B27,12,6,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #234"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W25,22,21,20,K7:BK31,18,15,13,12."]
+1/2-1/2
+
+[Event "Gould's Problems #235"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:W23,22,21,17,13:BK31,15,12,3,1."]
+1-0
+
+[Event "Gould's Problems #236"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W23,22,20,19,16:B13,7,3,2,1."]
+1-0
+
+[Event "Gould's Problems #237"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,23,22,19,10:B20,17,13,12,5."]
+1/2-1/2
+
+[Event "Gould's Problems #238"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,21,17,13,K3:B16,14,12,10,6,2."]
+1/2-1/2
+
+[Event "Gould's Problems #239"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,29,28,26:B20,19,16,15,12,8."]
+0-1
+
+[Event "Gould's Problems #240"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W23,21,19,18,17,13:B24,14,10,6,2,1."]
+1-0
+
+[Event "Gould's Problems #241"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,22,21,20,19,17:B14,13,12,10,9,5."]
+1/2-1/2
+
+[Event "Gould's Problems #242"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,26,22,16,13,7:B21,19,17,12,9,6."]
+1/2-1/2
+
+[Event "Gould's Problems #243"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,28,16,12,K10,K9:BK32,23,22,K21,17,3."]
+1/2-1/2
+
+[Event "Gould's Problems #244"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,23,22,21,20,13:B14,12,8,6,2,1."]
+1-0
+
+[Event "Gould's Problems #245"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,28,26,22,16,K1:B21,19,14,13,6,3."]
+1/2-1/2
+
+[Event "Gould's Problems #246"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,26,21,17,13:B20,15,14,11,10,6."]
+0-1
+
+[Event "Gould's Problems #247"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,29,28,21,18,15,14:B16,12,9,5,3,2."]
+0-1
+
+[Event "Gould's Problems #248"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,20,19,18,15,13:B17,12,11,8,7,6,5."]
+0-1
+
+[Event "Gould's Problems #249"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,29,24,22,20,19,K2:B21,14,13,12,11,8,1."]
+0-1
+
+[Event "Gould's Problems #250"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,24,21,20,17,13,10:B23,22,15,11,6,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #251"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,27,25,24,17,12:B21,20,15,14,11,10,3."]
+1/2-1/2
+
+[Event "Gould's Problems #252"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,27,26,23,21,19,10,K1:BK29,13,12,8,5,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #253"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,29,28,25,24,21,17:B18,15,14,12,11,10,8,6."]
+0-1
+
+[Event "Gould's Problems #254"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,28,26,23,22,20,16,13:B21,17,15,11,7,6,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #255"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W27,26,25,23,22,21,19,18:B14,12,11,10,9,6,5,1."]
+1/2-1/2
+
+[Event "Gould's Problems #256"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,29,27,24,23,21,19,17:B20,16,15,14,12,10,9,7,2."]
+0-1
+
+[Event "Gould's Problems #257"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W26,K17:B21,K15,14."]
+1-0
+
+[Event "Gould's Problems #258"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,20:B24,K19,2."]
+1-0
+
+[Event "Gould's Problems #259"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W24,20,19:BK26,K4."]
+1/2-1/2
+
+[Event "Gould's Problems #260"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W24,20,19:BK26,4."]
+1/2-1/2
+
+[Event "Gould's Problems #261"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,12,K11:BK23,3,K2."]
+1-0
+
+[Event "Gould's Problems #262"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK19,16,K6:BK11,7,5."]
+0-1
+
+[Event "Gould's Problems #263"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,K26,22:B14,13,12."]
+1/2-1/2
+
+[Event "Gould's Problems #264"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,17,K14:BK25,6,K5."]
+1-0
+
+[Event "Gould's Problems #265"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,K20,K19:BK31,K27,23."]
+1-0
+
+[Event "Gould's Problems #266"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK32,31,12:BK19,K11,K10."]
+1-0
+
+[Event "Gould's Problems #267"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK22,21,K2:B15,13,9,5."]
+1/2-1/2
+
+[Event "Gould's Problems #268"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK32,30,K15:BK27,23,21,K6."]
+1/2-1/2
+
+[Event "Gould's Problems #269"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,K11,K7:B21,K14,12,4."]
+1/2-1/2
+
+[Event "Gould's Problems #270"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W22,21,15,11:BK27,6,3."]
+0-1
+
+[Event "Gould's Problems #271"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,12,K10,K7:BK23,K20,K17,3."]
+1-0
+
+[Event "Gould's Problems #272"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,25,21,19:B18,14,13,11."]
+1/2-1/2
+
+[Event "Gould's Problems #273"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,27,25,K4:B20,12,K11,5."]
+1-0
+
+[Event "Gould's Problems #274"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,18,14,K11:BK32,K27,13,12."]
+1-0
+
+[Event "Gould's Problems #275"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,23,22,21:B15,5,4,1."]
+1/2-1/2
+
+[Event "Gould's Problems #276"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W29,28,K24,K11:BK31,K23,12,5."]
+1/2-1/2
+
+[Event "Gould's Problems #277"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,12,K11,K10:BK23,K20,K17,3."]
+1/2-1/2
+
+[Event "Gould's Problems #278"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,12,K11,K2:BK24,K23,K9,3."]
+1-0
+
+[Event "Gould's Problems #279"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,K26,K18,5:B21,13,K10,K9,1."]
+1-0
+
+[Event "Gould's Problems #280"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,K23,K22,5:BK32,K27,21,13,1."]
+1/2-1/2
+
+[Event "Gould's Problems #281"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,K22,K10,5:BK23,21,K15,13,6."]
+1-0
+
+[Event "Gould's Problems #282"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,K22,K14,5:BK31,K23,21,13,1."]
+1-0
+
+[Event "Gould's Problems #283"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK24,20,12,7,K2:BK15,11,10,3."]
+0-1
+
+[Event "Gould's Problems #284"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,30,24,20:B22,17,11,7,5."]
+1-0
+
+[Event "Gould's Problems #285"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,30,27,19:B22,20,18,12,5."]
+1/2-1/2
+
+[Event "Gould's Problems #286"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,26,23,21,18:B16,13,12,9,5."]
+1-0
+
+[Event "Gould's Problems #287"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W26,23,17,13,5:B27,16,11,10,2."]
+1/2-1/2
+
+[Event "Gould's Problems #288"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,29,20,18,12:B21,15,11,8,3."]
+0-1
+
+[Event "Gould's Problems #289"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,28,27,12,10:B22,20,16,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #290"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,28,22,20,19:B21,15,12,10,9."]
+0-1
+
+[Event "Gould's Problems #291"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,23,21,19,K6:B22,16,14,12,4."]
+0-1
+
+[Event "Gould's Problems #292A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,28,26,22,20,16:B17,13,11,7,5,3."]
+0-1
+
+[Event "Gould's Problems #292B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,28,26,22,20,16:B17,13,11,7,5,3."]
+1-0
+
+[Event "Gould's Problems #293"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W22,21,20,19,K2:B27,14,12,10,3,1."]
+1-0
+
+[Event "Gould's Problems #294"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,24,20,14,K2:B22,K16,12,11,8,5."]
+1-0
+
+[Event "Gould's Problems #295"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,27,24,19,18,13:B22,12,10,5,4,2."]
+1-0
+
+[Event "Gould's Problems #296"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,23,22,19,18:B20,13,12,10,9,6."]
+0-1
+
+[Event "Gould's Problems #297"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,24,20,18,15,6:BK26,25,12,11,8,5."]
+1-0
+
+[Event "Gould's Problems #298"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,25,21,19,12,K2:BK17,14,11,10,5,3."]
+1-0
+
+[Event "Gould's Problems #299"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,26,24,21,17,13:B19,15,14,10,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #300"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W25,21,19,17,15,13:BK31,14,10,9,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #301"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,23,20,19,13:BK26,15,12,10,7,6."]
+0-1
+
+[Event "Gould's Problems #302"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W32,20,17,11,K7,6:B28,12,9,5,4,2."]
+0-1
+
+[Event "Gould's Problems #303"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,23,22,21,20,19:B15,14,13,12,10,4."]
+1/2-1/2
+
+[Event "Gould's Problems #304"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,28,24,20,K11:B22,K19,17,15,12,8,5."]
+1-0
+
+[Event "Gould's Problems #305"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,30,26,24,23,22:B15,14,12,11,10,6,2."]
+0-1
+
+[Event "Gould's Problems #306"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,25,24,21,16,13,12:B18,15,14,10,9,6,3."]
+1-0
+
+[Event "Gould's Problems #307"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,27,26,23,21,18,12:B20,10,9,8,7,2,1."]
+1-0
+
+[Event "Gould's Problems #308"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,28,19,17,16,15:BK29,23,12,10,8,7,6."]
+0-1
+
+[Event "Gould's Problems #309"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,27,26,24,23,22,19:B20,16,14,12,10,5,2."]
+1-0
+
+[Event "Gould's Problems #310"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,29,26,25,21,20,19:B17,12,7,6,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #311"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W27,26,25,21,20,19,12:B18,17,14,13,10,8,3."]
+1/2-1/2
+
+[Event "Gould's Problems #312"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,22,20,19,18,15,5:BK29,21,12,11,8,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #313"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,26,22,20,18,6:B28,21,17,13,12,11,5,3."]
+0-1
+
+[Event "Gould's Problems #314"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,27,25,24,23,19,13,8:B20,17,16,12,10,6,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #315"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,28,22,21,17,13,K8:B23,20,19,16,15,6,5,2."]
+1-0
+
+[Event "Gould's Problems #316"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,28,24,23,21,19,16,13:B18,14,12,10,7,4,2."]
+1/2-1/2
+
+[Event "Gould's Problems #317"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,26,25,24,19,18,14:B20,12,11,10,7,5,3,2."]
+1-0
+
+[Event "Gould's Problems #318"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,27,23,22,21,19,18:B14,13,12,11,10,9,5,2."]
+0-1
+
+[Event "Gould's Problems #319"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,30,28,27,23,21,20:B22,15,14,12,11,8,5,3."]
+0-1
+
+[Event "Gould's Problems #320"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,26,24,23,19,15,14,10:B20,17,13,12,7,5,3,1."]
+0-1
+
+[Event "Gould's Problems #321"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W29,26,25,22,21,20,19,16,15:B14,13,12,8,7,6,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #322"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,28,27,26,23,21,20,17,13:B19,16,15,14,11,10,8,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #323"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,29,27,26,25,24,23,21,13:B18,15,14,12,11,7,6,5,2,1."]
+0-1
+
+[Event "Gould's Problems #324"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,30,24,23,22,21,19,18,14:B20,13,12,9,8,7,6,5,3,2."]
+0-1
+
+[Event "Gould's Problems #325"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,K24,12,K6:BK23,K18,K14,K11."]
+1-0
+
+[Event "Gould's Problems #326"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK23,K22:BK31,9,2."]
+1/2-1/2
+
+[Event "Gould's Problems #327"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK31,29:BK24,21."]
+1/2-1/2
+
+[Event "Gould's Problems #328"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "*"]
+[Setup "1"]
+[FEN "B:W31,30,29:B21,19."]
+*
+
+[Event "Gould's Problems #329"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,18,K3:BK11,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #330"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,12,6:B14,13,7."]
+1/2-1/2
+
+[Event "Gould's Problems #331"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,22,9:B27,12,11."]
+1/2-1/2
+
+[Event "Gould's Problems #332"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,30,6:B23,19,17,10."]
+1-0
+
+[Event "Gould's Problems #333"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W19,K17,11,K9:B27,K24,4,3."]
+1/2-1/2
+
+[Event "Gould's Problems #334"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,22,K20,18:B27,21,13,9."]
+1/2-1/2
+
+[Event "Gould's Problems #335"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,23,18,K15:BK30,K22,12,9."]
+1/2-1/2
+
+[Event "Gould's Problems #336"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,21,20,7:B19,14,11,8."]
+0-1
+
+[Event "Gould's Problems #337"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W24,21,20,17:B23,12,9,8."]
+1/2-1/2
+
+[Event "Gould's Problems #338"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W22,K18,17,K3:BK21,13,9,5."]
+0-1
+
+[Event "Gould's Problems #339"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK22,18,14,7:BK30,K29,21,5."]
+1/2-1/2
+
+[Event "Gould's Problems #340"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,20,13,K10:BK31,21,17,12."]
+0-1
+
+[Event "Gould's Problems #341"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W10,5,K3,K2:B16,K15,K9,1."]
+1/2-1/2
+
+[Event "Gould's Problems #342"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,19,15,14:B13,7,K6,1."]
+1-0
+
+[Event "Gould's Problems #343"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W25,21,15,6:BK30,13,9,3."]
+1-0
+
+[Event "Gould's Problems #344"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,26,21,K11:B24,18,5,4,3."]
+1-0
+
+[Event "Gould's Problems #345"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,21,K7,6:BK27,22,14,10,1."]
+1-0
+
+[Event "Gould's Problems #346"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W25,21,15,10,K4:BK30,13,12,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #347"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,27,26,13,12:B20,18,15,14,5."]
+1/2-1/2
+
+[Event "Gould's Problems #348"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK32,27,19,18,10:BK29,17,13,11,2."]
+0-1
+
+[Event "Gould's Problems #349"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,23,19,K10,7:BK26,16,12,9,3."]
+0-1
+
+[Event "Gould's Problems #350"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,27,24,22,7:B20,19,15,14,13."]
+1/2-1/2
+
+[Event "Gould's Problems #351"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,18,17,12:B28,9,7,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #352"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,27,23,K15,14:BK28,20,12,8,5."]
+0-1
+
+[Event "Gould's Problems #353"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W17,15,13,K12,K9:B24,K23,22,6,1."]
+1-0
+
+[Event "Gould's Problems #354"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,21,10,K9,K2:B27,K22,16,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #355"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W26,21,20,17,13:B19,15,10,5,1."]
+1-0
+
+[Event "Gould's Problems #356"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W27,26,25,20,19:B13,12,11,9,4."]
+1/2-1/2
+
+[Event "Gould's Problems #357"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,20,16,K11,K9:BK30,25,22,17,14,4."]
+1-0
+
+[Event "Gould's Problems #358"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W22,21,K16,K14,12,10:BK23,K15,13,K7,3."]
+1/2-1/2
+
+[Event "Gould's Problems #359"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,27,19,15,13:B20,17,12,9,8,6."]
+1-0
+
+[Event "Gould's Problems #360"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,20,K18,16,K14,K2:BK31,24,19,17,K5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #361"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,27,26,17,12,K3:BK32,K29,21,19,9,4."]
+0-1
+
+[Event "Gould's Problems #362"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,26,21,20,18,14:B19,17,11,7,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #363"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,29,20,19,K18,K14:BK30,23,K21,13,12,11."]
+1/2-1/2
+
+[Event "Gould's Problems #364"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,24,21,18,15:B20,16,9,7,5,3."]
+0-1
+
+[Event "Gould's Problems #365"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,27,26,23,19:B20,13,12,11,10,2."]
+0-1
+
+[Event "Gould's Problems #366"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W27,23,21,19,17,14:B20,16,12,10,7,3."]
+1/2-1/2
+
+[Event "Gould's Problems #367"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,28,27,17,K12,10:BK29,22,20,19,16,1."]
+1/2-1/2
+
+[Event "Gould's Problems #368"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,30,28,20,14,13:B23,22,12,11,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #369"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,23,19,13,10,K3:BK32,K25,K22,20,7,5."]
+0-1
+
+[Event "Gould's Problems #370"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,29,27,24,23,K9:B22,16,15,11,10,3,1."]
+1-0
+
+[Event "Gould's Problems #371"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK30,K26,24,22,K20,19,11:B17,13,K12,10,K9,5,K2."]
+0-1
+
+[Event "Gould's Problems #372"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK21,K20,K17,14,11,10,K3:BK30,K28,27,K26,K12,2,1."]
+0-1
+
+[Event "Gould's Problems #373"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,20,17,11,9,8,K3:BK29,K28,26,25,K18,K10,1."]
+0-1
+
+[Event "Gould's Problems #374"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,29,22,K6,K5,K1:BK31,23,20,16,K15,8,K7."]
+0-1
+
+[Event "Gould's Problems #375"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,27,K24,21,K20,13,6:BK32,K29,K23,18,K11,8,7."]
+0-1
+
+[Event "Gould's Problems #376"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,27,26,21,18,14,13:B20,19,16,11,6,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #377"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,26,23,20,19,18,12:B21,17,11,10,9,7,3."]
+0-1
+
+[Event "Gould's Problems #378"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,22,21,19,17,13:B11,10,9,8,6,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #379"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,23,21,19,18,17,13:B20,12,10,9,7,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #380"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,25,22,20,19,18,17:B13,12,11,10,9,7,1."]
+1/2-1/2
+
+[Event "Gould's Problems #381"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W27,23,21,19,18,14,13:B20,16,12,7,6,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #382"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,27,25,19,15,14,5:B21,20,17,12,8,7,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #383"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,27,26,25,14,13,11:B20,18,16,12,9,6,5,1."]
+1-0
+
+[Event "Gould's Problems #384"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,28,26,24,23,22,20:B21,16,15,12,11,10,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #385"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK23,21,K19,18,K17,K11,10,K9:BK32,K31,K30,K29,28,20,2,1."]
+0-1
+
+[Event "Gould's Problems #386"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,30,26,22,20,14,9:B24,15,13,12,7,5,4,2."]
+0-1
+
+[Event "Gould's Problems #387"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,K23,21,18,15,12,11,K10,K2:B24,22,K20,16,K13,K9,4,3,1."]
+1-0
+
+[Event "Gould's Problems #388"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,28,27,26,24,22,21,20,13:B19,15,14,11,10,7,6,4,2."]
+1/2-1/2
+
+[Event "Gould's Problems #389"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,28,27,26,23,22,21,20,10:B15,14,13,12,11,9,7,3,1."]
+0-1
+
+[Event "Gould's Problems #390"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,29,28,27,26,25,24,23,19,14,10:B18,16,15,12,9,7,5,3,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #391"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,24,23,20,19,18:B17,16,13,12,11,3."]
+0-1
+
+[Event "Gould's Problems #392"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,27,25,22,21,20:B18,15,13,11,10,3."]
+1/2-1/2
+
+[Event "Gould's Problems #393"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,13,K9,K4:BK15,10,3,1."]
+1-0
+
+[Event "Gould's Problems #394"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W24,21,20,19,K2,K1:BK31,K28,12,11,7."]
+0-1
+
+[Event "Gould's Problems #395"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,28,26,25,23,21,20,19,16:B14,13,12,11,8,7,6,3,2."]
+0-1
+
+[Event "Gould's Problems #396"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,28,25,24,22,20,12,9:B23,19,15,14,11,7,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #397"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,27,26,23,22,21,18,14,12:B20,17,13,11,9,7,5,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #398"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,22,20,18,10,7,5:BK25,21,16,13,4,3,1."]
+1-0
+
+[Event "Gould's Problems #399"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,28,25,20,19,18,14:B23,12,11,8,6,5,3."]
+0-1
+
+[Event "Gould's Problems #400"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,28,K18,14,K2:BK19,16,12,11,8."]
+0-1
+
+[Event "Gould's Problems #401"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,26,23,K15:BK22,20,19,16,12."]
+0-1
+
+[Event "Gould's Problems #402"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W29,28,22,21,20,13:B14,12,9,8,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #403"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,26,22,20,19,13:B21,17,12,9,7,6."]
+0-1
+
+[Event "Gould's Problems #404"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,26,25,21,20,19,17,16:B15,14,12,10,7,3,2,1."]
+0-1
+
+[Event "Gould's Problems #405"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,28,26,25,22,21,20:B19,18,16,15,13,10,5,3,1."]
+1-0
+
+[Event "Gould's Problems #406"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W27,26,23,22,21,19,18,12:B17,16,14,13,9,7,5,3."]
+1-0
+
+[Event "Gould's Problems #407"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,30,22,20,18,17,14,13:BK32,19,16,11,9,6,5,1."]
+1/2-1/2
+
+[Event "Gould's Problems #408"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,27,25,24,21,K8:BK31,20,18,13,12,7."]
+1/2-1/2
+
+[Event "Gould's Problems #409"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,31,27,K15,K12:B28,K25,22,20,19,18,16."]
+1/2-1/2
+
+[Event "Gould's Problems #410"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,24,20,K14,K7:BK31,K23,12,11,8."]
+1/2-1/2
+
+[Event "Gould's Problems #411"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,18,K15,11:BK31,24,23,13,5."]
+1/2-1/2
+
+[Event "Gould's Problems #412"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,24,22,21,20,12,K2:BK27,15,14,11,10,7,3."]
+1/2-1/2
+
+[Event "Gould's Problems #413"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,28,25,K11:BK31,23,20,13,5."]
+1/2-1/2
+
+[Event "Gould's Problems #414"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,28,27,25,24,20,14,13:B15,11,8,7,6,5,2."]
+0-1
+
+[Event "Gould's Problems #415"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,28,26,22,18,16,13:B21,19,15,12,10,8,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #416"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,27,26,25,23,21,20,17,13:B15,14,11,10,8,6,5,1."]
+1/2-1/2
+
+[Event "Gould's Problems #417"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,27,26,25,23,22,21,18,12,11:BK32,15,14,9,6,5,4,3,2."]
+0-1
+
+[Event "Gould's Problems #418"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,29,28,21,20,19,18:B23,12,11,10,8,6,1."]
+0-1
+
+[Event "Gould's Problems #419"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,29,28,25,21,20,19,18,17:B23,12,11,10,9,8,3,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #420"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,27,24,20,14,5:B21,12,6,4,3,1."]
+1-0
+
+[Event "Gould's Problems #421"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,30,29,21,20,18:B22,13,12,11,10,7,2."]
+1-0
+
+[Event "Gould's Problems #422"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,30,27,20,19,18,5:B22,21,12,11,10,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #423"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,27,26,23,21,19,18,14:B20,16,12,10,9,7,5,3,2."]
+0-1
+
+[Event "Gould's Problems #424"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,27,26,23,21,19,18,14:B20,16,12,9,7,6,5,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #425"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,28,27,26,25,23,21,11:B24,20,15,14,13,5,3,2,1."]
+1-0
+
+[Event "Gould's Problems #426"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,28,21,19,18,17,15:B23,16,10,8,7,6,5,1."]
+0-1
+
+[Event "Gould's Problems #427"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,31,27,26,25,21,13,11:B24,20,15,14,6,3,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #428"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,27,26,25,23,21,13,11:B28,20,15,14,6,5,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #429"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W24,20,12,K11,10,K2:BK18,K9,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #430"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,16,12,K11,10,K2:BK18,K9,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #431"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,12,11,10,K2:BK30,K22,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #432"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,28,K23,K15,12,10,K4:BK32,K30,K25,3,K2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #433"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,28,20,16,12,K11,10:BK32,K25,22,14,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #434"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,12,11,10,K2:BK31,K27,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #435"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,12,K11,10,K7:BK27,K18,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #436"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,20,K16,K15,12,10:B26,K23,K22,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #437"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,K16,12,10,K2:BK27,K9,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #438"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W20,12,10,K7,K2:BK22,K9,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #439"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,27,24,23,22,21,19,13:B15,14,12,11,10,6,5,4,2."]
+1/2-1/2
+
+[Event "Gould's Problems #440"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,25,24,15,14,13:B23,20,8,7,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #441"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,24,23,22,21,20,19:B14,13,12,11,10,6,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #442"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,28,27,25,23,19:B17,12,7,4,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #443"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,12,10,8,K2:B27,K19,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #444"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,23,20,19,14,K7:B27,21,13,12,11,5."]
+1/2-1/2
+
+[Event "Gould's Problems #445"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,30,29,28,27,26,25,22,21,19,18:B20,12,11,10,9,7,6,5,4,3,2,1."]
+0-1
+
+[Event "Gould's Problems #446"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,26,25,20,19,17,14,13:B12,11,10,7,6,5,2."]
+0-1
+
+[Event "Gould's Problems #447"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K22,K19,K14:BK32,K31,K29,13."]
+0-1
+
+[Event "Gould's Problems #448"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK30,25,K22,K14:BK31,K29,K27,13."]
+1/2-1/2
+
+[Event "Gould's Problems #449"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,26,22,20,19,18,17,13,12:B28,24,21,11,10,9,6,5,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #450"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,28,22,20,18,15,5:BK25,21,12,11,8,6,1."]
+1-0
+
+[Event "Gould's Problems #451"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,27,26,25,24,23,21,20:B18,15,14,13,12,10,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #452"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,28,26,25,24,23,22,21,20,19,16:B14,12,11,10,9,8,7,6,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #455"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK30,K12:BK29,4."]
+0-1
+
+[Event "Gould's Problems #456"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:WK22,K13:BK21,1."]
+0-1
+
+[Event "Gould's Problems #457"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK23,K10:B5,K2,K1."]
+1/2-1/2
+
+[Event "Gould's Problems #458"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K19,K14:BK29,K13,4."]
+0-1
+
+[Event "Gould's Problems #459"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K19,K11:B28,K8,4."]
+0-1
+
+[Event "Gould's Problems #460"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W20,K14,12:B11,3,K2."]
+1-0
+
+[Event "Gould's Problems #461"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W22,K19,17:BK25,13,10."]
+1/2-1/2
+
+[Event "Gould's Problems #462"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK22,14,K12:BK21,5,4."]
+0-1
+
+[Event "Gould's Problems #463"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK18,K14,11:BK21,K19,5."]
+0-1
+
+[Event "Gould's Problems #464"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK28,21,12,K5:BK24,K14,K11,K7."]
+1-0
+
+[Event "Gould's Problems #465"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,K28,26,20:B21,17,12,5."]
+0-1
+
+[Event "Gould's Problems #466"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK31,22,15,13:B21,17,K7,6."]
+0-1
+
+[Event "Gould's Problems #467"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK31,30,28,K22:BK23,21,K20,16."]
+0-1
+
+[Event "Gould's Problems #468"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K11,K9,K1:BK25,21,12,K10."]
+0-1
+
+[Event "Gould's Problems #469"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W22,21,20,15:B14,13,8,6."]
+1/2-1/2
+
+[Event "Gould's Problems #470"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK23,K20,19,12:BK32,K11,K10,K9."]
+1-0
+
+[Event "Gould's Problems #471"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K28,K22,14:BK29,K21,5,3."]
+0-1
+
+[Event "Gould's Problems #472"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K22,18,K15:BK29,21,K13,4."]
+0-1
+
+[Event "Gould's Problems #473"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK22,K19,14,K11:BK21,K20,K12,5."]
+0-1
+
+[Event "Gould's Problems #474"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W32,30,K24,K22:BK31,K27,23,20."]
+0-1
+
+[Event "Gould's Problems #475"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K23,K22,19:BK30,K29,K25,12."]
+0-1
+
+[Event "Gould's Problems #476"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,K14,6:BK31,25,23,21,5."]
+1/2-1/2
+
+[Event "Gould's Problems #477"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,21,19,K4:B24,18,13,3."]
+1/2-1/2
+
+[Event "Gould's Problems #478"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W28,20,K16,K15,12:BK27,K23,19,3."]
+0-1
+
+[Event "Gould's Problems #479"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,20,13,K12,10:BK29,23,K14,5,K3."]
+0-1
+
+[Event "Gould's Problems #480"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,24,10,5,K2:B21,K18,17,12,1."]
+1-0
+
+[Event "Gould's Problems #481"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W24,21,13,K8,K2:BK22,18,16,15,1."]
+0-1
+
+[Event "Gould's Problems #482"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,28,K11,K10,K9:B27,K22,21,20,19,15."]
+1-0
+
+[Event "Gould's Problems #483"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,20,18,16,K14,10:BK29,K25,K19,13,2."]
+0-1
+
+[Event "Gould's Problems #484"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W25,23,21,18,16,12:BK27,13,10,8,3."]
+1/2-1/2
+
+[Event "Gould's Problems #485"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K28,26,17,12,K11:B24,K19,10,3,2,1."]
+0-1
+
+[Event "Gould's Problems #486"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,26,22,13,K10:BK24,21,K17,16,5,1."]
+0-1
+
+[Event "Gould's Problems #487"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,14,12,9,8:BK28,22,18,7,5,2."]
+0-1
+
+[Event "Gould's Problems #488"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,26,24,19,16,5:BK25,21,12,10,8,7."]
+1/2-1/2
+
+[Event "Gould's Problems #489"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,20,18,17,15,K1:BK27,12,8,7,5,4."]
+1-0
+
+[Event "Gould's Problems #490"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,26,20,19,18,K9:BK29,21,14,12,11,8,7."]
+0-1
+
+[Event "Gould's Problems #491"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,26,23,20,18,15,5:BK25,21,14,12,11,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #492"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,22,21,20,19,18,15:BK24,14,13,12,9,8,6."]
+1/2-1/2
+
+[Event "Gould's Problems #493"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,24,23,20,19,13,K5:BK32,12,11,10,8,6,2."]
+0-1
+
+[Event "Gould's Problems #494"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,27,23,22,19,18,17,15:B20,16,13,12,11,9,8,1."]
+0-1
+
+[Event "Gould's Problems #495"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,26,23,22,21,20,18,17:B16,15,13,12,11,9,7,5."]
+1/2-1/2
+
+[Event "Gould's Problems #496"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,28,26,25,21,19,17,15,13:B24,14,12,10,8,6,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #497"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,25,21,19,14,K10,7,K6:BK30,24,18,13,12,11,5,4,3."]
+0-1
+
+[Event "Gould's Problems #498"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,27,25,24,23,21,17,13,12:B18,15,14,11,10,9,6,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #499"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,27,24,23,22,21,19,13:B20,15,14,11,10,6,5,2,1."]
+1-0
+
+[Event "Gould's Problems #500"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,27,26,25,24,23,20,17,14:B18,15,12,10,9,8,7,5,3,1."]
+0-1
+
+[Event "Gould's Problems #501"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,29,28,27,26,24,22,21,16,13:B20,15,14,12,10,9,7,5,3,2,1."]
+0-1
+
+[Event "Gould's Problems #502"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,29,28,27,26,25,24,23,21,19,16:B18,14,12,10,9,8,7,6,5,3,2."]
+1-0
+
+[Event "Gould's Problems #503"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,29,27,26,25,21,20,19,14:B22,18,17,12,11,10,7,5,3,2,1."]
+0-1
+
+[Event "Gould's Problems #504"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,27,26,25,24,23,21,20,19,13:B18,15,14,12,11,10,9,7,6,3,1."]
+0-1
+
+[Event "Gould's Problems #505"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,29,27,25,24,23,22,21,20,13:B18,16,15,14,11,8,7,6,5,3,1."]
+1-0
+
+[Event "Gould's Problems #506"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,30,29,27,25,24,23,20,15,14,10:B22,21,18,16,11,8,7,5,3,2,1."]
+1-0
+
+[Event "Gould's Problems #507"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W20,K16:BK28,8."]
+1/2-1/2
+
+[Event "Gould's Problems #508"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,K16:BK32,24,1."]
+1/2-1/2
+
+[Event "Gould's Problems #509"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK23,K16:BK32,K31,24."]
+1/2-1/2
+
+[Event "Gould's Problems #510"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK31,K30,17:BK25,K22,13."]
+1/2-1/2
+
+[Event "Gould's Problems #511"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W20,19,17:B12,K10,5."]
+1-0
+
+[Event "Gould's Problems #512"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK26,22,K18:BK24,21,13."]
+0-1
+
+[Event "Gould's Problems #513"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK30,K28,K13:B21,20,K19."]
+0-1
+
+[Event "Gould's Problems #514"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W25,K24,21,9:BK30,K15,13."]
+0-1
+
+[Event "Gould's Problems #515"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W24,20,17,13:B18,11,6,4."]
+0-1
+
+[Event "Gould's Problems #516"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W20,19,K6,K1:BK26,K14,12,11."]
+1/2-1/2
+
+[Event "Gould's Problems #517"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,27,22,19:B14,12,11,10."]
+0-1
+
+[Event "Gould's Problems #518"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W19,K15,12,11:B14,K6,4,3."]
+1-0
+
+[Event "Gould's Problems #519"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK30,K19,18,17:BK27,21,11,10."]
+0-1
+
+[Event "Gould's Problems #520"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W24,19,K11,K6:BK27,18,14,12."]
+0-1
+
+[Event "Gould's Problems #521"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,K26,K11:B24,K21,20,K19."]
+1/2-1/2
+
+[Event "Gould's Problems #522"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK25,24,20,18:B27,12,11,8."]
+1/2-1/2
+
+[Event "Gould's Problems #523"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K22,K7,6:B21,K14,K13,9."]
+0-1
+
+[Event "Gould's Problems #524"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,20,K10,7,K6:BK18,K13,12,3,K1."]
+1/2-1/2
+
+[Event "Gould's Problems #525"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,27,K13,K11:BK26,K25,22,20,19."]
+0-1
+
+[Event "Gould's Problems #526"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,22,K15,K6,K5:BK29,K27,14,K13,9."]
+0-1
+
+[Event "Gould's Problems #527"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W18,17,14,13,K8:BK23,K20,9,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #528"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,24,K13,12:BK25,20,19,15,7."]
+0-1
+
+[Event "Gould's Problems #529"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,27,14,K10:BK25,20,18,16,12,5."]
+1/2-1/2
+
+[Event "Gould's Problems #530"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,20,19,14,13:B22,12,8,7,6,2."]
+1/2-1/2
+
+[Event "Gould's Problems #531"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W27,23,22,21,20,19:B14,13,12,11,10,5."]
+1/2-1/2
+
+[Event "Gould's Problems #532"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,24,21,18,13,K2:B12,10,9,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #533"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W29,27,23,22,21,18,16:B20,13,11,10,9,7,5."]
+1/2-1/2
+
+[Event "Gould's Problems #534"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,28,27,25,24,23,16,14,12:B21,20,17,15,13,11,7,6,5,3."]
+0-1
+
+[Event "Gould's Problems #535"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,28,14,K11:B23,K20,19,5."]
+1/2-1/2
+
+[Event "Gould's Problems #536"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K23,14,K7:B21,13,K10,K4."]
+0-1
+
+[Event "Gould's Problems #537"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,16,15,14:BK27,8,7,6."]
+0-1
+
+[Event "Gould's Problems #538"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,28,19,8:B21,15,13,10."]
+0-1
+
+[Event "Gould's Problems #539"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W29,27,20,18:B12,11,10,9."]
+1/2-1/2
+
+[Event "Gould's Problems #540"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W20,K10,K6,K2:BK19,K15,12,3."]
+0-1
+
+[Event "Gould's Problems #541"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,23,K20,17,10:BK26,12,3,1."]
+0-1
+
+[Event "Gould's Problems #542"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,21,17,K2:B25,15,12,10,9."]
+1/2-1/2
+
+[Event "Gould's Problems #543"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W24,20,19,K14,13:BK23,22,18,12,5."]
+0-1
+
+[Event "Gould's Problems #544"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,28,27,17,7:B19,15,12,8,5."]
+1/2-1/2
+
+[Event "Gould's Problems #545"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,26,22,21,16:B20,14,13,8,7."]
+1/2-1/2
+
+[Event "Gould's Problems #546"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,28,20,17,K15:B26,22,19,8,5."]
+1/2-1/2
+
+[Event "Gould's Problems #547"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,29,15,5:B25,23,8,3,1."]
+1-0
+
+[Event "Gould's Problems #548"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,20,18,15,6:BK31,21,12,8,7."]
+0-1
+
+[Event "Gould's Problems #549"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,29,20,K19,11:BK31,27,22,21,13,12."]
+1/2-1/2
+
+[Event "Gould's Problems #550"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,24,23,20,17,6:B26,15,12,11,10,3."]
+1/2-1/2
+
+[Event "Gould's Problems #551"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,28,27,15,14,13:B19,16,8,7,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #552"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,28,27,24,21,13,K12:B26,20,15,14,6,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #553"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,24,22,18,17,15,13:BK26,19,10,9,6,5,1."]
+1/2-1/2
+
+[Event "Gould's Problems #554"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,27,24,20,19,16,14,13:BK18,12,11,8,7,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #555"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,28,26,20,19,14,13:B18,12,11,10,8,7,5,3."]
+0-1
+
+[Event "Gould's Problems #556"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,28,27,26,23,19,17,14,13:B21,20,16,12,10,7,6,5,3."]
+1-0
+
+[Event "Gould's Problems #557"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:WK10,K6:BK24,K22,5."]
+1-0
+
+[Event "Gould's Problems #558"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK30,K16,12:BK22,15,3."]
+1/2-1/2
+
+[Event "Gould's Problems #559"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,22,K18:BK31,K10,6."]
+1-0
+
+[Event "Gould's Problems #560"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W12,11,8,K4:BK14,5,3."]
+1-0
+
+[Event "Gould's Problems #561"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,K22,20,K6:BK15,12,11,5."]
+1/2-1/2
+
+[Event "Gould's Problems #562"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,16,12,K2:B21,14,9,K4,3."]
+1/2-1/2
+
+[Event "Gould's Problems #563"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,27,24,12,K11:B21,20,K18,15,3."]
+1/2-1/2
+
+[Event "Gould's Problems #564"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W24,20,19,14,K2:BK26,12,11,8,1."]
+1-0
+
+[Event "Gould's Problems #565"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,22,20,19,12:BK30,14,7,4,3."]
+1/2-1/2
+
+[Event "Gould's Problems #566"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W19,17,14,13,8:B12,7,6,5,3."]
+0-1
+
+[Event "Gould's Problems #567"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK28,27,19,10,7:BK20,K18,11,5,3,1."]
+0-1
+
+[Event "Gould's Problems #568"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,27,26,23,21,20,13,9:B24,18,14,12,5,3,2,1."]
+0-1
+
+[Event "Gould's Problems #569"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,26,23,22,21,20,19,18,15:B14,13,11,10,9,8,6,5,3,2."]
+0-1
+
+[Event "Gould's Problems #570"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K18,K16:BK31,26,13."]
+0-1
+
+[Event "Gould's Problems #571"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK26,22,K14:BK32,25,13."]
+0-1
+
+[Event "Gould's Problems #572"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W15,12,K10,K1:BK23,13,3,K2."]
+1-0
+
+[Event "Gould's Problems #573"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W22,18,17,8:BK26,13,12,5."]
+1/2-1/2
+
+[Event "Gould's Problems #574"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,K18,11,K2:BK27,19,K10,3."]
+1/2-1/2
+
+[Event "Gould's Problems #575"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W14,K12,11,9,K1:BK22,K15,5,2."]
+0-1
+
+[Event "Gould's Problems #576"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W20,15,14,11,K10:BK26,K19,12,5."]
+0-1
+
+[Event "Gould's Problems #577"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,25,19,14,K3:BK31,21,11,6,2."]
+1/2-1/2
+
+[Event "Gould's Problems #578"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK31,K17,14,K12,K3:B23,K21,K20,19,K15,6."]
+1/2-1/2
+
+[Event "Gould's Problems #579"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,K22,14,K13,9,K6:BK24,K16,K15,7,5,3."]
+0-1
+
+[Event "Gould's Problems #580"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,21,19,17,13:B24,14,12,11,10,6."]
+1/2-1/2
+
+[Event "Gould's Problems #581"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W22,19,15,13,10,K7:BK24,21,9,8,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #582"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,28,27,26,21,17,13:B19,16,15,14,10,7,6."]
+0-1
+
+[Event "Gould's Problems #583"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,28,27,24,10,K1:BK31,20,19,16,15,12,2."]
+0-1
+
+[Event "Gould's Problems #584A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,28,26,23,22,18,17,14:B19,16,15,11,10,7,5,2."]
+0-1
+
+[Event "Gould's Problems #584B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,28,26,23,22,18,17,14:B19,16,15,11,10,7,5,2."]
+1-0
+
+[Event "Gould's Problems #585"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK32,21,K11:BK26,20,12."]
+0-1
+
+[Event "Gould's Problems #586"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W18,17,15:BK25,8,2."]
+1/2-1/2
+
+[Event "Gould's Problems #587"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W16,12,K2,K1:BK15,K10,3."]
+0-1
+
+[Event "Gould's Problems #588"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,K19,K9:BK27,K26,23,12."]
+0-1
+
+[Event "Gould's Problems #589"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,K27,K26,K14:BK22,20,19,K13."]
+1/2-1/2
+
+[Event "Gould's Problems #590"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W26,23,21,13:B16,14,2,1."]
+1-0
+
+[Event "Gould's Problems #591"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK22,18,14,7:BK30,K29,21,20,5."]
+1/2-1/2
+
+[Event "Gould's Problems #592"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W25,21,12,K9:B18,14,13,K10."]
+1/2-1/2
+
+[Event "Gould's Problems #593"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,29,K10,K6:BK23,22,K19,13,9."]
+1-0
+
+[Event "Gould's Problems #594"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W24,22,18,15,13:BK31,9,8,7,6."]
+1-0
+
+[Event "Gould's Problems #595"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,24,23,20,19:B17,15,12,10,8."]
+1-0
+
+[Event "Gould's Problems #596"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,26,23,18,10,K1:B25,19,16,12,2."]
+1/2-1/2
+
+[Event "Gould's Problems #597"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,28,20,12,K9,K2:BK32,K25,23,14,11,3."]
+1/2-1/2
+
+[Event "Gould's Problems #598"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,28,26,22,21,12:B20,14,13,8,3,1."]
+1-0
+
+[Event "Gould's Problems #599"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W27,25,21,20,17,15,13:B19,10,9,8,6,5."]
+0-1
+
+[Event "Gould's Problems #600"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,27,24,23,21,19,18:B20,16,14,12,10,9,5."]
+0-1
+
+[Event "Gould's Problems #601"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,27,24,23,19,K2:B25,20,17,16,12,11,7."]
+0-1
+
+[Event "Gould's Problems #602"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,25,24,21,20,19,12:B18,13,11,10,7,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #603"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,29,24,K15,K10,6,5:B26,23,21,17,K16,12,1."]
+1/2-1/2
+
+[Event "Gould's Problems #604"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,29,28,21,19,16,13:B22,14,12,10,8,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #605"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,29,22,21,20,19,18:B26,13,12,11,10,9,5."]
+1/2-1/2
+
+[Event "Gould's Problems #606"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,28,27,25,24,19,5:B23,13,11,7,6,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #607"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,25,21,19,18,15,13:BK27,23,12,10,9,8,6,3."]
+1/2-1/2
+
+[Event "Gould's Problems #608"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K25,K20,17,15,14,11,10,K2:BK29,23,21,18,13,8,K5,4,1."]
+0-1
+
+[Event "Gould's Problems #609"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,29,27,22,21,20,19,17,12,5:B28,14,13,11,10,9,7,3."]
+1/2-1/2
+
+[Event "Gould's Problems #610"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,29,28,27,26,25,22,15,K1:B19,18,16,14,13,12,9,8,4."]
+0-1
+
+[Event "Gould's Problems #611"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,28,27,26,24,22,21,20,13:B19,18,15,12,11,10,8,6,2,1."]
+0-1
+
+[Event "Gould's Problems #612"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,28,27,25,22,21,20,13,12:B23,19,15,14,11,10,7,6,3,1."]
+1-0
+
+[Event "Gould's Problems #613"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,K19,K14:BK32,28,24,K22."]
+1/2-1/2
+
+[Event "Gould's Problems #614"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W25,19,18,15,14:B23,17,12,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #615"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,20,19,K10,K6:BK29,21,K18,12,8."]
+1/2-1/2
+
+[Event "Gould's Problems #616"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W25,K22,K20,19,15:B23,18,12,K7,3."]
+0-1
+
+[Event "Gould's Problems #617"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W25,22,20,17,K11:BK31,24,19,15,6,5."]
+1-0
+
+[Event "Gould's Problems #618"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,24,20,19,17,K1:BK27,12,11,10,6."]
+0-1
+
+[Event "Gould's Problems #619"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,26,25,24,16:B19,18,15,10,7,3."]
+0-1
+
+[Event "Gould's Problems #620"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,24,K20,15,12,6:BK25,K19,17,10,9,4,1."]
+0-1
+
+[Event "Gould's Problems #621"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,28,23,20,19,18,13:B17,16,12,11,10,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #622"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,27,23,11,9,7:B25,21,18,14,5,2,1."]
+0-1
+
+[Event "Gould's Problems #623"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,28,26,22,18,14:B16,15,13,11,9,8,7,5."]
+1/2-1/2
+
+[Event "Gould's Problems #624"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,27,18,17,13,K1:B26,20,12,K11,9,8,3,2."]
+1-0
+
+[Event "Gould's Problems #625"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,25,24,23,8,6,K3,K2:BK32,K31,27,17,16,12,11,K9."]
+0-1
+
+[Event "Gould's Problems #626"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,28,27,24,23,22,21,18:B12,11,9,8,6,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #627"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W24,23,K17,16,K15,K11,K9,6:BK28,27,K26,25,K20,19,10,4,2."]
+0-1
+
+[Event "Gould's Problems #628"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,31,30,29,28,18,17,6:B23,22,19,16,13,9,7,5,4."]
+1/2-1/2
+
+[Event "Gould's Problems #629"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,30,28,25,22,21,20,17:B18,14,12,11,10,6,3,2,1."]
+1-0
+
+[Event "Gould's Problems #630"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,29,28,25,23,22,21,20,18,14:B19,16,13,12,11,9,8,7,5,3."]
+0-1
+
+[Event "Gould's Problems #631"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,K11:B10,2."]
+1/2-1/2
+
+[Event "Gould's Problems #632"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W22,K21:BK14,7."]
+1/2-1/2
+
+[Event "Gould's Problems #633"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK17,K8:B27,18,6."]
+1-0
+
+[Event "Gould's Problems #634"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK19,K11:B10,6,4."]
+1/2-1/2
+
+[Event "Gould's Problems #635"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,21,6:BK22,K13."]
+1/2-1/2
+
+[Event "Gould's Problems #636"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,K7:BK31,19,15."]
+1-0
+
+[Event "Gould's Problems #637"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK26,K11,K3:BK18,17,10."]
+1/2-1/2
+
+[Event "Gould's Problems #638"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,13,K7:B22,K14,10."]
+1/2-1/2
+
+[Event "Gould's Problems #639"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W21,K19,13:BK32,18,10."]
+0-1
+
+[Event "Gould's Problems #640"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W21,K19,9:BK32,18,10."]
+1/2-1/2
+
+[Event "Gould's Problems #641"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK20,18,K12:BK26,10,4."]
+1/2-1/2
+
+[Event "Gould's Problems #642"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK31,28,K14:BK25,22,19."]
+1/2-1/2
+
+[Event "Gould's Problems #643"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,12,9:B19,3,K1."]
+1-0
+
+[Event "Gould's Problems #644"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK24,21,14:BK32,K15,K13."]
+1-0
+
+[Event "Gould's Problems #645"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,K23,12:BK30,K16,3."]
+1/2-1/2
+
+[Event "Gould's Problems #646"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W14,13,11:B19,18,6."]
+1/2-1/2
+
+[Event "Gould's Problems #647"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK25,21,13:BK23,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #648"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,K27,K6:BK15,7,5."]
+0-1
+
+[Event "Gould's Problems #649"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK29,24,11:B27,17,K10."]
+1-0
+
+[Event "Gould's Problems #650"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK32,21,17:B24,K23,2."]
+1/2-1/2
+
+[Event "Gould's Problems #651"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,K18,K10:BK23,K17,14."]
+1-0
+
+[Event "Gould's Problems #652"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W22,21,K11:BK10,5,1."]
+1/2-1/2
+
+[Event "Gould's Problems #653"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK28,K22,16:B23,K15,8."]
+0-1
+
+[Event "Gould's Problems #654"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K22,14:BK28,K21,5."]
+0-1
+
+[Event "Gould's Problems #655"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK28,22,19:BK31,K27,7."]
+1-0
+
+[Event "Gould's Problems #656"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W14,11,10:BK22,12,2."]
+1/2-1/2
+
+[Event "Gould's Problems #657"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,20,K7:B19,18,10."]
+1/2-1/2
+
+[Event "Gould's Problems #658"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W27,K11,K1:BK30,K25,19,K13."]
+1-0
+
+[Event "Gould's Problems #659"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,20,19,13:B12,11,7."]
+0-1
+
+[Event "Gould's Problems #660"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,K15,12:BK24,K18,11,3."]
+1-0
+
+[Event "Gould's Problems #661"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,29,K4:B17,9,5,3."]
+0-1
+
+[Event "Gould's Problems #662"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,21,20,K19:BK31,18,12,9."]
+0-1
+
+[Event "Gould's Problems #663"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,21,K15,K11:BK20,16,14,9."]
+0-1
+
+[Event "Gould's Problems #664"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,K22,17,13:BK30,K24,23,5."]
+1/2-1/2
+
+[Event "Gould's Problems #665"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,22,20,19:B14,12,10,2."]
+0-1
+
+[Event "Gould's Problems #666"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,23,20,19:B17,12,11,6."]
+0-1
+
+[Event "Gould's Problems #667"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,20,K10,K2:BK23,K19,11,K3."]
+1/2-1/2
+
+[Event "Gould's Problems #668"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W24,21,20,10:B23,16,15,11."]
+1-0
+
+[Event "Gould's Problems #669"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,24,K16,K13:B27,23,21,17."]
+1/2-1/2
+
+[Event "Gould's Problems #670"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,28,K14,K2:BK29,23,20,5."]
+0-1
+
+[Event "Gould's Problems #671"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK21,20,K19,K10:BK26,K15,12,5."]
+1/2-1/2
+
+[Event "Gould's Problems #672"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W16,15,K14,11:BK32,K23,K22,13."]
+1-0
+
+[Event "Gould's Problems #673"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W25,22,17,16:B23,15,7,3."]
+1-0
+
+[Event "Gould's Problems #674"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W23,22,13,9:B14,12,7,1."]
+1-0
+
+[Event "Gould's Problems #675"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,20,K3:B23,21,12,K11."]
+1/2-1/2
+
+[Event "Gould's Problems #676"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,K26,13,K6:B28,24,K14,5."]
+1/2-1/2
+
+[Event "Gould's Problems #677"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,21,18,17:B9,8,6,3."]
+0-1
+
+[Event "Gould's Problems #678"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,25,21,K11:B23,14,13,9,1."]
+1-0
+
+[Event "Gould's Problems #679"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K31,25,21,K20,13:BK22,K18,15."]
+0-1
+
+[Event "Gould's Problems #680"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,27,K23,21:BK26,20,19,13,11."]
+1-0
+
+[Event "Gould's Problems #681"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,27,K14,10,9:B28,12,K7,5,3."]
+1-0
+
+[Event "Gould's Problems #682"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K30,24,20,K13:BK29,K21,16,14,K11."]
+0-1
+
+[Event "Gould's Problems #683"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,24,23,22,17:BK15,13,10,7,6."]
+0-1
+
+[Event "Gould's Problems #684"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,24,22,18,17:BK15,13,10,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #685"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,21,19,18,16:B14,13,12,9,5."]
+1/2-1/2
+
+[Event "Gould's Problems #686"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,25,24,16,15:B28,14,13,8,7."]
+1/2-1/2
+
+[Event "Gould's Problems #687"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W27,23,19,14,13:B16,12,11,6,2."]
+1/2-1/2
+
+[Event "Gould's Problems #688"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W26,20,19,18,17:B13,12,11,10,3."]
+1/2-1/2
+
+[Event "Gould's Problems #689"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W26,22,21,20,13:B15,10,9,6,5."]
+1-0
+
+[Event "Gould's Problems #690A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W27,26,23,19,18:B11,10,7,3,2."]
+1-0
+
+[Event "Gould's Problems #690B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,26,23,19,18:B11,10,7,3,2."]
+0-1
+
+[Event "Gould's Problems #691"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,27,21,14:B20,18,16,6,1."]
+0-1
+
+[Event "Gould's Problems #692"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,18,17,13:B20,16,10,9,6."]
+0-1
+
+[Event "Gould's Problems #693"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,19,17,15,14:B28,12,10,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #694"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,22,17,6:B19,15,13,10,9."]
+0-1
+
+[Event "Gould's Problems #695"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,26,25,21,20:B18,13,12,9,8."]
+0-1
+
+[Event "Gould's Problems #696"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,19,13,6,K2:BK22,21,14,12,3."]
+1/2-1/2
+
+[Event "Gould's Problems #697"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,26,19,17,14:B12,11,7,6,5."]
+0-1
+
+[Event "Gould's Problems #698"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,25,15,12,K1:BK23,13,9,7,5."]
+1/2-1/2
+
+[Event "Gould's Problems #699"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,31,30,K15:B28,24,23,22,17,12."]
+1/2-1/2
+
+[Event "Gould's Problems #700"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,21,18,13,K3:B23,K19,14,9,6."]
+1/2-1/2
+
+[Event "Gould's Problems #701"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,27,24,23,22:B20,14,12,11,7."]
+0-1
+
+[Event "Gould's Problems #702"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,K23,22,20,K10:B26,21,K19,16,K11."]
+1-0
+
+[Event "Gould's Problems #703"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,27,23,18,14,8:B26,20,16,12,7,5."]
+1/2-1/2
+
+[Event "Gould's Problems #704"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,27,22,21,10:B19,14,13,8,5,2."]
+0-1
+
+[Event "Gould's Problems #705"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,19,18,15,11,K1:BK27,21,17,12,9,8."]
+1/2-1/2
+
+[Event "Gould's Problems #706"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,24,21,20,19,14:B12,11,8,7,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #707"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,27,24,21,19,13:B20,15,12,10,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #708"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W25,21,19,17,15,13:B24,14,12,10,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #709"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W23,22,20,19,17,9:B13,12,11,10,7,2."]
+1/2-1/2
+
+[Event "Gould's Problems #710"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,25,21,17,13,K3:BK31,18,10,7,6,5."]
+0-1
+
+[Event "Gould's Problems #711"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W22,21,20,19,17,12:B14,13,10,9,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #712"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,28,27,20,19,18:B21,12,11,10,3,2."]
+1-0
+
+[Event "Gould's Problems #713"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,22,20,19,18,14:B13,12,11,6,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #714"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,26,23,21,15,9:B20,16,14,5,3,1."]
+0-1
+
+[Event "Gould's Problems #715"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,27,22,21,20:B15,13,12,11,9,1."]
+0-1
+
+[Event "Gould's Problems #716"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,30,27,23,18,11:B22,16,12,7,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #717"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,25,24,20,14,13:B23,18,15,12,6,5."]
+0-1
+
+[Event "Gould's Problems #718"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,K31,24,23,22,19:B15,14,13,12,10,8."]
+1/2-1/2
+
+[Event "Gould's Problems #719"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,20,19,K9,8:B21,K18,12,10,3,2."]
+0-1
+
+[Event "Gould's Problems #720"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,27,20,17,13:B18,9,8,7,6,5."]
+0-1
+
+[Event "Gould's Problems #721"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,26,23,21,20,16:B18,15,14,11,7,3."]
+0-1
+
+[Event "Gould's Problems #722"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,29,28,27,18,16:B22,19,12,7,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #723"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,28,26,25,21,K4:B24,19,13,12,10,3."]
+1-0
+
+[Event "Gould's Problems #724"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W27,26,25,24,20,19,9:B18,15,14,7,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #725"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,23,21,K16,14,K3:BK25,K24,K22,17,10,7,5."]
+1/2-1/2
+
+[Event "Gould's Problems #726"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,27,25,23,22,21,17:B20,15,14,10,6,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #727"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,29,20,19,18,17,14:B22,13,12,11,10,7,5."]
+1/2-1/2
+
+[Event "Gould's Problems #728"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,23,22,18,17,14,13:BK25,20,16,9,6,5,1."]
+1/2-1/2
+
+[Event "Gould's Problems #729"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,25,24,21,20,13,K8:BK26,16,14,11,6,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #730"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,26,25,22,21,17:B20,18,15,14,10,7,6."]
+0-1
+
+[Event "Gould's Problems #731"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,27,25,22,21,19,16:B18,12,10,8,6,3,1."]
+1-0
+
+[Event "Gould's Problems #732"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,27,26,23,21,20,13:B18,14,12,11,10,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #733"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,29,27,24,23,18,14:B21,20,16,12,7,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #734"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,30,28,26,23,19,15:B21,20,16,13,12,6,2."]
+1-0
+
+[Event "Gould's Problems #735A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,29,27,24,22,15,8:B25,18,11,9,6,4,2."]
+1-0
+
+[Event "Gould's Problems #735B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,29,27,24,22,15,8:B25,18,11,9,6,4,2."]
+0-1
+
+[Event "Gould's Problems #736"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,27,21,20,16,14,K3:BK22,19,17,12,10,7,5."]
+1-0
+
+[Event "Gould's Problems #737"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,28,25,23,22,19:B16,13,12,10,9,8,5."]
+0-1
+
+[Event "Gould's Problems #738"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,29,28,26,K19,12,9:B24,23,17,14,10,7,4."]
+1-0
+
+[Event "Gould's Problems #739"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,27,24,23,22,21,18,12:B20,16,15,13,11,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #740"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,27,24,22,18,15,13:B20,16,11,9,8,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #741"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W22,21,19,17,15,14,13,12:BK26,10,7,6,5,3,2."]
+0-1
+
+[Event "Gould's Problems #742"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,26,24,22,21,20,17:B16,15,14,13,12,11,10,3."]
+1/2-1/2
+
+[Event "Gould's Problems #743"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,28,26,24,22,20,19,13:B18,17,15,11,10,6,2."]
+0-1
+
+[Event "Gould's Problems #744"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,27,24,22,21,19,17:B20,15,14,12,11,10,6,2."]
+1-0
+
+[Event "Gould's Problems #745"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,29,27,25,22,20,10:B18,15,13,11,8,5,3,1."]
+0-1
+
+[Event "Gould's Problems #746"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,27,25,24,23,22,21,20,17:B18,15,14,12,11,10,8,6,1."]
+0-1
+
+[Event "Gould's Problems #747"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,29,27,24,23,21,19,15:B20,16,13,12,10,8,7,6,3."]
+0-1
+
+[Event "Gould's Problems #748"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,29,27,25,22,21,20,17,13:B18,15,14,12,10,8,6,5,1."]
+0-1
+
+[Event "Gould's Problems #749"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,28,26,22,21,16,15,13:B23,19,12,10,9,8,7,6,5."]
+0-1
+
+[Event "Gould's Problems #750"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,28,27,25,21,17,16,13:B23,19,18,14,12,10,9,8,6,1."]
+1-0
+
+[Event "Gould's Problems #751"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,26,25,24,22,20,19,18,17,16:B15,13,11,10,9,7,3,1."]
+0-1
+
+[Event "Gould's Problems #752"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,28,26,23,22,21,20,18,13:B19,16,15,14,12,11,9,6,5,1."]
+1-0
+
+[Event "Gould's Problems #753"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,30,28,26,23,21,18,15,13:B19,17,16,14,11,9,8,6,3,1."]
+0-1
+
+[Event "Gould's Problems #754"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,30,29,27,26,25,24,15,14,10:B21,18,16,12,9,8,7,5,3,2,1."]
+0-1
+
+[Event "Gould's Problems #755"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK30,19:B12,3."]
+1/2-1/2
+
+[Event "Gould's Problems #756"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK11,K1:BK9,5."]
+0-1
+
+[Event "Gould's Problems #757"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,K17:BK23,2."]
+1-0
+
+[Event "Gould's Problems #758"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK21,K11:B18,14,6."]
+1/2-1/2
+
+[Event "Gould's Problems #759"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK26,K8:BK27,15,11."]
+1-0
+
+[Event "Gould's Problems #760"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:WK17,K1:BK25,10,6."]
+1-0
+
+[Event "Gould's Problems #761"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK20,15:B27,12,8."]
+1-0
+
+[Event "Gould's Problems #762"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK26,7:B12,9,5."]
+1/2-1/2
+
+[Event "Gould's Problems #763"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK32,5:B19,15,10."]
+1/2-1/2
+
+[Event "Gould's Problems #764"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W17,15,K2:BK9,K1."]
+0-1
+
+[Event "Gould's Problems #765"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W20,16,K2:BK25,K10."]
+1/2-1/2
+
+[Event "Gould's Problems #766"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W24,11,10:BK23,12,3."]
+1-0
+
+[Event "Gould's Problems #767"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W21,K18,K8:BK30,9,7."]
+1/2-1/2
+
+[Event "Gould's Problems #768"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,28,K23:B21,16,14."]
+0-1
+
+[Event "Gould's Problems #769"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W24,K23,16:BK15,14,3."]
+1-0
+
+[Event "Gould's Problems #770"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,23,22:B28,24,K15."]
+1/2-1/2
+
+[Event "Gould's Problems #771"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W19,K3,K2:B12,K10,K4."]
+1/2-1/2
+
+[Event "Gould's Problems #772"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W27,K21,12:BK28,8,3."]
+1/2-1/2
+
+[Event "Gould's Problems #773"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,K22,17:BK27,K10,9."]
+1-0
+
+[Event "Gould's Problems #774"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W19,K3,K2:B12,K10,K8."]
+0-1
+
+[Event "Gould's Problems #775"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK30,K26,K18:BK32,K29,24."]
+0-1
+
+[Event "Gould's Problems #776"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,K19:B27,26,23."]
+0-1
+
+[Event "Gould's Problems #777"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,21,11:B18,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #778"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,28,K13:BK23,19,18."]
+1-0
+
+[Event "Gould's Problems #779"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK32,14,K11:B28,K19,12."]
+0-1
+
+[Event "Gould's Problems #780"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,22,K20:B21,13,11."]
+0-1
+
+[Event "Gould's Problems #781"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W27,24,K4:BK31,26,18."]
+1-0
+
+[Event "Gould's Problems #782"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK24,16,12:BK15,K7,3."]
+1/2-1/2
+
+[Event "Gould's Problems #783"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W18,K17,K10:BK30,K29,5."]
+0-1
+
+[Event "Gould's Problems #784"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K27,K9:BK21,20,17."]
+0-1
+
+[Event "Gould's Problems #785"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:W28,21,K8:B23,19,18,16."]
+1-0
+
+[Event "Gould's Problems #786"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,10:B28,22,12,5."]
+1/2-1/2
+
+[Event "Gould's Problems #787"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W16,12,K11,K10:BK20,K19,3."]
+0-1
+
+[Event "Gould's Problems #788"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,K18,K1:B27,24,11,10."]
+1-0
+
+[Event "Gould's Problems #789"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK24,12,5:BK32,28,3,1."]
+1-0
+
+[Event "Gould's Problems #790"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK25,21,19,16:BK24,14,4."]
+0-1
+
+[Event "Gould's Problems #791"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK30,27,24,K14:BK31,K22,20."]
+0-1
+
+[Event "Gould's Problems #792"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K31,K30,28:BK29,21,18,15."]
+0-1
+
+[Event "Gould's Problems #793"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W22,17,K10,K1:BK29,K14,3."]
+0-1
+
+[Event "Gould's Problems #794"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W22,K20,18,17,13:B23,11,10,9,6."]
+1/2-1/2
+
+[Event "Gould's Problems #795"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W20,K11,K2:BK22,16,K7,5."]
+1/2-1/2
+
+[Event "Gould's Problems #796"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W10,K7,K6,5:BK18,3,1."]
+0-1
+
+[Event "Gould's Problems #797"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK30,K28,K27:B20,K19,17,16."]
+1/2-1/2
+
+[Event "Gould's Problems #798"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK23,13,K2:BK31,9,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #799"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,27,23,6:B22,20,16."]
+0-1
+
+[Event "Gould's Problems #800"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W22,21,20,K1:BK30,14,13,12."]
+1-0
+
+[Event "Gould's Problems #801"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,16,12,K10:B28,23,K4,3."]
+1/2-1/2
+
+[Event "Gould's Problems #802"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK21,18,10,8:B27,K20,12,3."]
+1-0
+
+[Event "Gould's Problems #803"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,10,K2:BK22,21,12,1."]
+1/2-1/2
+
+[Event "Gould's Problems #804"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,K19,16,12:BK26,K10,3,1."]
+1-0
+
+[Event "Gould's Problems #805"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,28,21,K15:BK29,20,19,K16."]
+1-0
+
+[Event "Gould's Problems #806"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K28,23,K22:B21,20,16,K15."]
+0-1
+
+[Event "Gould's Problems #807"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK24,23,19,K2:BK17,K12,9,7."]
+1/2-1/2
+
+[Event "Gould's Problems #808"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,12,K6,K2:BK27,K26,8,3."]
+1/2-1/2
+
+[Event "Gould's Problems #809"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W22,18,9,7:BK27,19,11,2."]
+1-0
+
+[Event "Gould's Problems #810"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,27,24,K2:BK26,20,K10."]
+0-1
+
+[Event "Gould's Problems #811"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,21,K14,K6:B23,17,K16,K15."]
+1-0
+
+[Event "Gould's Problems #812"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,13,10,K6:BK27,K22,3,1."]
+1-0
+
+[Event "Gould's Problems #813"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,27,K19:B28,21,20,17."]
+0-1
+
+[Event "Gould's Problems #814"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,28,K4,K2:BK30,20,10,3."]
+1-0
+
+[Event "Gould's Problems #815"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W21,19,K15,11:BK27,14,13,9."]
+1/2-1/2
+
+[Event "Gould's Problems #816"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,27,21,K11:BK25,20,19,5."]
+1/2-1/2
+
+[Event "Gould's Problems #817"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,28,K15,12:BK30,22,21,18,14."]
+1-0
+
+[Event "Gould's Problems #818"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,27,26,24,14:BK19,18,15,2."]
+0-1
+
+[Event "Gould's Problems #819"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W17,15,12,10,6:BK23,8,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #820"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK27,23,22,K16,11:BK30,K29,K15,9."]
+0-1
+
+[Event "Gould's Problems #821"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,15,K6:B23,22,12,11,8."]
+1/2-1/2
+
+[Event "Gould's Problems #822"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK31,30,14,5:BK25,K23,22,21,1."]
+1-0
+
+[Event "Gould's Problems #823"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,21,K14,8,6:B19,12,K9,5."]
+0-1
+
+[Event "Gould's Problems #824"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,16,13,12,5:BK7,3,2,1."]
+1-0
+
+[Event "Gould's Problems #825"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,26,K21,15:B20,19,12,11,8."]
+0-1
+
+[Event "Gould's Problems #826"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,23,22,21,18:B14,13,10,9,7."]
+0-1
+
+[Event "Gould's Problems #827"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK19,14,K11,9,6:B20,K18,K13,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #828"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:W21,13,12,K4:BK22,K16,K15,14,6,3."]
+1-0
+
+[Event "Gould's Problems #829"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,13,K11,K3,K2:BK19,K14,9,6,5."]
+0-1
+
+[Event "Gould's Problems #830"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,23,22,19,13:B20,12,11,10,6."]
+0-1
+
+[Event "Gould's Problems #831"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,28,21,20,14:B13,12,6,2,1."]
+1-0
+
+[Event "Gould's Problems #832"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,24,21,20,K6:B19,K18,15,11,7."]
+1/2-1/2
+
+[Event "Gould's Problems #833"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W23,20,18,15,14:BK31,11,8,7,6."]
+1-0
+
+[Event "Gould's Problems #834"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W27,23,20,K17,K9:B22,15,12,K7,3."]
+1-0
+
+[Event "Gould's Problems #835"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W23,22,20,18,13:B15,11,9,6,3."]
+0-1
+
+[Event "Gould's Problems #836"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,27,15,13,K10:B20,19,12,8,5."]
+0-1
+
+[Event "Gould's Problems #837"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W26,25,23,21,19:B14,12,11,7,1."]
+1-0
+
+[Event "Gould's Problems #838"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,22,21,16,K6:BK24,14,13,9,3."]
+0-1
+
+[Event "Gould's Problems #839"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,20,19,16,12:BK30,17,14,8,3."]
+1-0
+
+[Event "Gould's Problems #840"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,28,18,17,12,11:BK27,21,19,6,3."]
+1/2-1/2
+
+[Event "Gould's Problems #841"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,19,18,16,K15,12:BK32,K24,K17,7,3."]
+0-1
+
+[Event "Gould's Problems #842"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W23,21,20,19,13,5:B14,12,11,6,1."]
+1/2-1/2
+
+
+[Event "Gould's Problems #843"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,26,23,K9,K8:B21,17,16,K15,13,2."]
+0-1
+
+[Event "Gould's Problems #844"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,29,K13,K8,K2:BK32,K22,15,11,10,6."]
+1-0
+
+[Event "Gould's Problems #845"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,26,23,13,K1:B21,15,12,11,8,5."]
+1/2-1/2
+
+[Event "Gould's Problems #846"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,23,18,13,K7:BK26,16,14,9,6."]
+1/2-1/2
+
+[Event "Gould's Problems #847"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,24,K22,20,K7:BK29,21,K16,15,12,11."]
+1/2-1/2
+
+[Event "Gould's Problems #848"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,28,27,11:B26,23,18,14,10,5."]
+1-0
+
+[Event "Gould's Problems #849"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,27,26,25,20,14:B18,15,11,7,5,3."]
+0-1
+
+[Event "Gould's Problems #850"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W24,23,21,20,19,18:B17,14,12,11,10,9."]
+1/2-1/2
+
+[Event "Gould's Problems #851"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W24,23,19,K10,6,K3:BK26,K21,16,12,4,1."]
+1/2-1/2
+
+[Event "Gould's Problems #852"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,28,26,24,18,15:B19,14,13,12,9,6."]
+1/2-1/2
+
+[Event "Gould's Problems #853"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,29,22,21,7,K5:BK30,20,14,13,9,4."]
+0-1
+
+[Event "Gould's Problems #854"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,23,18,K15,14,11,9:BK31,16,12,8,5,4."]
+0-1
+
+[Event "Gould's Problems #855"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK25,K20,18,16,10,8,7:BK28,27,K26,K17,9,5,1."]
+0-1
+
+[Event "Gould's Problems #856"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,29,27,26,25,20,19:B21,18,12,8,7,5,1."]
+0-1
+
+[Event "Gould's Problems #857"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W31,29,28,26,20,16,13:B22,17,14,11,8,7,6."]
+0-1
+
+[Event "Gould's Problems #858"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,27,23,21,20,19:B16,14,13,12,11,3,2."]
+1-0
+
+[Event "Gould's Problems #859"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,25,20,19,12,K1:BK26,23,11,10,7,6,3."]
+1/2-1/2
+
+[Event "Gould's Problems #860"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,29,27,25,20,18,17:B12,10,8,7,6,5,4."]
+1-0
+
+[Event "Gould's Problems #861"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,K29,K24,23,22,K20,K16:B27,25,K15,14,9,7,K6."]
+1-0
+
+[Event "Gould's Problems #862"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W24,20,K19,K18,17,16,8:BK27,K26,12,10,9,7,3."]
+1-0
+
+[Event "Gould's Problems #863"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,29,26,23,22,20,13:B21,19,16,15,11,5,3,1."]
+1-0
+
+[Event "Gould's Problems #864"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,27,25,24,23,21,19,18:B14,12,11,10,9,8,5,2."]
+0-1
+
+[Event "Gould's Problems #865"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,28,26,23,21,19,17:B24,15,14,13,12,10,7,3."]
+0-1
+
+[Event "Gould's Problems #866"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,30,28,27,26,15,13,5:B21,19,16,12,8,7,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #867"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,25,22,20,18,17,12,9,K2:B26,19,13,11,10,8,6,3,1."]
+1-0
+
+[Event "Gould's Problems #868"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,27,26,23,22,20,19,13:B17,12,11,10,7,6,5,3,1."]
+1-0
+
+[Event "Gould's Problems #869"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,27,26,25,24,21,14,10:B20,18,17,15,12,7,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #870"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,29,28,27,21,18,17,15,13:B22,16,11,9,8,6,5,3,1."]
+0-1
+
+[Event "Gould's Problems #871"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,27,24,23,21,19,17,13:B20,15,14,12,10,7,6,4,2."]
+1-0
+
+[Event "Gould's Problems #872"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,27,26,25,23,21,14,13:BK32,19,18,16,15,11,8,7,6,5."]
+0-1
+
+[Event "Gould's Problems #873"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,28,27,26,K23,21,20,19,18,11:BK25,17,14,12,10,9,6,4,3,1."]
+0-1
+
+[Event "Gould's Problems #874"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,29,27,25,24,22,20,19,13:B18,15,14,12,11,10,9,8,7,6."]
+0-1
+
+[Event "Gould's Problems #875"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,29,28,27,26,25,23,22,21,12:B19,16,14,9,7,6,5,4,2,1."]
+0-1
+
+[Event "Gould's Problems #876"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,28,27,26,25,23,22,21,18,15:B20,14,11,9,8,7,6,5,3,2,1."]
+1-0
+
+[Event "Gould's Problems #877"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,27,23,22,8:B28,20,13,10,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #878"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,20,13,7:B12,10,6,1."]
+0-1
+
+[Event "Gould's Problems #879"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK26,18:BK11,K7."]
+1-0
+
+[Event "Gould's Problems #880"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,24:BK16,14."]
+1-0
+
+[Event "Gould's Problems #881"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W21,17:BK20,1."]
+1/2-1/2
+
+[Event "Gould's Problems #882"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W20,19,18:BK25,K12."]
+0-1
+
+[Event "Gould's Problems #883"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK22,K19:B21,20,1."]
+1-0
+
+[Event "Gould's Problems #884"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK25,K17:B10,9,1."]
+1/2-1/2
+
+[Event "Gould's Problems #885"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,K1:B22,20,K4."]
+1-0
+
+[Event "Gould's Problems #886"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W9,K2:B11,7,1."]
+1-0
+
+[Event "Gould's Problems #887"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK26,K1:B21,11,7."]
+1/2-1/2
+
+[Event "Gould's Problems #888"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W18,K15,K14:BK23,K22."]
+0-1
+
+[Event "Gould's Problems #889"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W23,21,K9:BK31,K16,1."]
+1-0
+
+[Event "Gould's Problems #890"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK24,20,K4:B11,6,K3."]
+1-0
+
+[Event "Gould's Problems #891"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,19,14:BK31,K25,21."]
+1-0
+
+[Event "Gould's Problems #892"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,27,18:B21,K17,1."]
+1-0
+
+[Event "Gould's Problems #893"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,29,13:BK30,23,K6."]
+1-0
+
+[Event "Gould's Problems #894"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,K28,K17:B27,26,21."]
+0-1
+
+[Event "Gould's Problems #895"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W30,28,26,24,23,22:B16,15,12,10,8,3."]
+1/2-1/2
+
+[Event "Gould's Problems #896A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,K4,K1:BK14,K11,K10."]
+1-0
+
+[Event "Gould's Problems #896B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:W21,K4,K1:BK14,K11,K10."]
+1-0
+
+[Event "Gould's Problems #897A"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,K3,K1:BK14,K11,K10."]
+1-0
+
+[Event "Gould's Problems #897B"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:W21,K3,K1:BK14,K11,K10."]
+1-0
+
+[Event "Gould's Problems #898"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,23,K6:B21,K15,13."]
+1-0
+
+[Event "Gould's Problems #899"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,K7,K6:BK22,K15,K14."]
+1-0
+
+[Event "Gould's Problems #900"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,K12,6:BK28,7,4."]
+0-1
+
+[Event "Gould's Problems #901"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK26,K22,K1:BK29,21,K7."]
+0-1
+
+[Event "Gould's Problems #902"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,K28,20:BK23,K19,K11."]
+1-0
+
+[Event "Gould's Problems #903"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W25,K12,K2:BK11,10,K1."]
+1-0
+
+[Event "Gould's Problems #904"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK23,K22,13:B14,K11,6."]
+0-1
+
+[Event "Gould's Problems #905"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,K14,K12:B21,19,K15."]
+1-0
+
+[Event "Gould's Problems #906"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,23,K12:BK27,24,10."]
+0-1
+
+[Event "Gould's Problems #907"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W27,24,23:B11,10,8."]
+1-0
+
+[Event "Gould's Problems #908"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,20,K18:B12,10,K7."]
+0-1
+
+[Event "Gould's Problems #909"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK23,12,10:BK29,3,2."]
+1/2-1/2
+
+[Event "Gould's Problems #910"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W15,K10,K9:BK19,3,1."]
+1-0
+
+[Event "Gould's Problems #911"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK26,13,6:B21,18,12."]
+1/2-1/2
+
+[Event "Gould's Problems #912"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,17,10:BK29,11,5."]
+1-0
+
+[Event "Gould's Problems #913"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W22,11,K3:B13,9,5."]
+0-1
+
+[Event "Gould's Problems #914"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,K14,13:BK20,6,5."]
+0-1
+
+[Event "Gould's Problems #915"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W25,20,17:BK19,12,5."]
+1-0
+
+[Event "Gould's Problems #916"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W15,11,10:BK20,13,3."]
+1/2-1/2
+
+[Event "Gould's Problems #917"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,K30,K22:BK27,21,19."]
+1/2-1/2
+
+[Event "Gould's Problems #918"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK22,K19,10:BK21,12,9."]
+0-1
+
+[Event "Gould's Problems #919"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,K19,13:BK14,10,1."]
+1-0
+
+[Event "Gould's Problems #920"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK16,K12,K11:B18,K13,4."]
+0-1
+
+[Event "Gould's Problems #921"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W12,K11,K9:BK25,10,4."]
+0-1
+
+[Event "Gould's Problems #922"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W24,23,8:B28,11,7."]
+0-1
+
+[Event "Gould's Problems #923"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,28,K4:BK31,22,19."]
+1-0
+
+[Event "Gould's Problems #924"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W21,K15,K12:BK27,14,13."]
+1/2-1/2
+
+[Event "Gould's Problems #925"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,7:BK29,9,4."]
+0-1
+
+[Event "Gould's Problems #926"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK26,17,K11:BK29,12,K9,5."]
+1/2-1/2
+
+[Event "Gould's Problems #927"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK14,K2:B20,16,11."]
+1/2-1/2
+
+[Event "Gould's Problems #928"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W26,12,K1:B19,17,K10."]
+1/2-1/2
+
+[Event "Gould's Problems #929"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,12,K4:BK28,K22,3."]
+1-0
+
+[Event "Gould's Problems #930"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W21,15,K14:B23,13,7."]
+0-1
+
+[Event "Gould's Problems #931"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W25,20,K11:BK19,K18,12."]
+1-0
+
+[Event "Gould's Problems #932"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W22,20,K10:BK29,12,1."]
+1/2-1/2
+
+[Event "Gould's Problems #933"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,K28,24:B23,K4,3."]
+0-1
+
+[Event "Gould's Problems #934"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,K22,12:BK31,K29,27,21."]
+1-0
+
+[Event "Gould's Problems #935"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,28,26,21:BK31,18,1."]
+1/2-1/2
+
+[Event "Gould's Problems #936"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W30,26,K10:BK24,18,15,14."]
+1-0
+
+[Event "Gould's Problems #937"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,21,K15:BK22,17,14,5."]
+1-0
+
+[Event "Gould's Problems #938"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K23,K14,K10:B21,K18,17."]
+0-1
+
+[Event "Gould's Problems #939"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK30,28,24,20:B17,K11,K7."]
+1-0
+
+[Event "Gould's Problems #940"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W20,K7,K6:BK15,K14,10,K4."]
+1-0
+
+[Event "Gould's Problems #941"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:WK32,29,17,12:BK31,K16,1."]
+1/2-1/2
+
+[Event "Gould's Problems #942"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W29,20,K14,10:BK30,13,12,3."]
+1/2-1/2
+
+[Event "Gould's Problems #943"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W22,21,18,10:B26,24,9,5."]
+1-0
+
+[Event "Gould's Problems #944"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:W20,12,K6,K2:BK13,K11,K5,3."]
+1-0
+
+[Event "Gould's Problems #945"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,24,22,17:B15,7,6,1."]
+1-0
+
+[Event "Gould's Problems #946"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,28,K2:B24,19,18,10,6."]
+1-0
+
+[Event "Gould's Problems #947"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK31,27,K24,K20:BK18,7,6,K4."]
+0-1
+
+[Event "Gould's Problems #948"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK29,20,12,5:B28,K21,3,1."]
+1-0
+
+[Event "Gould's Problems #949"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK14,13,12,K2:BK16,K5,3,1."]
+1-0
+
+[Event "Gould's Problems #950"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W26,16,12,K5:B18,7,K6,3."]
+1-0
+
+[Event "Gould's Problems #951"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W18,K12,10,K1:BK31,K19,5,2."]
+1-0
+
+[Event "Gould's Problems #952"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W26,21,16,6:B25,24,13,5."]
+1/2-1/2
+
+[Event "Gould's Problems #953"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,K18,15,14:B21,K19,17,1."]
+0-1
+
+[Event "Gould's Problems #954"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,28,K27,21:B18,15,14,13."]
+0-1
+
+[Event "Gould's Problems #955"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W29,21,16,K10:BK30,22,14,K9."]
+1-0
+
+[Event "Gould's Problems #956"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W22,21,11,10:B20,14,13,K12."]
+1-0
+
+[Event "Gould's Problems #957"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,27,26,22:B19,13,8,3."]
+0-1
+
+[Event "Gould's Problems #958"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,24,23,20:B13,12,11,6."]
+0-1
+
+[Event "Gould's Problems #959"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,26,24,20:B19,15,12,5."]
+1-0
+
+[Event "Gould's Problems #960"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,24,K22,K16:B28,K23,20,15."]
+0-1
+
+[Event "Gould's Problems #961"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK31,26,K24,7:BK29,18,13,2."]
+0-1
+
+[Event "Gould's Problems #962"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W20,12,K2,K1:BK27,K19,K11,3."]
+1/2-1/2
+
+[Event "Gould's Problems #963"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:W20,12,K2,K1:BK27,K19,K11,3."]
+1-0
+
+[Event "Gould's Problems #964"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W22,21,19,K15:BK32,12,6,5."]
+0-1
+
+[Event "Gould's Problems #965"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,20,K15,11,6:BK23,12,10,4."]
+0-1
+
+[Event "Gould's Problems #966"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,21,20,K11:BK32,24,19,15,9."]
+1-0
+
+[Event "Gould's Problems #967"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,21,14,10,K3:BK31,K18,K12,5."]
+0-1
+
+[Event "Gould's Problems #968"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK32,26,22,18,17:BK29,K25,13,10,9."]
+0-1
+
+[Event "Gould's Problems #969"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,24,22,21,20:B15,13,6,5,1."]
+1/2-1/2
+
+[Event "Gould's Problems #970"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,28,18,13,8:BK31,23,21,6,1."]
+1/2-1/2
+
+[Event "Gould's Problems #971"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,25,17,K11,6:B28,20,K19,18,10."]
+1/2-1/2
+
+[Event "Gould's Problems #972"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W17,16,13,12,K3:BK15,10,4,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #973"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W27,26,23,20,K17:B16,11,9,8,4."]
+1-0
+
+[Event "Gould's Problems #974"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W22,18,17,14,13,K7:BK26,K23,9,6,5."]
+1-0
+
+[Event "Gould's Problems #975"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK30,29,28,20,K15:BK22,21,19,14,7,K2."]
+1-0
+
+[Event "Gould's Problems #976"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W26,19,18,13,K11:BK27,21,12,10,9,6,5."]
+1/2-1/2
+
+[Event "Gould's Problems #977"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK32,K30,K18,K15,K11,K7:BK31,K29,K12,K8,K4,K2."]
+0-1
+
+[Event "Gould's Problems #978"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,31,24,23,22,19:B15,14,13,12,10,8."]
+1/2-1/2
+
+[Event "Gould's Problems #979"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,25,24,20,14,13:B23,18,15,12,6,5."]
+0-1
+
+[Event "Gould's Problems #980"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W31,30,27,23,18,11:B22,16,12,7,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #981"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,23,22,21,19,18:B20,14,13,9,8,7."]
+0-1
+
+[Event "Gould's Problems #982"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK28,K16,14,K11,10,9:B27,20,K18,5,2,1."]
+0-1
+
+[Event "Gould's Problems #983"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W24,23,20,17,13,5:B22,16,11,7,6,1."]
+0-1
+
+[Event "Gould's Problems #984"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,28,26,15,K11,10,6:BK29,K25,K19,3,1."]
+0-1
+
+[Event "Gould's Problems #985"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,23,20,19,18,K2:B27,K26,12,11,4,3."]
+0-1
+
+[Event "Gould's Problems #986"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,25,K20,19,K2:B24,K14,9,6,K5."]
+1-0
+
+[Event "Gould's Problems #987"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,30,28,26,24,20,17,11:B27,19,15,12,10,4,3,2."]
+0-1
+
+[Event "Gould's Problems #988"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W30,21,16,10,9,7,6:B23,22,K20,15,14,5."]
+0-1
+
+[Event "Gould's Problems #989"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,28,22,21,17,13,K3:BK30,20,10,9,6,5,1."]
+1-0
+
+[Event "Gould's Problems #990"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W26,25,24,21,17,16,13:B18,15,14,10,7,6,5."]
+0-1
+
+[Event "Gould's Problems #991"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W27,26,25,K20,15,K11,K5:B28,K18,K17,14,K12,9,6."]
+0-1
+
+[Event "Gould's Problems #992"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W29,27,K21,K15,14,13,11:BK31,16,12,8,K6,5,4."]
+0-1
+
+[Event "Gould's Problems #993"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,28,22,21,17,13,K8:BK25,20,15,9,6,5,1."]
+0-1
+
+[Event "Gould's Problems #994"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,27,24,19,17,16,13,11:BK26,20,7,6,5,4,2."]
+0-1
+
+[Event "Gould's Problems #995"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,29,27,24,18,14,10:B21,20,13,11,7,5,3,1."]
+1-0
+
+[Event "Gould's Problems #996"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,28,26,23,22,19,18,13:B24,17,12,9,8,7,6,5."]
+1-0
+
+[Event "Gould's Problems #997"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W31,28,26,23,22,19,15,13:B24,21,12,10,9,8,6,5."]
+0-1
+
+[Event "Gould's Problems #998"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,29,28,27,26,24,17,K3:B20,18,16,15,10,7,5,4,2."]
+1-0
+
+[Event "Gould's Problems #999"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,27,25,24,23,22,21,20,13,12:B28,18,15,14,11,10,7,6,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #1000"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,27,26,24,22,21,18,14,10:B20,17,16,13,11,8,7,5,3,1."]
+0-1
+
+[Event "Gould's Problems #1001"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,31,30,29,27,25,20,15,14,10:B22,18,12,11,8,7,6,5,3,1."]
+0-1
+
+[Event "Gould's Problems #1002"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,30,27,26,24,22,21,20,19,13:B15,12,11,10,9,8,7,6,5,2,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1003"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,K19:B27,26,23."]
+0-1
+
+[Event "Gould's Problems #1004"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W13,11,10,K7:BK19,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1005"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,K16:B28,K27,K26,23."]
+1-0
+
+[Event "Gould's Problems #1006"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,K18:BK31,26,23,K19."]
+1-0
+
+[Event "Gould's Problems #1007"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,K19:B27,23,K22,9."]
+1-0
+
+[Event "Gould's Problems #1008"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,K10:BK31,23,15,14."]
+1-0
+
+[Event "Gould's Problems #1009"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,10:B28,22,12,5."]
+1/2-1/2
+
+[Event "Gould's Problems #1010"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W10,K7,K6,5:BK18,3,1."]
+0-1
+
+[Event "Gould's Problems #1011"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W13,11,10,6:BK18,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1012"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,K24,20:BK31,23,21,13."]
+1/2-1/2
+
+[Event "Gould's Problems #1013"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,17,K15:BK27,K26,23,16."]
+1/2-1/2
+
+[Event "Gould's Problems #1014"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,K19,17:BK27,K26,23,12."]
+0-1
+
+[Event "Gould's Problems #1015"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W32,30,K14,11:BK24,23,18,4."]
+0-1
+
+[Event "Gould's Problems #1016"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,K14,K2:B23,K19,16,13."]
+0-1
+
+[Event "Gould's Problems #1017"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,K22,K14:BK31,26,K24,23."]
+1/2-1/2
+
+[Event "Gould's Problems #1018"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:WK31,23,K15,12:B32,30,K22,K20."]
+1-0
+
+[Event "Gould's Problems #1019"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W32,30,K24,K22:BK31,K27,23,20."]
+0-1
+
+[Event "Gould's Problems #1020"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,K11,10,5:B21,K17,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1021"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W32,30,20,K15:B24,23,22,18."]
+0-1
+
+[Event "Gould's Problems #1022"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,14,10,K2:B13,K11,3,1."]
+1-0
+
+[Event "Gould's Problems #1023"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,K11,10,K9:BK18,K17,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1024"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W31,21,16,9:B19,14,3,1."]
+1-0
+
+[Event "Gould's Problems #1025"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W30,21,20,9:B19,14,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1026"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W21,20,10,K2:BK19,K18,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1027"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,21,12,11:B18,17,3,1."]
+1-0
+
+[Event "Gould's Problems #1028"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W19,16,12,K11:BK26,17,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1029"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,18,K10:B23,22,12,9."]
+0-1
+
+[Event "Gould's Problems #1030"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W21,12,11,K2:BK26,14,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1031"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,K15,8:B26,23,21,9."]
+0-1
+
+[Event "Gould's Problems #1032"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W31,10,K7,K2:BK18,K16,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1033"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,K20,K10:BK31,28,23,K18."]
+1/2-1/2
+
+[Event "Gould's Problems #1034"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W21,13,10,K6:BK27,K22,3,1."]
+1-0
+
+[Event "Gould's Problems #1035"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,K10,6:BK26,23,16,12."]
+0-1
+
+[Event "Gould's Problems #1036"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,13,10,7:BK22,19,3,1."]
+1-0
+
+[Event "Gould's Problems #1037"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W12,10,8,K2:B26,K18,3,1."]
+1-0
+
+[Event "Gould's Problems #1038"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W21,10,7,5:B15,K9,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1039"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK19,K11,10,5,K2:BK13,K9,3,1."]
+0-1
+
+[Event "Gould's Problems #1040"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK16,K11,10,5,K2:BK17,K9,3,1."]
+0-1
+
+[Event "Gould's Problems #1041"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:W30,21,10,7,K6:BK18,16,3,1."]
+0-1
+
+[Event "Gould's Problems #1042"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W13,10,9,5,K2:BK18,K11,3,1."]
+1-0
+
+
+[Event "Gould's Problems #1043"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,18,K1:B21,20,19,16,12."]
+1-0
+
+[Event "Gould's Problems #1044"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,20,K10:BK31,23,21,13,2."]
+1/2-1/2
+
+[Event "Gould's Problems #1045"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,31,17,12,10:B23,18,11,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1046"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,17,13,11:B23,21,6,5,2."]
+1/2-1/2
+
+[Event "Gould's Problems #1047"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,24,K9:BK29,23,K15,12."]
+0-1
+
+[Event "Gould's Problems #1048"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,13,K10:BK31,23,5,3."]
+1/2-1/2
+
+[Event "Gould's Problems #1049"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:WK21,16,12,10,K2:BK23,20,13,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1050"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W28,10,K7,K6,5:B20,K18,3,1."]
+0-1
+
+[Event "Gould's Problems #1051"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W20,12,10,K7,K2:BK22,K9,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1052"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,K15,K2:BK26,23,20,12."]
+1/2-1/2
+
+[Event "Gould's Problems #1053"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,21,11,10,K7,K6:B28,20,K18,13,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1054"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W21,20,15,13,10:BK30,12,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1055"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W28,12,11,10,K2:BK30,K22,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1056"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,21,20,K11,10:BK18,13,12,3,1."]
+1-0
+
+[Event "Gould's Problems #1057"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,28,25,K11:BK31,23,20,13,5."]
+1/2-1/2
+
+[Event "Gould's Problems #1058"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,31,30,K15:B24,23,22,20,12."]
+1-0
+
+[Event "Gould's Problems #1059"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,19,18,14:B17,12,5,4,2."]
+1/2-1/2
+
+[Event "Gould's Problems #1060"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W23,22,20,19,16:B13,7,5,3,1."]
+1-0
+
+[Event "Gould's Problems #1061"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W27,17,14,10,9,K2:BK29,K19,K18,5,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1062"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,23,21,19,6:BK31,14,13,12,11."]
+0-1
+
+[Event "Gould's Problems #1063"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,24,15,9:B25,16,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1064"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,20,14,9:B25,11,3,1."]
+1-0
+
+[Event "Gould's Problems #1065"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W21,18,12,9:BK25,11,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1066"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W14,11,10,K9,5:BK15,13,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1067"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W28,16,10,K7:B19,K17,3,1."]
+1-0
+
+[Event "Gould's Problems #1068"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W28,14,13,11:B26,6,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1069"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W10,K6,5,K2:BK20,K15,K3,1."]
+1-0
+
+[Event "Gould's Problems #1070"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,23,13,10:B21,16,15,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1071"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W29,K11,10,K9:BK18,K17,3,1."]
+1/2-1/2
+
+[Event "Gould's Problems #1072"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,30,24,K15,10:BK31,23,12,3,1."]
+0-1
+
+[Event "Gould's Problems #1073"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W20,K19,10,9:BK27,12,3,1."]
+0-1
+
+[Event "Gould's Problems #1074"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,22,21,10,K9,5:BK24,K23,13,3,1."]
+0-1
+
+[Event "Gould's Problems #1075"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "B:W32,30,28,19,18,15:B22,20,11,8,7,6."]
+1/2-1/2
+
+[Event "Gould's Problems #1076"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,28,21,K3:BK31,23,19,13,9,7."]
+1-0
+
+[Event "Gould's Problems #1077"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:W32,K30,21,K18:BK31,28,K27,23."]
+0-1
+
+[Event "Gould's Problems #1078"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W32,30,28,25,K16:BK31,23,20,19,12,5."]
+1-0
+
+[Event "Gould's Problems #1079"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1/2-1/2"]
+[Setup "1"]
+[FEN "W:W32,30,K24:B28,K26,K23,K14."]
+1/2-1/2
+
+[Event "Gould's Problems #1080"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "B:W23,22,21,10,K2:B13,K11,9,3,1."]
+1-0
+
+[Event "Gould's Problems #1081"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "W:WK32,30,29,25,20:B23,K18,14,13,12."]
+0-1
+
+[Event "Gould's Problems #1082"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "1-0"]
+[Setup "1"]
+[FEN "W:W32,30,K15:BK31,23,20,12."]
+1-0
+
+[Event "Gould's Problems #1083"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:WK32,K30:B28,23,22."]
+0-1
+
+[Event "Gould's Problems #1084"]
+[Date ""]
+[Black ""]
+[White ""]
+[Result "0-1"]
+[Setup "1"]
+[FEN "B:WK27,12,10,K7,K6:BK18,K17,3,1."]
+0-1
+

@@ -46,7 +46,23 @@ def update_agent(state: CheckersState) -> dict:
 
     Old nodes remain registered in the graph for the old pipeline and are
     unchanged. This node only calls them — it does not replicate their logic.
+
+    Evaluation-field lifecycle
+    ──────────────────────────
+    chosen_move_facts is set by ranker_agent and CLEARED by state_manager.
+    To let logger_node (Phase C) export it for the evaluation-source JSONL,
+    we snapshot it here before Phase A runs, then restore it only in a
+    temporary log-only state copy passed to logger_node.  inter_turn_memory
+    (Phase D) and the final merged dict still receive None, preventing any
+    leakage into the next turn.  No decision logic is touched.
     """
+
+    # ── Evaluation-field snapshot (before Phase A clears it) ───────────────
+    # state_manager returns chosen_move_facts: None to clear the field for
+    # the next turn. Snapshot here so logger_node can export the current
+    # turn's facts into the evaluation-source JSONL without touching any
+    # decision state.
+    _eval_chosen_facts = state.chosen_move_facts
 
     # ── Phase A: Apply chosen move ────────────────────────────────────────────
     # Terminal guard: skip move application when ranker_agent received an
@@ -63,7 +79,14 @@ def update_agent(state: CheckersState) -> dict:
     post_wc_state = post_move_state.model_copy(update=wc_result)
 
     # ── Phase C: Logging ──────────────────────────────────────────────────────
-    log_result = logger_node(post_wc_state)
+    # Build a log-only state copy with chosen_move_facts restored from the
+    # pre-Phase-A snapshot so logger_node can write it to evaluation_source/.
+    # This copy is NEVER merged back; inter_turn_memory still receives
+    # post_wc_state (chosen_move_facts=None), preventing next-turn leakage.
+    _log_state = post_wc_state.model_copy(
+        update={"chosen_move_facts": _eval_chosen_facts}
+    )
+    log_result = logger_node(_log_state)
 
     # ── Phase D: Next-turn strategic context ──────────────────────────────────
     # Skipped when the game is over (no next turn to prepare for).

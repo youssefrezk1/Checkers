@@ -117,6 +117,9 @@ def state_manager(state: CheckersState) -> dict:
         "llm_invoked": False,
         "llm_agreed_with_symbolic_best": None,
         "proposal_diagnostics": None,
+        # Evaluation export field — cleared each turn so stale facts
+        # from a previous ply never persist into the next.
+        "chosen_move_facts": None,
         "last_completed_node": "state_manager",
     }
 

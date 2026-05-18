@@ -203,6 +203,31 @@ def logger_node(state: CheckersState) -> dict:
         # game_log_id is already "game_YYYYMMDD_HHMMSS"; avoid "game_game_..." in path
         _append_jsonl(os.path.join(LOG_DIR, f"{game_log_id}.jsonl"), jsonl_record)
 
+        # ── Evaluation-source export ────────────────────────────────────────────
+        # Written to a SEPARATE file so replay_evaluator.py can consume it
+        # without touching the existing game log schema.
+        #
+        # Field sources:
+        #   last_move_reasoning  ← move_history[-1]["last_move_reasoning"]
+        #                          (state.last_move_reasoning is cleared by
+        #                          state_manager BEFORE logger_node runs)
+        #   ranker_diagnostics   ← state.ranker_diagnostics (not cleared until
+        #                          next ranker_agent call)
+        #   chosen_move_facts    ← state.chosen_move_facts (set by ranker_agent,
+        #                          cleared by state_manager; null for human moves)
+        #   turn_id              ← "{game_log_id}_t{turn_number}"
+        # ──────────────────────────────────────────────────────────────────────
+        eval_source_record = {
+            "turn_id":            f"{game_log_id}_t{state.turn_number}",
+            "last_move_reasoning": reasoning,          # from move_history[-1]
+            "ranker_diagnostics": state.ranker_diagnostics,
+            "chosen_move_facts":  state.chosen_move_facts,  # None for human moves
+        }
+        _append_jsonl(
+            os.path.join(LOG_DIR, "evaluation_source", f"{game_log_id}.jsonl"),
+            eval_source_record,
+        )
+
     # ── Final summary ─────────────────────────────────────────
     if state.game_over:
         summary = {

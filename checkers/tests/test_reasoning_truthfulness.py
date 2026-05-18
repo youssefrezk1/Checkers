@@ -237,6 +237,30 @@ class TestCenterControlChecks:
         facts = _base_facts(center_control=False)
         assert _warns("It establishes central control.", facts)
 
+    def test_central_board_presence_blocked_when_false(self):
+        # "central board presence" conflates geometric and tactical center.
+        # Must be rejected when center_control=False.
+        facts = _base_facts(center_control=False)
+        assert _warns("This move contributes to central board presence.", facts)
+
+    def test_influence_over_central_blocked_when_false(self):
+        facts = _base_facts(center_control=False)
+        assert _warns("The piece improves influence over central squares.", facts)
+
+    def test_central_board_presence_always_forbidden(self):
+        # "central board presence" is in _CONTEXT_FORBIDDEN_VOCAB and no seed
+        # ever emits it — so it is blocked regardless of center_control value.
+        facts = _base_facts(center_control=True)
+        assert _warns("This move contributes to central board presence.", facts)
+
+    def test_no_warning_for_geometric_center_phrasing_when_false(self):
+        # The ontology-safe geometric phrase must NOT trigger a warning.
+        facts = _base_facts(center_control=False)
+        assert _clean(
+            "Destination column in center range (col=3) — geometric center position.",
+            facts,
+        )
+
 
 class TestCaptureMaterialChecks:
     def test_warns_when_capture_claimed_but_zero(self):
@@ -594,25 +618,31 @@ class TestBuildGroundedReasoningSeeds:
     # ── mobility guard ───────────────────────────────────────────────────────
 
     def test_mobility_seed_when_after_less_than_before(self):
-        """Mobility seed appears ONLY when after < before."""
+        """Mobility seed uses natural-language wording when after < before."""
         text = self._text()  # _FULL_FACTS has after=8 < before=12
-        assert "opponent_mobility_after=8" in text
+        assert "opponent mobility changes from 12 to 8" in text
 
     def test_mobility_seed_emitted_when_equal(self):
-        """Mobility seed always emitted (FIX 2) — equal values still get a seed."""
+        """Mobility seed uses 'remains at N' wording when before == after."""
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS,
             "opponent_mobility_after": 10, "opponent_mobility_before": 10}}
         text = self._text(move, [move])
-        assert "opponent_mobility_before=10" in text
-        assert "opponent_mobility_after=10" in text
+        assert "opponent mobility remains at 10" in text
 
     def test_mobility_seed_emitted_when_after_greater(self):
-        """Mobility seed always emitted (FIX 2) — increasing values still get a seed."""
+        """Mobility seed uses 'changes from N to M' wording when after > before."""
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS,
             "opponent_mobility_after": 14, "opponent_mobility_before": 10}}
         text = self._text(move, [move])
-        assert "opponent_mobility_before=10" in text
-        assert "opponent_mobility_after=14" in text
+        assert "opponent mobility changes from 10 to 14" in text
+
+    def test_mobility_seed_does_not_duplicate_key_value_form(self):
+        """Phase-6 dedup: only the natural-language form is emitted.
+        The legacy 'opponent_mobility_before=N, opponent_mobility_after=M'
+        structured form must NOT appear alongside it."""
+        text = self._text()  # natural form is "from 12 to 8"
+        assert "opponent_mobility_before=12, opponent_mobility_after=8" not in text
+        assert "our_mobility_before=" not in text  # _FULL_FACTS sets our mob too
 
     # ── center_control guard ──────────────────────────────────────────────────
 
@@ -727,6 +757,97 @@ class TestSeedReasoningSystem:
 
     def test_system_prompt_output_format(self):
         assert '"reasoning"' in RANKER_SEED_REASONING_SYSTEM
+
+
+class TestDecisionRelevantFactsBlock:
+    """
+    Phase 4.3b: the seed-reasoning prompt must instruct the LLM to surface the
+    most decision-relevant verifiable facts present in the seeds, in a
+    fixed priority order, without mechanically restating every seed.
+    """
+
+    PROMPT = RANKER_SEED_REASONING_SYSTEM
+
+    def test_block_header_present(self):
+        assert "DECISION-RELEVANT FACTS" in self.PROMPT
+
+    def test_uses_grounded_facts_only(self):
+        assert "grounded facts" in self.PROMPT
+
+    def test_priority_material_change(self):
+        assert "material change" in self.PROMPT
+        assert "captures_count" in self.PROMPT
+        assert "net_gain" in self.PROMPT
+
+    def test_priority_mobility_change(self):
+        assert "mobility change" in self.PROMPT
+        assert "opponent_mobility_before/after" in self.PROMPT \
+            or "opponent_mobility_after" in self.PROMPT
+        assert "mobility_reduction" in self.PROMPT
+
+    def test_priority_immediate_threat(self):
+        assert "immediate threat" in self.PROMPT
+        assert "creates_immediate_threat" in self.PROMPT
+
+    def test_priority_recapture_safety_or_risk(self):
+        assert "recapture safety or risk" in self.PROMPT
+        assert "opponent_can_recapture" in self.PROMPT
+
+    def test_priority_forced_reply(self):
+        assert "forced opponent reply" in self.PROMPT
+        assert "forced_opponent_jump_reply" in self.PROMPT
+
+    def test_priority_isolation_connectivity(self):
+        assert ("isolation or connectivity" in self.PROMPT
+                or "isolation/connectivity" in self.PROMPT)
+        assert "leaves_piece_isolated" in self.PROMPT
+
+    def test_priority_adversity_losing_context(self):
+        # Mention adversity / losing-position context — at least one cue.
+        assert "losing-position" in self.PROMPT or "adversity" in self.PROMPT
+        # And at least one adversity seed name.
+        assert ("slightly_losing" in self.PROMPT
+                or "clearly_losing" in self.PROMPT
+                or "least_harmful" in self.PROMPT
+                or "forced_choice" in self.PROMPT)
+
+    def test_do_not_mechanically_restate_every_seed(self):
+        assert "Do not mechanically restate every seed" in self.PROMPT \
+            or "mechanically restate" in self.PROMPT
+
+    def test_do_not_invent_strategic_terms(self):
+        assert "Do not invent unsupported strategic terms" in self.PROMPT \
+            or "Do not invent" in self.PROMPT
+
+    def test_no_forbidden_vocabulary_introduced(self):
+        """The new DECISION-RELEVANT FACTS block must not introduce any of
+        the strategic phrases the prompt elsewhere forbids the LLM from using."""
+        prompt = self.PROMPT
+        start = prompt.find("DECISION-RELEVANT FACTS")
+        assert start != -1, "block header missing"
+        # Block ends at its own closing line.
+        end = prompt.find("mechanically restate every seed", start)
+        assert end != -1, "block terminator missing"
+        # Walk to end of that line.
+        end = prompt.find("\n", end)
+        block = prompt[start:end if end != -1 else len(prompt)]
+
+        forbidden_in_block = (
+            "structural pressure",
+            "stable position",
+            "good position",
+            "limits options",
+            "initiative",
+            "dominance",
+            "control the game",
+            "strong position",
+            "winning conversion",
+            "no advantage",
+        )
+        for banned in forbidden_in_block:
+            assert banned not in block.lower(), (
+                f"new block must not contain forbidden phrase {banned!r}"
+            )
 
 
 class TestGenerateSeededReasoning:
@@ -955,8 +1076,12 @@ class TestStrategicInterpretationSeeds:
         # _SIMPLE_QUIET path [[5,2],[4,3]]: row 5→4 (decreasing) → forward for RED
         assert "develops a piece forward" in _text_with_player(_SIMPLE_QUIET, _RED)
 
-    def test_development_seed_mentions_activity(self):
-        assert "improves piece activity" in _text_with_player(_SIMPLE_QUIET, _RED)
+    def test_development_seed_is_factual_only(self):
+        # Seed (A) must state the geometric fact without filler phrases like
+        # "improves piece activity" (banned as generic filler).
+        text = _text_with_player(_SIMPLE_QUIET, _RED)
+        assert "develops a piece forward" in text
+        assert "improves piece activity" not in text
 
     def test_no_development_seed_when_capture(self):
         assert "develops a piece forward" not in self._text(_JUMP_MOVE)
@@ -967,8 +1092,19 @@ class TestStrategicInterpretationSeeds:
         # _BACK_ROW_MOVE src_row=7 → RED back row
         assert "moves a back-row piece" in _text_with_player(_BACK_ROW_MOVE, _RED)
 
-    def test_back_row_seed_mentions_defense(self):
-        assert "back-row defensive structure" in _text_with_player(_BACK_ROW_MOVE, _RED)
+    def test_back_row_seed_intact_when_weakens_false(self):
+        # _BACK_ROW_MOVE has no weakens_king_row key → defaults False →
+        # Fix 2C: seed says "back-row structure remains intact", not "weakens".
+        text = _text_with_player(_BACK_ROW_MOVE, _RED)
+        assert "back-row structure remains intact" in text
+        assert "weakens_king_row=false" in text
+
+    def test_back_row_seed_weakens_when_flag_true(self):
+        # When weakens_king_row=True the seed must say so explicitly.
+        move = {**_BACK_ROW_MOVE, "facts": {**_BACK_ROW_MOVE["facts"], "weakens_king_row": True}}
+        text = _text_with_player(move, _RED)
+        assert "weakens back-row defensive structure" in text
+        assert "weakens_king_row=true" in text
 
     def test_no_back_row_seed_for_midgame_row(self):
         # _SIMPLE_QUIET starts at row 5 — not back-row for any color
@@ -995,8 +1131,10 @@ class TestStrategicInterpretationSeeds:
         # _SIMPLE_QUIET goes to [4, 3] → col 3 ∈ {2,3,4,5}
         assert "destination column in center range" in self._text(_SIMPLE_QUIET)
 
-    def test_center_seed_mentions_board_presence(self):
-        assert "central board presence" in self._text(_SIMPLE_QUIET)
+    def test_center_seed_mentions_geometric_position(self):
+        # Seed (D) now emits ontologically-correct "geometric center position"
+        # rather than the conflated "central board presence".
+        assert "geometric center position" in self._text(_SIMPLE_QUIET)
 
     def test_no_center_seed_for_edge_destination(self):
         # _EDGE_MOVE goes to col 0
@@ -1256,8 +1394,9 @@ class TestHallucinationDetection:
     def test_positional_adjustment_flagged(self):
         assert _has_contradiction(_hall("a neutral positional adjustment"), "forbidden term 'positional adjustment'")
 
-    def test_no_new_vulnerabilities_flagged(self):
-        assert _has_contradiction(_hall("no new vulnerabilities introduced"), "forbidden term 'no new vulnerabilities'")
+    def test_no_new_vulnerabilities_allowed(self):
+        # Negated safety claim — "no new vulnerabilities" must not be flagged.
+        assert not _has_contradiction(_hall("no new vulnerabilities introduced"), "new vulnerabilities")
 
     def test_counterplay_score_flagged(self):
         assert _has_contradiction(_hall("counterplay_score=0"), "forbidden term 'counterplay_score'")
@@ -1294,12 +1433,80 @@ class TestHallucinationDetection:
             "term 'traps' used but not in seeds",
         )
 
-    def test_escape_without_seed_flagged(self):
-        # 'escape' is in _CONTEXT_FORBIDDEN_VOCAB — catches sneaky single-word use
-        assert _has_contradiction(_hall("the king can escape"), "term 'escape' used but not in seeds")
+    def test_escape_compound_phrases_in_forbidden_vocab(self):
+        # Bare "escape" was intentionally removed from _CONTEXT_FORBIDDEN_VOCAB
+        # (too short — fires on "cannot escape the capture").
+        # Compound forms are covered by _FORBIDDEN_VOCAB instead.
+        assert "escape squares" in _FORBIDDEN_VOCAB
+        assert "escape routes" in _FORBIDDEN_VOCAB
+        assert "king escape" in _FORBIDDEN_VOCAB
+        # Bare "escape" alone must NOT fire (see comment in _CONTEXT_FORBIDDEN_VOCAB)
+        assert not _has_contradiction(_hall("the king can escape"), "term 'escape' used but not in seeds")
 
-    def test_diagonal_without_seed_flagged(self):
-        assert _has_contradiction(_hall("controls the diagonal"), "term 'diagonal' used but not in seeds")
+    def test_diagonal_valid_usage_allowed(self):
+        # Bare "diagonal" is valid checkers vocabulary — must not be context-forbidden.
+        assert not _has_contradiction(_hall("controls the diagonal"), "term 'diagonal' used but not in seeds")
+
+    def test_diagonal_compound_forms_still_forbidden(self):
+        # Compound invented forms remain in the absolute _FORBIDDEN_VOCAB.
+        assert _has_contradiction(_hall("creates diagonal pressure on the left"), "forbidden term 'diagonal pressure'")
+        assert _has_contradiction(_hall("exposes diagonal risks"), "forbidden term 'diagonal risks'")
+        assert _has_contradiction(_hall("dominates the long diagonal"), "forbidden term 'long diagonal'")
+
+    def test_new_vulnerabilities_without_seed_flagged(self):
+        # Positive form without seed — context-forbidden fires.
+        assert _has_contradiction(
+            _hall("this creates new vulnerabilities in our structure"),
+            "term 'new vulnerabilities' used but not in seeds",
+        )
+
+    def test_new_vulnerabilities_with_seed_allowed(self):
+        # Positive form allowed when seed introduces it.
+        assert not _has_contradiction(
+            _hall("this creates new vulnerabilities", seeds=["new vulnerabilities=true"]),
+            "term 'new vulnerabilities' used but not in seeds",
+        )
+
+    def test_no_new_vulnerabilities_negation_skipped(self):
+        # Negated form must be skipped even though substring matches.
+        result = _hall("introduces no new vulnerabilities to our formation")
+        assert not _has_contradiction(result, "new vulnerabilities")
+
+    # ── Domain vocabulary — must never trigger ──────────────────────
+
+    def test_diagonal_move_allowed(self):
+        # "diagonal" is valid checkers vocabulary.
+        assert not _has_contradiction(_hall("a diagonal move to (3,4)"), "diagonal")
+
+    def test_moves_diagonally_allowed(self):
+        # "diagonally" must not fire any forbidden-vocab check.
+        assert not _has_contradiction(_hall("the piece moves diagonally forward"), "diagonal")
+
+    def test_no_new_vulnerabilities_not_absolute_forbidden(self):
+        # Negated safety statement must not trigger the absolute _FORBIDDEN_VOCAB check.
+        assert not _has_contradiction(_hall("no new vulnerabilities are introduced"), "forbidden")
+
+    # ── Strict schema-leak terms — must always trigger ───────────────
+
+    def test_creates_real_trap_field_name_flagged(self):
+        # Underscore field name in reasoning text is a schema leak.
+        assert _has_contradiction(
+            _hall("creates_real_trap=true confirms this is sound"),
+            "forbidden term 'creates_real_trap'",
+        )
+
+    def test_restriction_score_field_name_flagged(self):
+        assert _has_contradiction(
+            _hall("restriction_score rises after this move"),
+            "forbidden term 'restriction_score'",
+        )
+
+    def test_real_trap_english_phrase_flagged(self):
+        # English prose form also remains forbidden.
+        assert _has_contradiction(_hall("this creates a real trap"), "forbidden term 'real trap'")
+
+    def test_counterplay_score_still_flagged(self):
+        assert _has_contradiction(_hall("counterplay_score=0"), "forbidden term 'counterplay_score'")
 
     # ── Unsupported numeric statements ──────────────────────────────
 
@@ -1390,10 +1597,11 @@ class TestHallucinationDetection:
             "forbidden term 'regulars_captured'",
         )
 
-    def test_new_vulnerabilities_flagged(self):
+    def test_new_vulnerabilities_positive_without_seed_flagged(self):
+        # Positive form (not negated) — flagged when not seeded.
         assert _has_contradiction(
-            _hall("no new vulnerabilities were introduced"),
-            "forbidden term",
+            _hall("this move creates new vulnerabilities in our position"),
+            "term 'new vulnerabilities' used but not in seeds",
         )
 
 
@@ -1850,9 +2058,10 @@ class TestRetryHallucinationRejection:
         )
         assert any("real trap" in w for w in ws)
 
-    def test_no_new_vulnerabilities_rejected(self):
+    def test_no_new_vulnerabilities_allowed(self):
+        # Negated form — must pass the vocabulary check cleanly.
         ws = self._check("the move introduces no new vulnerabilities to our position")
-        assert any("new vulnerabilities" in w for w in ws)
+        assert not any("new vulnerabilities" in w for w in ws)
 
     def test_structural_restriction_rejected(self):
         ws = self._check("maintains the structural restriction on the left flank")
@@ -2117,6 +2326,22 @@ class TestVaguePositionalLeakage:
 
     def test_neutral_positional_in_forbidden_vocab(self):
         assert "neutral positional" in _FORBIDDEN_VOCAB
+
+    # Phase 1 — generic filler additions
+    def test_improves_activity_in_forbidden_vocab(self):
+        assert "improves activity" in _FORBIDDEN_VOCAB
+
+    def test_piece_activity_in_forbidden_vocab(self):
+        assert "piece activity" in _FORBIDDEN_VOCAB
+
+    def test_more_active_position_in_forbidden_vocab(self):
+        assert "more active position" in _FORBIDDEN_VOCAB
+
+    def test_maintains_pressure_in_forbidden_vocab(self):
+        assert "maintains pressure" in _FORBIDDEN_VOCAB
+
+    def test_central_board_presence_in_context_forbidden_vocab(self):
+        assert "central board presence" in _CONTEXT_FORBIDDEN_VOCAB
 
     # ── Clean reasoning still passes ─────────────────────────────────────────
 
@@ -3156,51 +3381,68 @@ def _move_with_mobility(
 
 
 class TestFix2MobilitySeeds:
-    """Seeds for our_mobility and opponent_mobility must always be emitted."""
+    """Seeds for our_mobility and opponent_mobility must always be emitted.
+
+    Phase-6 dedup: seeds now use the natural-language form only
+    ('opponent mobility changes from X to Y' / 'remains at N').  The
+    structured 'opponent_mobility_before=N, opponent_mobility_after=M' form
+    is no longer emitted alongside it.
+    """
 
     def test_opponent_mobility_seed_emitted_when_reduced(self):
         move = _move_with_mobility(opp_before=12, opp_after=8, our_before=6, our_after=6)
         seeds = _build_grounded_reasoning_seeds(move, [move])
         seeds_text = " ".join(seeds)
-        assert "opponent_mobility_before=12" in seeds_text
-        assert "opponent_mobility_after=8" in seeds_text
+        assert "opponent mobility changes from 12 to 8" in seeds_text
 
     def test_opponent_mobility_seed_emitted_when_equal(self):
-        """Previously suppressed (mob_after >= mob_before) — now always emitted."""
+        """Always emitted; equal values get the 'remains at N' form."""
         move = _move_with_mobility(opp_before=10, opp_after=10, our_before=6, our_after=6)
         seeds = _build_grounded_reasoning_seeds(move, [move])
         seeds_text = " ".join(seeds)
-        assert "opponent_mobility_before=10" in seeds_text
-        assert "opponent_mobility_after=10" in seeds_text
+        assert "opponent mobility remains at 10" in seeds_text
 
     def test_opponent_mobility_seed_emitted_when_increased(self):
-        """mob_after > mob_before — was suppressed before FIX 2."""
         move = _move_with_mobility(opp_before=8, opp_after=12, our_before=6, our_after=6)
         seeds = _build_grounded_reasoning_seeds(move, [move])
         seeds_text = " ".join(seeds)
-        assert "opponent_mobility_before=8" in seeds_text
-        assert "opponent_mobility_after=12" in seeds_text
+        assert "opponent mobility changes from 8 to 12" in seeds_text
 
     def test_our_mobility_seed_emitted_when_improved(self):
         move = _move_with_mobility(opp_before=10, opp_after=10, our_before=5, our_after=8)
         seeds = _build_grounded_reasoning_seeds(move, [move])
         seeds_text = " ".join(seeds)
-        assert "our_mobility_before=5" in seeds_text
-        assert "our_mobility_after=8" in seeds_text
+        assert "our mobility changes from 5 to 8" in seeds_text
 
     def test_our_mobility_seed_emitted_when_reduced(self):
         move = _move_with_mobility(opp_before=10, opp_after=10, our_before=8, our_after=5)
         seeds = _build_grounded_reasoning_seeds(move, [move])
         seeds_text = " ".join(seeds)
-        assert "our_mobility_before=8" in seeds_text
-        assert "our_mobility_after=5" in seeds_text
+        assert "our mobility changes from 8 to 5" in seeds_text
 
     def test_our_mobility_seed_emitted_when_unchanged(self):
         move = _move_with_mobility(opp_before=10, opp_after=10, our_before=7, our_after=7)
         seeds = _build_grounded_reasoning_seeds(move, [move])
         seeds_text = " ".join(seeds)
-        assert "our_mobility_before=7" in seeds_text
-        assert "our_mobility_after=7" in seeds_text
+        assert "our mobility remains at 7" in seeds_text
+
+    def test_no_duplicate_structured_form_emitted(self):
+        """Regression guard: legacy 'key=N, key=M' form must NOT coexist with the
+        natural-language form."""
+        move = _move_with_mobility(opp_before=12, opp_after=8, our_before=6, our_after=6)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        seeds_text = " ".join(seeds)
+        assert "opponent_mobility_before=12, opponent_mobility_after=8" not in seeds_text
+        assert "our_mobility_before=6, our_mobility_after=6" not in seeds_text
+
+    def test_one_mobility_seed_per_pair(self):
+        """Exactly one seed contains each mobility direction's key phrase."""
+        move = _move_with_mobility(opp_before=12, opp_after=8, our_before=6, our_after=5)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        opp_count = sum(1 for s in seeds if "opponent mobility" in s)
+        our_count = sum(1 for s in seeds if "our mobility" in s)
+        assert opp_count == 1, f"expected 1 opponent mobility seed, got {opp_count}: {seeds!r}"
+        assert our_count == 1, f"expected 1 our mobility seed, got {our_count}: {seeds!r}"
 
     def test_type_b_no_contradiction_opponent_mobility_from_to(self):
         """
@@ -3460,3 +3702,782 @@ class TestStrategicContextPerspective:
         assert not losing_priorities.intersection(priorities), (
             f"Losing priorities present when RED is winning: {losing_priorities.intersection(priorities)}"
         )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Number-word before→after fact-grounded bypass
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestNumberWordBeforeAfterBypass:
+    """
+    Tests for the fact-grounded bypass in _check_reasoning_truthfulness that
+    suppresses 'unsupported before→after numeric claim' when the LLM expresses
+    a mobility or threatened-pieces transition in number-word form (e.g.
+    'from six to four') but the fact dict contains the matching digit values.
+
+    Coverage:
+      1. opponent mobility — grounded word form → no warning
+      2. opponent mobility — wrong numbers (mismatch) → warning fires
+      3. our_mobility — grounded word form → no warning
+      4. our_pieces_threatened — grounded word form → no warning
+      5. no matching fact at all → warning fires
+      6. digit form is still handled by existing rule (not affected)
+    """
+
+    def _facts(self, **kwargs) -> dict:
+        base = {
+            "opponent_can_recapture": False,
+            "opponent_mobility_before": None,
+            "opponent_mobility_after": None,
+            "our_mobility_before": None,
+            "our_mobility_after": None,
+            "our_pieces_threatened_before": None,
+            "our_pieces_threatened_after": None,
+            "minimax_score": 5.0,
+            "captures_count": 0,
+            "net_gain": 0,
+            "leaves_piece_isolated": False,
+            "creates_immediate_threat": False,
+            "results_in_king": False,
+            "near_promotion": False,
+            "center_control": False,
+        }
+        base.update(kwargs)
+        return base
+
+    # ── 1. opponent mobility word-form grounded → no warning ──────────────────
+
+    def test_from_six_to_four_grounded_by_opponent_mobility(self):
+        """
+        'from six to four' with opponent_mobility_before=6, after=4 must NOT fire.
+        This is the exact surface form the LLM uses that previously triggered
+        the false-positive contradiction.
+        """
+        facts = self._facts(opponent_mobility_before=6, opponent_mobility_after=4)
+        ws = _check_reasoning_truthfulness(
+            "The move reduces opponent mobility from six to four, limiting replies.",
+            facts,
+            seeds=[
+                "opponent_mobility_before=6, opponent_mobility_after=4 — "
+                "reduces opponent mobility by 2, restricting available replies"
+            ],
+        )
+        word_ws = [w for w in ws if "before→after numeric claim" in w]
+        assert word_ws == [], (
+            f"'from six to four' grounded by facts should NOT fire; got: {word_ws}"
+        )
+
+    def test_from_twelve_to_eight_grounded_by_opponent_mobility(self):
+        """Larger mobility values — word form grounded → no warning."""
+        facts = self._facts(opponent_mobility_before=8, opponent_mobility_after=6)
+        ws = _check_reasoning_truthfulness(
+            "Opponent mobility drops from eight to six after this move.",
+            facts,
+            seeds=[
+                "opponent_mobility_before=8, opponent_mobility_after=6 — "
+                "reduces opponent mobility by 2"
+            ],
+        )
+        word_ws = [w for w in ws if "before→after numeric claim" in w]
+        assert word_ws == [], (
+            f"'from eight to six' grounded by facts should NOT fire; got: {word_ws}"
+        )
+
+    # ── 2. wrong numbers (mismatch) → warning must fire ───────────────────────
+
+    def test_from_six_to_four_fires_when_facts_say_six_to_five(self):
+        """
+        Facts say 6→5 but LLM says 'from six to four' — mismatch, must fire.
+        """
+        facts = self._facts(opponent_mobility_before=6, opponent_mobility_after=5)
+        ws = _check_reasoning_truthfulness(
+            "The move reduces opponent mobility from six to four.",
+            facts,
+            seeds=[
+                "opponent_mobility_before=6, opponent_mobility_after=5 — "
+                "reduces opponent mobility by 1"
+            ],
+        )
+        word_ws = [w for w in ws if "before→after numeric claim" in w]
+        assert len(word_ws) > 0, (
+            "'from six to four' with facts 6→5 should fire as contradiction"
+        )
+
+    def test_completely_fabricated_numbers_fire(self):
+        """No fact pair matches 'from nine to three' when facts are 6→4."""
+        facts = self._facts(opponent_mobility_before=6, opponent_mobility_after=4)
+        ws = _check_reasoning_truthfulness(
+            "Opponent moves shrink from nine to three.",
+            facts,
+            seeds=[
+                "opponent_mobility_before=6, opponent_mobility_after=4 — "
+                "reduces opponent mobility by 2"
+            ],
+        )
+        word_ws = [w for w in ws if "before→after numeric claim" in w]
+        assert len(word_ws) > 0, (
+            "Fabricated 'from nine to three' must fire when facts are 6→4"
+        )
+
+    # ── 3. our_mobility — grounded word form → no warning ─────────────────────
+
+    def test_from_three_to_two_grounded_by_our_mobility(self):
+        """
+        'from three to two' with our_mobility_before=3, after=2 → no warning.
+        """
+        facts = self._facts(our_mobility_before=3, our_mobility_after=2)
+        ws = _check_reasoning_truthfulness(
+            "Our mobility decreases from three to two after the capture.",
+            facts,
+            seeds=[
+                "our_mobility_before=3, our_mobility_after=2 — "
+                "decreases our mobility by 1"
+            ],
+        )
+        word_ws = [w for w in ws if "before→after numeric claim" in w]
+        assert word_ws == [], (
+            f"'from three to two' grounded by our_mobility facts should NOT fire; "
+            f"got: {word_ws}"
+        )
+
+    # ── 4. our_pieces_threatened — grounded word form → no warning ────────────
+
+    def test_from_two_to_one_grounded_by_threatened_pieces(self):
+        """
+        'from two to one' with our_pieces_threatened_before=2, after=1 → no warning.
+        """
+        facts = self._facts(
+            our_pieces_threatened_before=2,
+            our_pieces_threatened_after=1,
+        )
+        ws = _check_reasoning_truthfulness(
+            "The number of threatened pieces drops from two to one.",
+            facts,
+            seeds=[
+                "our_pieces_threatened_after=1 — tactical drawback: "
+                "1 allied piece(s) remain under attack after the move"
+            ],
+        )
+        word_ws = [w for w in ws if "before→after numeric claim" in w]
+        assert word_ws == [], (
+            f"'from two to one' grounded by threatened_pieces facts should NOT fire; "
+            f"got: {word_ws}"
+        )
+
+    # ── 5. no matching fact at all → warning fires ────────────────────────────
+
+    def test_fires_when_no_fact_pair_present(self):
+        """
+        Number words in reasoning but none of the 3 fact pairs are set.
+        Warning must fire (no grounding available).
+        """
+        facts = self._facts(
+            opponent_mobility_before=None,
+            opponent_mobility_after=None,
+            our_mobility_before=None,
+            our_mobility_after=None,
+        )
+        ws = _check_reasoning_truthfulness(
+            "Opponent moves drop from six to four.",
+            facts,
+            seeds=["minimax_score=5.00 — highest-evaluated option"],
+        )
+        word_ws = [w for w in ws if "before→after numeric claim" in w]
+        assert len(word_ws) > 0, (
+            "No fact pair set — 'from six to four' must still fire as contradiction"
+        )
+
+    # ── 6. digit form still handled by existing rule (not broken) ─────────────
+
+    def test_digit_form_from_6_to_4_still_passes_when_in_seeds(self):
+        """
+        Existing digit-form check: 'from 6 to 4' with both digits in seeds → passes.
+        Confirms the new bypass does not interfere with the existing digit handler.
+        """
+        facts = self._facts(opponent_mobility_before=6, opponent_mobility_after=4)
+        ws = _check_reasoning_truthfulness(
+            "Opponent mobility falls from 6 to 4.",
+            facts,
+            seeds=[
+                "opponent_mobility_before=6, opponent_mobility_after=4 — "
+                "reduces opponent mobility by 2"
+            ],
+        )
+        word_ws = [w for w in ws if "unsupported numeric statement" in w]
+        assert word_ws == [], (
+            f"Digit-form 'from 6 to 4' with digits in seeds must pass; got: {word_ws}"
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Bug-fix regression tests — false-positive fixes
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestFalsePositiveBugFixes:
+    """
+    Regression tests for the two confirmed false-positive bugs removed from
+    _check_reasoning_truthfulness():
+
+      Fix 1 — "escape" removed from _CONTEXT_FORBIDDEN_VOCAB.
+        Valid tactical reasoning that uses "escape" in a natural context must no
+        longer trigger a contradiction.  Specific compound phrases
+        ("escape squares", "escape routes", "king escape") remain banned via
+        _FORBIDDEN_VOCAB.
+
+      Fix 2 — bare "immediate threat" removed from the creates_immediate_threat
+        phrase list and from the creates_immediate_threat=false inversion pair.
+        Correct negations such as "does not create an immediate threat" must no
+        longer fire.  Positive-claim phrases ("creates a threat",
+        "creates immediate threat", "creates an immediate threat") remain.
+    """
+
+    # ── Shared minimal fact dict ───────────────────────────────────────────────
+
+    def _base_facts(self, **overrides) -> dict:
+        base = {
+            "opponent_can_recapture": False,
+            "leaves_piece_isolated": False,
+            "creates_immediate_threat": False,
+            "center_control": False,
+            "captures_count": 0,
+            "net_gain": 0,
+            "results_in_king": False,
+            "near_promotion": False,
+            "blocks_opponent_landing": False,
+            "opponent_mobility_before": 6,
+            "opponent_mobility_after": 4,
+            "our_mobility_before": 3,
+            "our_mobility_after": 3,
+            "minimax_score": 5.0,
+        }
+        base.update(overrides)
+        return base
+
+    # =========================================================================
+    # Fix 1 — "escape" in natural tactical context must NOT fire
+    # =========================================================================
+
+    def test_escape_in_valid_tactical_sentence_no_warning(self):
+        """
+        'The opponent cannot escape the capture' is valid tactical reasoning.
+        Removing 'escape' from _CONTEXT_FORBIDDEN_VOCAB must suppress the warning.
+        """
+        facts = self._base_facts()
+        seeds = [
+            "opponent_mobility_before=6, opponent_mobility_after=4 — "
+            "reduces opponent mobility by 2, restricting available replies",
+        ]
+        ws = _check_reasoning_truthfulness(
+            "The opponent cannot escape the capture after this jump.",
+            facts,
+            seeds=seeds,
+        )
+        escape_ws = [w for w in ws if "escape" in w]
+        assert escape_ws == [], (
+            f"'escape' in valid tactical context must not fire; got: {escape_ws}"
+        )
+
+    def test_escape_as_verb_in_opponent_position_no_warning(self):
+        """
+        Variation: 'no route to escape' — natural English, no seed needed.
+        """
+        facts = self._base_facts()
+        seeds = ["minimax_score=5.00 — highest-evaluated option"]
+        ws = _check_reasoning_truthfulness(
+            "With this capture, the opponent has no route to escape.",
+            facts,
+            seeds=seeds,
+        )
+        escape_ws = [w for w in ws if "escape" in w]
+        assert escape_ws == [], (
+            f"'escape' as plain verb must not fire; got: {escape_ws}"
+        )
+
+    def test_king_escape_still_banned_absolutely(self):
+        """
+        'king escape' remains in _FORBIDDEN_VOCAB (absolute ban) and must still fire.
+        """
+        facts = self._base_facts()
+        seeds = ["minimax_score=5.00 — highest-evaluated option"]
+        ws = _check_reasoning_truthfulness(
+            "This move improves our king escape potential significantly.",
+            facts,
+            seeds=seeds,
+        )
+        escape_ws = [w for w in ws if "king escape" in w]
+        assert len(escape_ws) > 0, (
+            "'king escape' is still absolutely forbidden and must fire"
+        )
+
+    def test_escape_routes_still_banned_absolutely(self):
+        """
+        'escape routes' remains in _FORBIDDEN_VOCAB and must still fire.
+        """
+        facts = self._base_facts()
+        seeds = ["minimax_score=5.00 — highest-evaluated option"]
+        ws = _check_reasoning_truthfulness(
+            "This limits the opponent's escape routes going forward.",
+            facts,
+            seeds=seeds,
+        )
+        escape_ws = [w for w in ws if "escape routes" in w]
+        assert len(escape_ws) > 0, (
+            "'escape routes' is still absolutely forbidden and must fire"
+        )
+
+    # =========================================================================
+    # Fix 2 — "immediate threat" in negation context must NOT fire
+    # =========================================================================
+
+    def test_does_not_create_immediate_threat_no_warning(self):
+        """
+        'does not create an immediate threat' with creates_immediate_threat=False
+        is CORRECT reasoning — must NOT trigger a contradiction.
+        """
+        facts = self._base_facts(creates_immediate_threat=False)
+        seeds = [
+            "opponent_mobility_before=6, opponent_mobility_after=4 — "
+            "reduces opponent mobility by 2, restricting available replies",
+            "minimax_score=5.00 — highest-evaluated option",
+        ]
+        ws = _check_reasoning_truthfulness(
+            "Although this move does not create an immediate threat, "
+            "it restricts available replies.",
+            facts,
+            seeds=seeds,
+        )
+        threat_ws = [w for w in ws if "creates_immediate_threat" in w]
+        assert threat_ws == [], (
+            f"Correct negation 'does not create an immediate threat' must NOT fire; "
+            f"got: {threat_ws}"
+        )
+
+    def test_no_immediate_threat_phrasing_no_warning(self):
+        """
+        'no immediate threat' with creates_immediate_threat=False is also correct.
+        This appeared in the inversion pair — removing it must suppress the warning.
+        """
+        facts = self._base_facts(creates_immediate_threat=False)
+        seeds = ["minimax_score=5.00 — highest-evaluated option"]
+        ws = _check_reasoning_truthfulness(
+            "This positional move creates no immediate threat but improves structure.",
+            facts,
+            seeds=seeds,
+        )
+        # The inversion pair "creates_immediate_threat=true" → "no immediate threat"
+        # only fires when seed says creates_immediate_threat=true, which it doesn't here.
+        # But previously the bare phrase list also caught it via Rule 4.
+        threat_ws = [w for w in ws if "creates_immediate_threat" in w]
+        assert threat_ws == [], (
+            f"'no immediate threat' when fact=false must NOT fire; got: {threat_ws}"
+        )
+
+    def test_creates_an_immediate_threat_still_fires(self):
+        """
+        'creates an immediate threat' with creates_immediate_threat=False
+        IS a contradiction — the new specific phrase must still trigger it.
+        """
+        facts = self._base_facts(creates_immediate_threat=False)
+        seeds = ["minimax_score=5.00 — highest-evaluated option"]
+        ws = _check_reasoning_truthfulness(
+            "This move creates an immediate threat against the opponent's back row.",
+            facts,
+            seeds=seeds,
+        )
+        threat_ws = [w for w in ws if "creates_immediate_threat" in w]
+        assert len(threat_ws) > 0, (
+            "'creates an immediate threat' with fact=False must still fire"
+        )
+
+    def test_creates_a_threat_still_fires(self):
+        """
+        'creates a threat' with creates_immediate_threat=False must still fire.
+        This phrase was already in the list and must remain.
+        """
+        facts = self._base_facts(creates_immediate_threat=False)
+        seeds = ["minimax_score=5.00 — highest-evaluated option"]
+        ws = _check_reasoning_truthfulness(
+            "This move creates a threat the opponent must respond to.",
+            facts,
+            seeds=seeds,
+        )
+        threat_ws = [w for w in ws if "creates_immediate_threat" in w]
+        assert len(threat_ws) > 0, (
+            "'creates a threat' with fact=False must still fire"
+        )
+
+    # =========================================================================
+    # Strict rules still enforced — regression guard
+    # =========================================================================
+
+    def test_recapture_strict_still_fires(self):
+        """Recapture rule unchanged — avoids-recapture claim with fact=True fires."""
+        facts = self._base_facts(opponent_can_recapture=True)
+        ws = _check_reasoning_truthfulness(
+            "This move avoids recapture risk entirely.",
+            facts,
+            seeds=["opponent_can_recapture=true — opponent can recapture"],
+        )
+        recap_ws = [w for w in ws if "recapture" in w]
+        assert len(recap_ws) > 0, "Recapture contradiction must still fire"
+
+    def test_promotion_strict_still_fires(self):
+        """Promotion rule unchanged — 'becomes a king' with fact=False fires."""
+        facts = self._base_facts(results_in_king=False)
+        ws = _check_reasoning_truthfulness(
+            "The piece becomes a king after this move.",
+            facts,
+        )
+        promo_ws = [w for w in ws if "promotion" in w or "results_in_king" in w]
+        assert len(promo_ws) > 0, "Promotion contradiction must still fire"
+
+    def test_material_gain_strict_still_fires(self):
+        """Material gain rule unchanged — 'gains material' with net_gain=0 fires."""
+        facts = self._base_facts(net_gain=0)
+        ws = _check_reasoning_truthfulness(
+            "This move gains material and improves our count.",
+            facts,
+        )
+        mat_ws = [w for w in ws if "material" in w]
+        assert len(mat_ws) > 0, "Material gain contradiction must still fire"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Phase 5.1 — Explicit mobility before→after seed wording + checker support
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestExplicitMobilityBeforeAfterSeeds:
+    """
+    Phase 5.1: the grounded reasoning seeds must include explicit natural
+    'changes from X to Y' / 'remains at X' wording for both our mobility and
+    opponent mobility, alongside the existing structured form.  The truthfulness
+    checker must accept correct mobility numbers and still flag wrong ones.
+    """
+
+    def _move(self, our_before=None, our_after=None,
+              opp_before=12, opp_after=8) -> dict:
+        facts = {**_FULL_FACTS,
+                 "opponent_mobility_before": opp_before,
+                 "opponent_mobility_after":  opp_after}
+        if our_before is not None:
+            facts["our_mobility_before"] = our_before
+        if our_after is not None:
+            facts["our_mobility_after"] = our_after
+        return {**_FULL_MOVE, "facts": facts}
+
+    # ── 1. our-mobility changes-from wording ─────────────────────────────────
+
+    def test_seeds_include_our_mobility_changes_from_when_different(self):
+        move = self._move(our_before=7, our_after=8)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        joined = " ".join(seeds)
+        assert "our mobility changes from 7 to 8" in joined
+
+    # ── 2. our-mobility remains-at wording ───────────────────────────────────
+
+    def test_seeds_include_our_mobility_remains_at_when_equal(self):
+        move = self._move(our_before=7, our_after=7)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        joined = " ".join(seeds)
+        assert "our mobility remains at 7" in joined
+
+    # ── 3. opponent-mobility wording (both forms) ────────────────────────────
+
+    def test_seeds_include_opponent_mobility_changes_from(self):
+        move = self._move(opp_before=12, opp_after=8)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        joined = " ".join(seeds)
+        assert "opponent mobility changes from 12 to 8" in joined
+
+    def test_seeds_include_opponent_mobility_remains_at(self):
+        move = self._move(opp_before=11, opp_after=11)
+        seeds = _build_grounded_reasoning_seeds(move, [move])
+        joined = " ".join(seeds)
+        assert "opponent mobility remains at 11" in joined
+
+    # ── 4. checker accepts correct mobility "from X to Y" ────────────────────
+
+    def test_checker_accepts_correct_our_mobility_from_X_to_Y(self):
+        """Checker must NOT flag 'from 7 to 8' when our_mobility_before=7,
+        our_mobility_after=8, even with seeds=None."""
+        facts = {**_FULL_FACTS,
+                 "our_mobility_before": 7,
+                 "our_mobility_after":  8}
+        ws = _check_reasoning_truthfulness(
+            "Our mobility changes from 7 to 8 after this move.",
+            facts,
+            seeds=None,
+        )
+        bad = [w for w in ws if "from 7 to 8" in w]
+        assert bad == [], f"correct mobility phrasing should not flag: {ws}"
+
+    def test_checker_accepts_correct_opponent_mobility_from_X_to_Y(self):
+        facts = {**_FULL_FACTS,
+                 "opponent_mobility_before": 12,
+                 "opponent_mobility_after":  8}
+        ws = _check_reasoning_truthfulness(
+            "Opponent mobility drops from 12 to 8.",
+            facts,
+            seeds=None,
+        )
+        bad = [w for w in ws if "from 12 to 8" in w]
+        assert bad == [], f"correct mobility phrasing should not flag: {ws}"
+
+    def test_checker_accepts_correct_remains_at_when_equal(self):
+        facts = {**_FULL_FACTS,
+                 "our_mobility_before": 11,
+                 "our_mobility_after":  11}
+        ws = _check_reasoning_truthfulness(
+            "Our mobility remains at 11.",
+            facts,
+            seeds=None,
+        )
+        bad = [w for w in ws if "remains at 11" in w]
+        assert bad == [], f"correct stable mobility should not flag: {ws}"
+
+    # ── 5. checker still flags wrong mobility numbers ────────────────────────
+
+    def test_checker_flags_wrong_from_X_to_Y(self):
+        """Wrong digits must still trip the numeric check (precision intact)."""
+        facts = {**_FULL_FACTS,
+                 "our_mobility_before": 7,
+                 "our_mobility_after":  8,
+                 "opponent_mobility_before": 12,
+                 "opponent_mobility_after":  8}
+        ws = _check_reasoning_truthfulness(
+            "Our mobility changes from 99 to 1 after this move.",
+            facts,
+            seeds=None,
+        )
+        bad = [w for w in ws if "from 99 to 1" in w]
+        assert bad, f"wrong digits must flag, got warnings: {ws}"
+
+    def test_checker_flags_wrong_remains_at(self):
+        facts = {**_FULL_FACTS,
+                 "our_mobility_before": 7,
+                 "our_mobility_after":  8}  # NOT equal — 'remains at' invalid
+        ws = _check_reasoning_truthfulness(
+            "Our mobility remains at 5.",
+            facts,
+            seeds=None,
+        )
+        bad = [w for w in ws if "remains at 5" in w]
+        assert bad, f"wrong stable claim must flag, got warnings: {ws}"
+
+    # ── 6. seeds path: checker accepts when digits come from the new seed ───
+
+    def test_checker_accepts_via_seeds_path(self):
+        """With the new natural-language seeds passed in, the seeds_text path
+        in the checker should already accept 'from 7 to 8' without needing the
+        fact-aware fallback (regression-locks the existing seed-based path)."""
+        seeds = ["our mobility changes from 7 to 8"]
+        # No facts dict — rely purely on seeds_text matching.
+        ws = _check_reasoning_truthfulness(
+            "Our mobility changes from 7 to 8.",
+            facts={},
+            seeds=seeds,
+        )
+        bad = [w for w in ws if "from 7 to 8" in w]
+        assert bad == [], f"seed-path acceptance broken: {ws}"
+
+    # ── 7. immutability ──────────────────────────────────────────────────────
+
+    def test_facts_dict_not_mutated_by_seed_generation(self):
+        move = self._move(our_before=7, our_after=8)
+        before = copy.deepcopy(move)
+        _build_grounded_reasoning_seeds(move, [move])
+        assert move == before
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Phase-6 Fix 1 — Prompt no longer teaches conflated/forbidden phrases
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestRankerSeedPromptDoesNotTeachForbiddenPhrases:
+    """The seed-reasoning system prompt must not mention any phrase that the
+    runtime truthfulness checker rejects.  Teaching a phrase the checker bans
+    creates a repair-loop trap: the LLM uses what it sees, then the paragraph
+    is rejected and refined.
+    """
+
+    PROMPT = RANKER_SEED_REASONING_SYSTEM
+
+    def test_prompt_does_not_use_central_board_presence_as_example(self):
+        # 'central board presence' must not appear in any PRIORITY example list
+        # or anywhere outside the explicit Do-NOT-use vocabulary block.
+        # Strategy: occurrences only appear inside the "Do NOT use" block now.
+        # Find the Do-NOT-use block boundaries and assert no occurrences exist
+        # before that block.
+        idx_block = self.PROMPT.find("Do NOT use any of the following")
+        assert idx_block != -1, "expected forbidden-vocab block in prompt"
+        head = self.PROMPT[:idx_block]
+        assert "central board presence" not in head, (
+            "prompt teaches the conflated phrase 'central board presence' "
+            "as an example — must use 'geometric center position' instead"
+        )
+
+    def test_prompt_introduces_geometric_center_position_phrase(self):
+        # The replacement phrase is ontology-safe and matches the actual seed.
+        assert "geometric center position" in self.PROMPT
+
+    def test_prompt_explicitly_bans_central_board_presence(self):
+        # The phrase must still be explicitly listed in the Do-NOT-use block.
+        idx_block = self.PROMPT.find("Do NOT use any of the following")
+        tail = self.PROMPT[idx_block:]
+        assert "central board presence" in tail
+
+    def test_prompt_explicitly_bans_generic_filler_phrases(self):
+        idx_block = self.PROMPT.find("Do NOT use any of the following")
+        tail = self.PROMPT[idx_block:]
+        for phrase in ("improves activity", "piece activity",
+                       "more active position", "maintains pressure"):
+            assert phrase in tail, f"prompt should ban {phrase!r} in Do-NOT-use block"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Phase-6 Fix 2 — semantic_ontology is the single source of truth
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestSemanticOntologyParity:
+    """Every forbidden-conflation phrase declared in semantic_ontology must be
+    enforced by the runtime checker.  Every generic-filler phrase declared in
+    semantic_ontology must be in the absolute _FORBIDDEN_VOCAB.
+
+    Editing the ontology must propagate to the runtime checker through the
+    merge step in ranker_agent.py; this test guards that contract.
+    """
+
+    def test_all_forbidden_conflation_phrases_are_runtime_forbidden(self):
+        from checkers.evaluation.semantic_ontology import FORBIDDEN_CONFLATION_PHRASES
+        # Each phrase must be context-forbidden (i.e. allowed only if seeded)
+        # or fully forbidden — never silently ignored.
+        all_runtime = set(_FORBIDDEN_VOCAB) | set(_CONTEXT_FORBIDDEN_VOCAB)
+        for phrase in FORBIDDEN_CONFLATION_PHRASES:
+            assert phrase in all_runtime, (
+                f"ontology phrase {phrase!r} not enforced by runtime checker"
+            )
+
+    def test_all_generic_filler_phrases_are_absolutely_forbidden(self):
+        from checkers.evaluation.semantic_ontology import GENERIC_FILLER_PHRASES
+        for phrase in GENERIC_FILLER_PHRASES:
+            assert phrase in _FORBIDDEN_VOCAB, (
+                f"ontology generic filler {phrase!r} not in _FORBIDDEN_VOCAB"
+            )
+
+    def test_central_influence_now_blocked_by_checker(self):
+        # 'central influence' came from the ontology merge — it must fire when
+        # the seed list does not introduce it.
+        facts = {
+            "opponent_can_recapture": False,
+            "creates_immediate_threat": False,
+            "center_control": False,
+            "leaves_piece_isolated": False,
+            "captures_count": 0,
+            "net_gain": 0,
+            "minimax_score": 1.0,
+        }
+        ws = _check_reasoning_truthfulness(
+            "Maintains central influence over the board.", facts,
+            seeds=["minimax_score=1.00 — highest-evaluated option"],
+        )
+        assert any("central influence" in w for w in ws), (
+            f"checker did not block 'central influence' via ontology merge: {ws}"
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Phase-6 Fix 3 — adversity seeds gated on score_state
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestAdversityGateOnScoreState:
+    """Adversity context seeds must activate only in genuinely losing positions.
+
+    Activation logic:
+      - score_state in {CLEARLY_LOSING, SLIGHTLY_LOSING}: ON
+      - score_state in {EQUAL, SLIGHTLY_WINNING, CLEARLY_WINNING}: OFF
+        (even when the chosen move's per-move minimax_score is low,
+        as in a forced-but-winning continuation).
+      - score_state is None / missing: fall back to legacy raw-minimax gate.
+    """
+
+    def _move(self, mm: float, mat_adv: int = -2) -> dict:
+        return {
+            "type": "simple",
+            "path": [[5, 0], [4, 1]],
+            "captured": [],
+            "facts": {
+                "opponent_can_recapture": False,
+                "leaves_piece_isolated": False,
+                "creates_immediate_threat": False,
+                "center_control": False,
+                "results_in_king": False,
+                "near_promotion": False,
+                "captures_count": 0,
+                "net_gain": 0,
+                "minimax_score": mm,
+                "material_advantage": mat_adv,
+                "opponent_mobility_before": 10,
+                "opponent_mobility_after": 10,
+                "our_mobility_before": 4,
+                "our_mobility_after": 4,
+                "our_pieces_threatened_before": 1,
+                "our_pieces_threatened_after": 0,
+            },
+        }
+
+    def _has_adversity(self, seeds: list[str]) -> bool:
+        joined = " ".join(seeds).lower()
+        return any(marker in joined for marker in (
+            "behind by",
+            "material_advantage=-",
+            "structural disadvantage",
+            "reduces threatened pieces",
+        ))
+
+    def test_score_state_clearly_losing_activates_adversity(self):
+        move = self._move(mm=-50.0)
+        seeds = _build_grounded_reasoning_seeds(
+            move, [move], score_state="CLEARLY_LOSING",
+        )
+        assert self._has_adversity(seeds), seeds
+
+    def test_score_state_slightly_losing_activates_adversity(self):
+        move = self._move(mm=-50.0)
+        seeds = _build_grounded_reasoning_seeds(
+            move, [move], score_state="SLIGHTLY_LOSING",
+        )
+        assert self._has_adversity(seeds), seeds
+
+    def test_score_state_equal_suppresses_adversity_even_when_minimax_low(self):
+        """Forced-but-winning line: per-move mm is low but the position is even.
+        Adversity seeds must NOT fire — this is the bug we are fixing."""
+        move = self._move(mm=-50.0, mat_adv=0)  # material is even
+        seeds = _build_grounded_reasoning_seeds(
+            move, [move], score_state="EQUAL",
+        )
+        assert not self._has_adversity(seeds), (
+            f"adversity seeds wrongly fired with score_state=EQUAL: {seeds}"
+        )
+
+    def test_score_state_winning_suppresses_adversity_even_when_minimax_low(self):
+        """Winning player choosing a forced move with low single-move mm must
+        not be told the position is losing."""
+        move = self._move(mm=-50.0, mat_adv=+3)  # we are materially ahead
+        for ss in ("CLEARLY_WINNING", "SLIGHTLY_WINNING"):
+            seeds = _build_grounded_reasoning_seeds(
+                move, [move], score_state=ss,
+            )
+            assert not self._has_adversity(seeds), (
+                f"adversity seeds wrongly fired with score_state={ss}: {seeds}"
+            )
+
+    def test_score_state_none_falls_back_to_minimax_gate(self):
+        """Legacy behaviour preserved when no score_state is supplied:
+        raw mm < -20 still activates adversity."""
+        move_losing = self._move(mm=-50.0)
+        seeds_losing = _build_grounded_reasoning_seeds(move_losing, [move_losing])
+        assert self._has_adversity(seeds_losing)
+
+        move_winning = self._move(mm=5.0)
+        seeds_winning = _build_grounded_reasoning_seeds(move_winning, [move_winning])
+        assert not self._has_adversity(seeds_winning)

@@ -1,0 +1,34 @@
+============================================================
+LEGALITY-STRESS EVAL SUBSET REPORT
+============================================================
+Source:            /Users/youssefrezk/Desktop/bachelor_project/checkers/data/legality_stress/scenarios.jsonl
+Total selected:    300
+Max per category:  50
+
+--- Included category counts ---
+  mandatory_capture                      50
+  multi_jump_required                    50
+  king_vs_man_confusion                  50
+  promotion_state_update                 50
+  wrong_direction_trap                   50
+  crowded_board                          50
+
+--- Excluded categories (not sampled) ---
+  occupied_destination_trap               3 available (excluded)
+  wrong_player_piece_trap                 6 available (excluded)
+  state_update_after_capture              0 available (excluded)
+
+--- Difficulty breakdown ---
+  easy                                  133
+  medium                                114
+  hard                                   53
+
+--- Source file breakdown ---
+  Midget_Problems_(1913).pdn                    42
+  The Hand of DEO.pdn                           71
+  Tricks traps and shots.pdn                    89
+  borderclassics.pdn                             9
+  bridges.pdn                                    8
+  gem.pdn                                        9
+  goulds.pdn                                    39
+  inferno.pdn                                   33

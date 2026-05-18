@@ -104,3 +104,7 @@ class CheckersState(BaseModel):
     # Set by ranker_agent each ply; persists until overwritten by the next ranker_agent
     # call (state_manager does NOT clear this field between turns).
     ranker_diagnostics: Optional[dict[str, Any]] = Field(default=None)
+    # Full compute_move_facts() output for the chosen move.
+    # Set by ranker_agent each ply; cleared by state_manager.
+    # Used only for evaluation export — zero gameplay impact.
+    chosen_move_facts: Optional[dict[str, Any]] = Field(default=None)

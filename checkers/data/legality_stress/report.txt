@@ -1,0 +1,284 @@
+================================================================
+LEGALITY-STRESS DATASET REPORT  (full 8-file run)
+================================================================
+PDN directory      : /Users/youssefrezk/Desktop/bachelor_project/checkers/data/raw_pdn/bob_newell
+Files discovered   : 8
+Total scenarios    : 6217
+Validation errors  : 0
+
+--- Files discovered ---
+  Midget_Problems_(1913).pdn
+  The Hand of DEO.pdn
+  Tricks traps and shots.pdn
+  borderclassics.pdn
+  bridges.pdn
+  gem.pdn
+  goulds.pdn
+  inferno.pdn
+
+--- Per-file raw positions extracted ---
+  Midget_Problems_(1913).pdn                       1179 raw positions
+  The Hand of DEO.pdn                              1533 raw positions
+  Tricks traps and shots.pdn                       2009 raw positions
+  borderclassics.pdn                                245 raw positions
+  bridges.pdn                                       266 raw positions
+  gem.pdn                                           162 raw positions
+  goulds.pdn                                       1094 raw positions
+  inferno.pdn                                       852 raw positions
+
+--- Per-file scenarios in final dataset ---
+  Midget_Problems_(1913).pdn                       1127 scenarios
+  The Hand of DEO.pdn                              1485 scenarios
+  Tricks traps and shots.pdn                       1370 scenarios
+  borderclassics.pdn                                242 scenarios
+  bridges.pdn                                       266 scenarios
+  gem.pdn                                           139 scenarios
+  goulds.pdn                                       1020 scenarios
+  inferno.pdn                                       568 scenarios
+
+--- Category counts ---
+  mandatory_capture                      868
+  multi_jump_required                    142
+  king_vs_man_confusion                 2490
+  promotion_state_update                 304
+  wrong_direction_trap                  1378
+  occupied_destination_trap                3
+  wrong_player_piece_trap                  6
+  state_update_after_capture               0
+  crowded_board                         1026
+
+--- Difficulty counts ---
+  easy                                  4237
+  medium                                1813
+  hard                                   167
+
+--- Hard count comparison ---
+  Previous (3-file run): 89
+  Current  (8-file run): 167
+  Delta                : +78
+
+--- Balanced hard subset (hard_subset_balanced.jsonl) ---
+  Total hard scenarios  : 167
+  Subset exported       : 55  (cap 30/category)
+    mandatory_capture                   25
+    multi_jump_required                 30
+
+--- 10 Sample Hard Scenarios ---
+    Board shown as-prompt; GROUND TRUTH printed separately below each board.
+
+  [01] The Hand of DEO_G85_P14
+       category   : multi_jump_required
+       difficulty : hard
+       side       : RED
+       source     : The Hand of DEO.pdn  game=85 ply=14
+       rule       : When a multi-jump sequence is available, the player must complete [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . . . . . . . .
+         1 . . . . . . . .
+         2 . . . . . . . .
+         3 . . . . R . . .
+         4 . . . . . b . .
+         5 . . . . . . . .
+         6 . . . . . B . .
+         7 . . B . . . . .
+
+       GROUND TRUTH — hidden_legal_moves (1) — NOT shown to LLM:
+         [JUMP] (3,4)→(5,6)→(7,4)  captures=(4,5), (6,5)
+
+  [02] The Hand of DEO_G125_P1
+       category   : multi_jump_required
+       difficulty : hard
+       side       : BLACK
+       source     : The Hand of DEO.pdn  game=125 ply=1
+       rule       : When a multi-jump sequence is available, the player must complete [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . . . R . b . b
+         1 b . . . r . . .
+         2 . b . . . R . r
+         3 . . r . r . . .
+         4 . . . r . B . .
+         5 . . . . . . . .
+         6 . b . . . . . .
+         7 . . . . . . . .
+
+       GROUND TRUTH — hidden_legal_moves (2) — NOT shown to LLM:
+         [JUMP] (0,5)→(2,3)→(4,1)  captures=(1,4), (3,2)
+         [JUMP] (4,5)→(2,3)→(4,1)  captures=(3,4), (3,2)
+
+  [03] The Hand of DEO_G84_P5
+       category   : mandatory_capture
+       difficulty : hard
+       side       : BLACK
+       source     : The Hand of DEO.pdn  game=84 ply=5
+       rule       : If any capture is available, the player MUST capture; non-capture [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . . . . . . . .
+         1 . . . . . . . .
+         2 . . . . . . . .
+         3 . . R . . . . .
+         4 . . . b . . . .
+         5 B . . . B . b .
+         6 . R . R . . . .
+         7 . . . . . . r .
+
+       GROUND TRUTH — hidden_legal_moves (2) — NOT shown to LLM:
+         [JUMP] (5,0)→(7,2)  captures=(6,1)
+         [JUMP] (5,4)→(7,2)  captures=(6,3)
+
+  [04] The Hand of DEO_G83_P15
+       category   : mandatory_capture
+       difficulty : hard
+       side       : BLACK
+       source     : The Hand of DEO.pdn  game=83 ply=15
+       rule       : If any capture is available, the player MUST capture; non-capture [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . B . R . . . .
+         1 b . . . . . . .
+         2 . . . r . r . .
+         3 . . B . B . R .
+         4 . . . . . . . .
+         5 . . . . . . . .
+         6 . . . . . . . .
+         7 . . . . . . . .
+
+       GROUND TRUTH — hidden_legal_moves (3) — NOT shown to LLM:
+         [JUMP] (3,2)→(1,4)  captures=(2,3)
+         [JUMP] (3,4)→(1,2)  captures=(2,3)
+         [JUMP] (3,4)→(1,6)  captures=(2,5)
+
+  [05] inferno_G37_P15
+       category   : multi_jump_required
+       difficulty : hard
+       side       : RED
+       source     : inferno.pdn  game=37 ply=15
+       rule       : When a multi-jump sequence is available, the player must complete [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . b . . . b . b
+         1 b . b . b . . .
+         2 . . . . . b . b
+         3 . . . . . . . .
+         4 . r . b . b . .
+         5 r . . . . . r .
+         6 . . . . . r . r
+         7 r . r . r . r .
+
+       GROUND TRUTH — hidden_legal_moves (1) — NOT shown to LLM:
+         [JUMP] (5,6)→(3,4)→(1,6)  captures=(4,5), (2,5)
+
+  [06] The Hand of DEO_G57_P1
+       category   : mandatory_capture
+       difficulty : hard
+       side       : BLACK
+       source     : The Hand of DEO.pdn  game=57 ply=1
+       rule       : If any capture is available, the player MUST capture; non-capture [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . . . . . . . .
+         1 . . . . . . . .
+         2 . b . b . . . .
+         3 b . r . . . . .
+         4 . . . . . . . .
+         5 . . r . . . . .
+         6 . r . B . R . .
+         7 . . . . . . . .
+
+       GROUND TRUTH — hidden_legal_moves (3) — NOT shown to LLM:
+         [JUMP] (2,1)→(4,3)  captures=(3,2)
+         [JUMP] (2,3)→(4,1)  captures=(3,2)
+         [JUMP] (6,3)→(4,1)  captures=(5,2)
+
+  [07] The Hand of DEO_G138_P12
+       category   : multi_jump_required
+       difficulty : hard
+       side       : RED
+       source     : The Hand of DEO.pdn  game=138 ply=12
+       rule       : When a multi-jump sequence is available, the player must complete [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . . . R . R . b
+         1 . . . . B . r .
+         2 . . . . . . . .
+         3 b . . . b . . .
+         4 . b . . . . . .
+         5 . . r . . . . .
+         6 . b . B . b . .
+         7 . . . . . . . .
+
+       GROUND TRUTH — hidden_legal_moves (2) — NOT shown to LLM:
+         [JUMP] (0,3)→(2,5)→(4,3)  captures=(1,4), (3,4)
+         [JUMP] (0,5)→(2,3)→(4,5)  captures=(1,4), (3,4)
+
+  [08] The Hand of DEO_G83_P18
+       category   : multi_jump_required
+       difficulty : hard
+       side       : RED
+       source     : The Hand of DEO.pdn  game=83 ply=18
+       rule       : When a multi-jump sequence is available, the player must complete [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . B . R . . . .
+         1 b . . . . . . .
+         2 . . . . . . . R
+         3 . . . . B . B .
+         4 . . . . . . . .
+         5 . . . . . . . .
+         6 . . . . . . . .
+         7 . . . . . . . .
+
+       GROUND TRUTH — hidden_legal_moves (1) — NOT shown to LLM:
+         [JUMP] (2,7)→(4,5)→(2,3)  captures=(3,6), (3,4)
+
+  [09] Tricks traps and shots_G71_P12
+       category   : multi_jump_required
+       difficulty : hard
+       side       : BLACK
+       source     : Tricks traps and shots.pdn  game=71 ply=12
+       rule       : When a multi-jump sequence is available, the player must complete [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . b . b . . . b
+         1 . . b . b . b .
+         2 . b . b . r . b
+         3 r . b . b . . .
+         4 . . . . . r . .
+         5 r . . . . . r .
+         6 . r . r . r . .
+         7 r . r . r . r .
+
+       GROUND TRUTH — hidden_legal_moves (1) — NOT shown to LLM:
+         [JUMP] (1,4)→(3,6)→(5,4)  captures=(2,5), (4,5)
+
+  [10] Tricks traps and shots_G35_P17
+       category   : multi_jump_required
+       difficulty : hard
+       side       : RED
+       source     : Tricks traps and shots.pdn  game=35 ply=17
+       rule       : When a multi-jump sequence is available, the player must complete [...]
+
+       Board (r=red man  R=red king  b=black man  B=black king):
+           0 1 2 3 4 5 6 7
+         0 . . . b . . . b
+         1 . . b . b . b .
+         2 . . . b . b . b
+         3 . . b . b . . .
+         4 . . . . . r . r
+         5 r . b . . . r .
+         6 . r . . . r . r
+         7 r . r . . . r .
+
+       GROUND TRUTH — hidden_legal_moves (1) — NOT shown to LLM:
+         [JUMP] (6,1)→(4,3)→(2,1)  captures=(5,2), (3,2)

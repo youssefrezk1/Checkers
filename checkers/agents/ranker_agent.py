@@ -1955,6 +1955,12 @@ def build_ranker_user_prompt(
             ):
                 facts.pop(key, None)
 
+        # Phase 5.2 fairness: hide symbolic_rank from the LLM prompt only.
+        # symbolic_rank=1 is a direct answer label; minimax_score remains
+        # visible. The underlying move object is NOT mutated — `facts` here
+        # is the local copy built two statements above.
+        facts.pop("symbolic_rank", None)
+
         payload = {
             "type": move.get("type"),
             "path": move.get("path"),
@@ -1982,11 +1988,16 @@ def build_ranker_user_prompt_single(
     state: CheckersState,
     move: dict[str, Any],
 ) -> str:
+    # Phase 5.2 fairness: copy facts and hide symbolic_rank from the LLM
+    # prompt only. Underlying move object is not mutated. minimax_score is
+    # preserved.
+    _facts_for_prompt = dict(move.get("facts", {}) or {})
+    _facts_for_prompt.pop("symbolic_rank", None)
     payload = {
         "type": move.get("type"),
         "path": move.get("path"),
         "captured": move.get("captured", []),
-        "facts": move.get("facts", {}),
+        "facts": _facts_for_prompt,
     }
     recapture = move.get("facts", {}).get("opponent_can_recapture", False)
     safety_note = (
@@ -2283,11 +2294,18 @@ def _build_override_feedback_str(
     branch_name: Optional[str],
     chosen_score: Optional[float] = None,
     best_score: Optional[float] = None,
+    rejected_paths: Optional[list] = None,
 ) -> str:
     """
     Builds a branch-aware OVERRIDE_FEEDBACK block injected BEFORE the move list.
     Each branch explains specifically why the previous LLM reasoning failed.
     Does NOT reveal the exact index to choose.
+
+    rejected_paths: paths chosen by earlier retry LLM calls in this same turn
+        that were also rejected.  When non-empty, a PREVIOUSLY_REJECTED_PATHS
+        note is appended after the diagnosis — informational only, not a hard
+        exclusion.  Capped at 3 paths to avoid prompt bloat.
+        Only passed by the retry loop; never present on the first retry attempt.
     """
     gap = override_debug.get("best_vs_chosen_minimax_gap")
     gap_str = f"{gap:.1f}" if isinstance(gap, (int, float)) else "unknown"
@@ -2368,11 +2386,30 @@ def _build_override_feedback_str(
             "minimax_score that does not introduce unacceptable immediate danger."
         )
 
+    # Phase 2.3b: previously-rejected-paths block (informational, never a hard filter).
+    # Only appended when prior retry LLM calls in this same turn were also rejected.
+    # Capped at 3 paths; normalised to list-of-lists for readability.
+    rejected_block: list = []
+    if rejected_paths:
+        display: list = []
+        for p in rejected_paths[:3]:
+            try:
+                display.append([list(sq) for sq in (p or [])])
+            except (TypeError, ValueError):
+                display.append(p)
+        paths_str = ", ".join(str(dp) for dp in display)
+        rejected_block = [
+            "",
+            f"Previously rejected retry paths in this turn: [{paths_str}].",
+            "Avoid repeating these paths unless you can explain why the audit would now pass.",
+        ]
+
     lines = [
         "OVERRIDE_FEEDBACK:",
         "Your previous selection was rejected by the tactical override guardrail.",
         "",
         body,
+    ] + rejected_block + [
         "",
         "The candidate list below is the FULL proposal shortlist (no safety filter applied).",
         "END_OVERRIDE_FEEDBACK",
@@ -2426,6 +2463,10 @@ def _build_retry_user_prompt(
                 "opponent_mobility_after",
             ):
                 facts.pop(key, None)
+        # Phase 5.2 fairness: hide symbolic_rank from the retry LLM prompt
+        # only. minimax_score is preserved. Underlying move object is not
+        # mutated — `facts` is the local copy built earlier in this loop.
+        facts.pop("symbolic_rank", None)
         payload = {
             "type": move.get("type"),
             "path": move.get("path"),
@@ -2449,6 +2490,22 @@ def _build_retry_user_prompt(
 
 # ── Forbidden vocabulary: terms never allowed unless explicitly seeded ────────
 # Each entry is a substring to look for (case-insensitive) in reasoning text.
+#
+# Source-of-truth note
+# --------------------
+# Generic-filler phrases and forbidden geometric/tactical conflation phrases are
+# imported below from the NEUTRAL ontology package and merged into the two
+# vocabulary lists.  Editing the ontology updates both the runtime checker and
+# the evaluator without duplicating phrase definitions.
+#
+# Layering: checkers.ontology has no project-internal dependencies, so runtime
+# importing it does not create a cycle and does not introduce a runtime →
+# evaluation dependency (forbidden direction).
+from checkers.ontology.semantic_ontology import (
+    FORBIDDEN_CONFLATION_PHRASES as _ONTOLOGY_FORBIDDEN_CONFLATION,
+    GENERIC_FILLER_PHRASES as _ONTOLOGY_GENERIC_FILLER,
+)
+
 _FORBIDDEN_VOCAB: list[str] = [
     # Conversion / endgame jargon (invented)
     "conversion potential",
@@ -2471,20 +2528,25 @@ _FORBIDDEN_VOCAB: list[str] = [
     "strategic goal",
     "positional adjustment",
     "real trap",
-    "no new vulnerabilities",
     # Internal metric names (LLM pattern-matches from pipeline logs)
     "counterplay_score",
+    "creates_real_trap",         # Python field name — schema leak in reasoning text
+    "restriction_score",         # Python field name — schema leak in reasoning text
     "coordination score",
     "activity score",
     "king activity score",
     "quiet move role",
     # Material accounting terms not in any seed
     "regulars_captured",
-    "new vulnerabilities",
     # Vague positional framing — unsupported positional characterisations
     "structural restriction",
     "positional step",
     "neutral positional",
+    # Generic filler — no symbolic fact can ground these phrases
+    "improves activity",         # sub-phrase of "improves piece activity"
+    "piece activity",            # broader "piece activity" variants
+    "more active position",      # directional claim without numeric grounding
+    "maintains pressure",        # strategic claim — no fact field exists
 ]
 
 # Terms that are only forbidden when NOT present verbatim in the seed list.
@@ -2492,12 +2554,52 @@ _FORBIDDEN_VOCAB: list[str] = [
 _CONTEXT_FORBIDDEN_VOCAB: list[str] = [
     "conversion",
     "traps",
-    "escape",
-    "diagonal",
+    # "escape" removed — too short; fires on valid tactical phrasing such as
+    # "The opponent cannot escape the capture".  More specific compound phrases
+    # ("escape squares", "escape routes", "king escape") are already covered
+    # by the absolute _FORBIDDEN_VOCAB list above.
+    # "diagonal" removed — bare "diagonal" is valid checkers vocabulary.
+    # Compound invented forms ("diagonal pressure", "diagonal risks",
+    # "long diagonal") remain in the absolute _FORBIDDEN_VOCAB list above.
     "no kings lost",
     "piece count unchanged",
     "no vulnerabilities",
+    # Ontology conflation — geometric ∩ tactical center.  No seed emits this
+    # phrase; any occurrence in LLM output is an unsupported semantic conflation.
+    # The full set is unioned from semantic_ontology.FORBIDDEN_CONFLATION_PHRASES
+    # immediately below this list.
+    "central board presence",
+    # Unsupported safety assertion (positive form).  "no new vulnerabilities"
+    # is allowed (negation-aware check in _check_reasoning_truthfulness skips
+    # the match when the phrase is immediately preceded by "no ").
+    "new vulnerabilities",
 ]
+
+
+# ── Ontology-driven merge (single source of truth) ───────────────────────────
+# Generic-filler phrases come from semantic_ontology.GENERIC_FILLER_PHRASES.
+# Forbidden geometric/tactical conflation phrases come from
+# semantic_ontology.FORBIDDEN_CONFLATION_PHRASES.
+#
+# We extend the existing in-file lists (preserving order for any callers that
+# iterate them), deduplicating on lowercase identity.  No phrase is removed.
+
+def _merge_ontology_phrases() -> None:
+    """Append any ontology phrases not already present in the runtime lists."""
+    existing_abs = {p.lower() for p in _FORBIDDEN_VOCAB}
+    for phrase in sorted(_ONTOLOGY_GENERIC_FILLER):
+        if phrase.lower() not in existing_abs:
+            _FORBIDDEN_VOCAB.append(phrase)
+            existing_abs.add(phrase.lower())
+
+    existing_ctx = {p.lower() for p in _CONTEXT_FORBIDDEN_VOCAB}
+    for phrase in sorted(_ONTOLOGY_FORBIDDEN_CONFLATION):
+        if phrase.lower() not in existing_ctx:
+            _CONTEXT_FORBIDDEN_VOCAB.append(phrase)
+            existing_ctx.add(phrase.lower())
+
+
+_merge_ontology_phrases()
 
 
 def _check_reasoning_truthfulness(
@@ -2576,6 +2678,9 @@ def _check_reasoning_truthfulness(
     if creates_threat is False:
         threat_phrases = [
             "creates a threat", "creates immediate threat",
+            "creates an immediate threat",
+            # "immediate threat" (bare) removed — fires on correct negations such as
+            # "Although this move does not create an immediate threat..."
             "applies pressure next turn", "creates pressure next",
             "threatens opponent", "creates tactical threat",
         ]
@@ -2591,6 +2696,9 @@ def _check_reasoning_truthfulness(
         center_phrases = [
             "controls the center", "controls center", "central control",
             "occupies the center", "center control=true",
+            # Ontology guard: geometric/tactical conflation phrases are also
+            # forbidden when center_control=False — they imply tactical control.
+            "central board presence", "influence over central",
         ]
         if any(p in text for p in center_phrases):
             warnings.append(
@@ -2613,7 +2721,30 @@ def _check_reasoning_truthfulness(
     net_gain = facts.get("net_gain", 0)
     if net_gain <= 0:
         gain_phrases = ["gains material", "material gain", "gains a piece"]
-        if any(p in text for p in gain_phrases):
+        # Negation-aware filter: do NOT fire when the matched phrase is
+        # inside a negating context such as:
+        #   "lack of material gain", "no material gain",
+        #   "without material gain", "despite material gain",
+        #   "despite the lack of material gain", "without gaining ..."
+        # Strategy: for each matched phrase, check the 40-char window to the
+        # left of its position.  If a negation sentinel appears there, the
+        # sentence is acknowledging zero gain — not claiming it.
+        _NEGATION_SENTINELS = (
+            "lack of", "no ", "without", "despite", "not a",
+        )
+        def _is_negated_gain(full_text: str, phrase: str) -> bool:
+            """Return True if every occurrence of phrase is negation-scoped."""
+            import re as _re
+            positions = [m.start() for m in _re.finditer(_re.escape(phrase), full_text)]
+            if not positions:
+                return False  # phrase not present
+            for pos in positions:
+                window = full_text[max(0, pos - 40): pos]
+                if not any(s in window for s in _NEGATION_SENTINELS):
+                    return False  # at least one non-negated occurrence
+            return True  # all occurrences are negation-scoped
+
+        if any(p in text and not _is_negated_gain(text, p) for p in gain_phrases):
             warnings.append(
                 f"REASONING_CONTRADICTION: claims material gain but net_gain={net_gain}"
             )
@@ -2651,8 +2782,12 @@ def _check_reasoning_truthfulness(
 
     # ── Context-forbidden vocabulary (prohibited unless explicitly seeded) ─────
     # These are allowed only if the seed list introduced them first.
+    # Negation-aware: skip if the phrase is immediately preceded by "no "
+    # (e.g. "no new vulnerabilities" is a valid safety negation, not a claim).
     for phrase in _CONTEXT_FORBIDDEN_VOCAB:
         if phrase in text and phrase not in seeds_text:
+            if ("no " + phrase) in text:
+                continue
             warnings.append(
                 f"REASONING_CONTRADICTION: term '{phrase}' used but not in seeds"
             )
@@ -2661,11 +2796,51 @@ def _check_reasoning_truthfulness(
     # Detects "from X to Y" and "remains at X" / "unchanged" patterns where
     # the specific number cited is not found in the seeds.
     import re as _re
+
+    def _matches_mobility_change(n1: str, n2: str) -> bool:
+        """Allow 'from N to M' when (N, M) match a mobility before/after pair
+        in the facts dict.  Keeps precision: wrong numbers still flag."""
+        if not isinstance(facts, dict):
+            return False
+        try:
+            ni, mi = int(n1), int(n2)
+        except (TypeError, ValueError):
+            return False
+        for b_key, a_key in (
+            ("our_mobility_before", "our_mobility_after"),
+            ("opponent_mobility_before", "opponent_mobility_after"),
+        ):
+            b, a = facts.get(b_key), facts.get(a_key)
+            if isinstance(b, (int, float)) and isinstance(a, (int, float)):
+                if int(b) == ni and int(a) == mi:
+                    return True
+        return False
+
+    def _matches_mobility_stable(n: str) -> bool:
+        """Allow 'remains at N' when N equals before==after for a mobility pair."""
+        if not isinstance(facts, dict):
+            return False
+        try:
+            ni = int(n)
+        except (TypeError, ValueError):
+            return False
+        for b_key, a_key in (
+            ("our_mobility_before", "our_mobility_after"),
+            ("opponent_mobility_before", "opponent_mobility_after"),
+        ):
+            b, a = facts.get(b_key), facts.get(a_key)
+            if isinstance(b, (int, float)) and isinstance(a, (int, float)):
+                if int(b) == ni and int(a) == ni:
+                    return True
+        return False
+
     # Pattern: "from N to M" where N and M are integers
     for m in _re.finditer(r'from\s+(\d+)\s+to\s+(\d+)', text):
         n1, n2 = m.group(1), m.group(2)
-        # Both numbers must appear somewhere in the seeds to be allowed.
-        if n1 not in seeds_text or n2 not in seeds_text:
+        # Both numbers must appear somewhere in the seeds OR match an actual
+        # mobility before/after pair in the facts.
+        if (n1 not in seeds_text or n2 not in seeds_text) \
+                and not _matches_mobility_change(n1, n2):
             warnings.append(
                 f"REASONING_CONTRADICTION: unsupported numeric statement "
                 f"'from {n1} to {n2}' — value(s) not found in seeds"
@@ -2673,7 +2848,7 @@ def _check_reasoning_truthfulness(
     # Pattern: "remains at N" or "stays at N" (single number assertion)
     for m in _re.finditer(r'(?:remains?\s+at|stays?\s+at|consistent\s+at)\s+(\d+)', text):
         n = m.group(1)
-        if n not in seeds_text:
+        if n not in seeds_text and not _matches_mobility_stable(n):
             warnings.append(
                 f"REASONING_CONTRADICTION: unsupported numeric assertion "
                 f"'remains at {n}' — value not found in seeds"
@@ -2725,8 +2900,11 @@ def _check_reasoning_truthfulness(
             ("leaves_piece_isolated=false",  "isolates the piece",     "leaves_piece_isolated"),
             ("leaves_piece_isolated=false",  "piece is isolated",      "leaves_piece_isolated"),
             ("creates_immediate_threat=true",  "no immediate threat",  "creates_immediate_threat"),
-            ("creates_immediate_threat=false", "creates a threat",     "creates_immediate_threat"),
-            ("creates_immediate_threat=false", "immediate threat",     "creates_immediate_threat"),
+            ("creates_immediate_threat=false", "creates a threat",          "creates_immediate_threat"),
+            ("creates_immediate_threat=false", "creates an immediate threat", "creates_immediate_threat"),
+            # "immediate threat" (bare) removed from inversion pairs — fires on
+            # negation context: "does not create an immediate threat" is correct
+            # reasoning when creates_immediate_threat=False.
             ("moved_piece_is_threatened=true",  "piece is safe",       "moved_piece_is_threatened"),
             ("moved_piece_is_threatened=false", "piece is threatened", "moved_piece_is_threatened"),
             ("weakens_king_row=true",  "back-row discipline maintained", "weakens_king_row"),
@@ -2771,11 +2949,28 @@ def _check_reasoning_truthfulness(
         "unsupported 'same move count' claim",
     })
 
+    # ── Number-word → integer lookup (one–ten) ────────────────────────────────
+    # Used exclusively by the before→after number-word checker below.
+    # No impact on any decision, repair, or selection logic.
+    _WORD_TO_INT: dict[str, int] = {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+        "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    }
+    # Known before/after fact pairs that the LLM is allowed to express in
+    # number-word form.  If (parsed_word1, parsed_word2) == (before, after)
+    # for any pair, the "from X to Y" claim is factually grounded.
+    _BEFORE_AFTER_PAIRS: list[tuple[str, str]] = [
+        ("opponent_mobility_before", "opponent_mobility_after"),
+        ("our_mobility_before",      "our_mobility_after"),
+        ("our_pieces_threatened_before", "our_pieces_threatened_after"),
+    ]
+
     _numeric_patterns: list[tuple[str, str]] = [
-        # Before→after quantity narratives
+        # Before→after quantity narratives (number-word form only; digit form
+        # is handled separately above by the r'from\s+(\d+)\s+to\s+(\d+)' loop)
         (
-            r"from\s+(?:three|four|five|six|seven|eight|nine|ten)\s+to\s+"
-            r"(?:one|two|three|four|five|six|seven|eight|nine)",
+            r"from\s+(three|four|five|six|seven|eight|nine|ten)\s+to\s+"
+            r"(one|two|three|four|five|six|seven|eight|nine)",
             "unsupported before→after numeric claim (e.g. 'from three to two')",
         ),
         # Specific reply-count claims
@@ -2823,14 +3018,41 @@ def _check_reasoning_truthfulness(
             else:  # ambiguous: suppress when either is confirmed unchanged
                 if _opp_mob_unchanged or _our_mob_unchanged:
                     continue
-        if _re_num.search(_pat, text, _re_num.IGNORECASE):
-            # Allow if the suspected phrase appears verbatim in seeds.
-            _match = _re_num.search(_pat, text, _re_num.IGNORECASE)
-            _matched_text = _match.group(0) if _match else ""
-            if not seeds or _matched_text.lower() not in seeds_text:
-                warnings.append(
-                    f"REASONING_CONTRADICTION: {_label} — not found in seeds"
+        _match = _re_num.search(_pat, text, _re_num.IGNORECASE)
+        if not _match:
+            continue
+        _matched_text = _match.group(0)
+
+        # ── Verbatim seed bypass (existing behaviour for all patterns) ────────
+        if seeds and _matched_text.lower() in seeds_text:
+            continue
+
+        # ── Fact-grounded bypass for number-word before→after claims ─────────
+        # If both captured groups are number words (groups 1 and 2 exist) and
+        # the parsed integers match a known before/after fact pair, the claim is
+        # factually supported — do NOT emit the warning.
+        # This handles the common LLM surface form "from six to four" when
+        # seeds only contain digit form ("opponent_mobility_before=6, …after=4").
+        if (
+            _label == "unsupported before→after numeric claim (e.g. 'from three to two')"
+            and _match.lastindex is not None
+            and _match.lastindex >= 2
+        ):
+            _w1 = _match.group(1).lower()
+            _w2 = _match.group(2).lower()
+            _i1 = _WORD_TO_INT.get(_w1)
+            _i2 = _WORD_TO_INT.get(_w2)
+            if _i1 is not None and _i2 is not None:
+                _fact_grounded = any(
+                    facts.get(_bf) == _i1 and facts.get(_af) == _i2
+                    for _bf, _af in _BEFORE_AFTER_PAIRS
                 )
+                if _fact_grounded:
+                    continue  # Factually grounded transition — suppress warning
+
+        warnings.append(
+            f"REASONING_CONTRADICTION: {_label} — not found in seeds"
+        )
 
     return warnings
 
@@ -3387,9 +3609,29 @@ STRICT RULES:
     drawback explicitly in the paragraph. Do NOT hide, omit, or downplay negative seeds.
   - PRIORITY: When safety/tactical seeds (opponent_can_recapture, our_pieces_threatened_after,
     captures_count, creates_immediate_threat) and strategic interpretation seeds
-    (develops a piece forward, positional move, central board presence, back-row) both
-    exist, address safety/tactical seeds in the first 1–2 sentences. Strategic seeds
+    (develops a piece forward, positional move, geometric center position, back-row piece)
+    both exist, address safety/tactical seeds in the first 1–2 sentences. Strategic seeds
     may only appear as supporting context, never as the primary justification.
+    Use "geometric center position" only as a positional descriptor; it does NOT
+    imply tactical center control. Tactical center control may be claimed ONLY
+    when an explicit seed states center_control=true.
+
+  DECISION-RELEVANT FACTS — keep the paragraph faithful to the seeds it ranks on.
+    Use only the grounded facts that were provided. Within the 3–5 sentences,
+    briefly mention the most decision-relevant verifiable facts present in the
+    seeds, prioritised in this order when they appear:
+      1. material change (captures_count, net_gain),
+      2. mobility change (opponent_mobility_before/after, our_mobility_before/after,
+         mobility_reduction),
+      3. immediate threat (creates_immediate_threat),
+      4. recapture safety or risk (opponent_can_recapture),
+      5. forced opponent reply (forced_opponent_jump_reply, max_opponent_jump_captures),
+      6. isolation or connectivity (leaves_piece_isolated),
+      7. adversity / losing-position context when present
+         (slightly_losing, clearly_losing, least_harmful, forced_choice).
+    Do not invent unsupported strategic terms.
+    Do not mechanically restate every seed — pick the few that actually drove
+    the decision and weave them into natural prose.
     Do NOT use any of the following words or phrases under any circumstances:
       "initiative", "dominance", "control the game", "pressure", "strong position",
       "conversion potential", "winning conversion", "trade conversion", "conversion score",
@@ -3398,7 +3640,10 @@ STRICT RULES:
       "escape squares", "escape routes", "king escape", "king distance",
       "diagonal pressure", "diagonal risks", "long diagonal",
       "strategic goal", "positional adjustment", "real traps",
-      "no new vulnerabilities", "regulars_captured", "new vulnerabilities".
+      "regulars_captured",
+      "central board presence", "central influence",
+      "improves activity", "piece activity", "more active position",
+      "maintains pressure".
     Do NOT state any number ("from X to Y", "remains at N", "unchanged at N")
     unless that exact number appears verbatim in the seed list.
     Do NOT claim "no kings lost", "piece count unchanged", or "no vulnerabilities"
@@ -3490,6 +3735,94 @@ _MINIMAX_CLEARLY_LOSING: float = -100.0
 _MINIMAX_SLIGHTLY_LOSING: float = -20.0
 
 
+def _build_adversity_context_seeds(
+    facts: dict,
+    all_candidates: list,
+    chosen_path,
+) -> list[str]:
+    """
+    Return 0-5 fact-grounded adversity context seeds for a losing position.
+    Called only when minimax_score < _MINIMAX_SLIGHTLY_LOSING.
+    Seeds are prepended to the standard seed list so the LLM reads positional
+    context before per-move safety facts.
+
+    Rules:
+    - Every seed contains the exact fact name and value it derives from.
+    - No vague terms: counterplay, pressure, activity, balance, trap, initiative.
+    - Does NOT claim the chosen move resolves threats that it cannot verify.
+    - READ-ONLY: never mutates facts, all_candidates, or chosen_path.
+    """
+    seeds: list[str] = []
+
+    # ── A. Score gap to next-best alternative ─────────────────────────────────
+    chosen_mm = facts.get("minimax_score")
+    if chosen_mm is not None:
+        alternatives = [
+            (i, m) for i, m in enumerate(all_candidates)
+            if m.get("path") != chosen_path
+        ]
+        if alternatives:
+            best_alt_idx, best_alt = max(
+                alternatives,
+                key=lambda im: (
+                    _get_minimax_score(im[1])
+                    if _get_minimax_score(im[1]) is not None
+                    else float("-inf")
+                ),
+            )
+            alt_mm = _get_minimax_score(best_alt)
+            if alt_mm is not None and alt_mm != float("-inf"):
+                gap = chosen_mm - alt_mm
+                if gap > 20.0:
+                    seeds.append(
+                        f"chosen move scores {gap:.1f} points better than "
+                        f"next-best option [{best_alt_idx}] "
+                        f"(minimax: {chosen_mm:.1f} vs {alt_mm:.1f})"
+                    )
+
+    # ── B. Material deficit ───────────────────────────────────────────────────
+    mat_adv = facts.get("material_advantage")
+    if mat_adv is not None and mat_adv < 0:
+        deficit = -mat_adv
+        seeds.append(
+            f"material_advantage={mat_adv} — behind by {deficit} piece(s)"
+        )
+
+    # ── C. Threat reduction ───────────────────────────────────────────────────
+    pta_before = facts.get("our_pieces_threatened_before")
+    pta_after  = facts.get("our_pieces_threatened_after")
+    if (
+        pta_before is not None
+        and pta_after is not None
+        and pta_before > 0
+        and pta_after < pta_before
+    ):
+        seeds.append(
+            f"reduces threatened pieces from {pta_before} to {pta_after} "
+            "— move improves immediate safety"
+        )
+
+    # ── D. Opponent near promotion ────────────────────────────────────────────
+    # Board-state fact only — does NOT claim the chosen move blocks it.
+    if facts.get("opponent_near_promotion") is True:
+        seeds.append(
+            "opponent_near_promotion=true — at least one opponent piece "
+            "is one step from promotion"
+        )
+
+    # ── E. Mobility asymmetry ─────────────────────────────────────────────────
+    opp_mob = facts.get("opponent_mobility_before")
+    our_mob = facts.get("our_mobility_before")
+    if opp_mob is not None and our_mob is not None and (opp_mob - our_mob) >= 3:
+        seeds.append(
+            f"opponent_mobility_before={opp_mob} vs "
+            f"our_mobility_before={our_mob} — "
+            "structural disadvantage in available options"
+        )
+
+    return seeds
+
+
 def _minimax_wording_label(mm: float) -> str:
     """
     Return a score-appropriate minimax confirmation label for the seed.
@@ -3503,10 +3836,48 @@ def _minimax_wording_label(mm: float) -> str:
     return "highest-evaluated option"
 
 
+def _is_losing_score_state(score_state: Optional[str]) -> bool:
+    """Return True iff strategic_context.score_state indicates the current
+    mover is materially behind.  Conservative: an unknown / missing value
+    returns False (callers fall back to the raw-minimax gate).
+    """
+    return isinstance(score_state, str) and score_state in (
+        "CLEARLY_LOSING",
+        "SLIGHTLY_LOSING",
+    )
+
+
+def _resolve_score_state_for_seeds(state: CheckersState) -> str:
+    """
+    Return a safe score_state string for use as the adversity-seed gate.
+
+    Behaviour:
+      - If state.strategic_context["score_state"] is a non-empty string,
+        return it verbatim.
+      - Otherwise (None state, missing key, empty/non-string value), return
+        the conservative default "EQUAL".
+
+    Rationale
+    ---------
+    On the very first ply, inter_turn_memory has not yet produced a real
+    strategic_context.  scorer_node injects a neutral _FIRST_TURN_CONTEXT
+    that already sets score_state="EQUAL", but this helper guarantees the
+    same default even in unit tests or partial-state harnesses that bypass
+    scorer_node.  Returning "EQUAL" ensures adversity seeds remain OFF when
+    the position is unknown — never falsely declaring a losing position.
+    """
+    ctx = state.strategic_context or {}
+    val = ctx.get("score_state") if isinstance(ctx, dict) else None
+    if isinstance(val, str) and val.strip():
+        return val
+    return "EQUAL"
+
+
 def _build_grounded_reasoning_seeds(
     chosen_move: dict,
     all_candidates: list,
     player: int = 0,
+    score_state: Optional[str] = None,
 ) -> list[str]:
     """
     Build a list of truthful, fact-derived reasoning seeds for chosen_move.
@@ -3516,10 +3887,34 @@ def _build_grounded_reasoning_seeds(
 
     player  INT constant (RED or BLACK from checkers.engine.board).
             When 0 (unknown), direction-sensitive seeds fall back to safe defaults.
+
+    score_state  Optional strategic_context["score_state"] value.  When provided
+                 and equal to "CLEARLY_LOSING"/"SLIGHTLY_LOSING", adversity seeds
+                 fire regardless of minimax_score.  When None or missing, the
+                 legacy raw-minimax threshold (_MINIMAX_SLIGHTLY_LOSING) is used.
+                 This avoids emitting losing-position language during forced-but-
+                 winning lines where a single move has mm<-20 but the player is
+                 actually ahead overall.
     """
     seeds: list[str] = []
     facts = chosen_move.get("facts") or {}
     chosen_path = chosen_move.get("path")
+
+    # ── Adversity context gate ────────────────────────────────────────────────
+    # Preferred gate: strategic_context.score_state, which reflects whole-position
+    # material/king balance from the current mover's perspective.
+    # Fallback gate: raw minimax_score < _MINIMAX_SLIGHTLY_LOSING, used only when
+    # score_state is not provided (back-compat for unit tests and isolated calls).
+    _mm = facts.get("minimax_score")
+    if score_state is not None:
+        _adversity_active = _is_losing_score_state(score_state)
+    else:
+        _adversity_active = _mm is not None and _mm < _MINIMAX_SLIGHTLY_LOSING
+
+    if _adversity_active:
+        seeds.extend(
+            _build_adversity_context_seeds(facts, all_candidates, chosen_path)
+        )
 
     # ── Safety ──────────────────────────────────────────────────────────────
     recapture = facts.get("opponent_can_recapture")
@@ -3618,26 +4013,31 @@ def _build_grounded_reasoning_seeds(
             "near_promotion=true — creates a future promotion threat"
         )
 
-    # ── Mobility — always emit numeric before/after so LLM reasoning can't contradict ──
+    # ── Mobility — emit ONE natural-language seed per before/after pair ───────
+    # Earlier versions emitted both a structured "key=value" seed and a
+    # natural-language seed; that doubled up the same fact and pushed the LLM
+    # toward mechanical seed restatement.  We keep the natural-language form,
+    # which the truthfulness checker grounds against the facts dict directly
+    # (digit / number-word bypass), so explicit key=value seeds are unnecessary.
     mob_after  = facts.get("opponent_mobility_after")
     mob_before = facts.get("opponent_mobility_before")
     if mob_after is not None and mob_before is not None:
         if mob_after < mob_before:
             delta = mob_before - mob_after
             seeds.append(
-                f"opponent_mobility_before={mob_before}, opponent_mobility_after={mob_after} — "
+                f"opponent mobility changes from {mob_before} to {mob_after} — "
                 f"reduces opponent mobility by {delta}, restricting available replies"
             )
         elif mob_after > mob_before:
             delta = mob_after - mob_before
             seeds.append(
-                f"opponent_mobility_before={mob_before}, opponent_mobility_after={mob_after} — "
+                f"opponent mobility changes from {mob_before} to {mob_after} — "
                 f"increases opponent mobility by {delta}"
             )
         else:
             seeds.append(
-                f"opponent_mobility_before={mob_before}, opponent_mobility_after={mob_after} — "
-                f"no change in opponent mobility"
+                f"opponent mobility remains at {mob_before} — "
+                "no change in opponent mobility"
             )
 
     our_mob_before = facts.get("our_mobility_before")
@@ -3646,19 +4046,19 @@ def _build_grounded_reasoning_seeds(
         if our_mob_after > our_mob_before:
             delta = our_mob_after - our_mob_before
             seeds.append(
-                f"our_mobility_before={our_mob_before}, our_mobility_after={our_mob_after} — "
+                f"our mobility changes from {our_mob_before} to {our_mob_after} — "
                 f"increases our mobility by {delta}"
             )
         elif our_mob_after < our_mob_before:
             delta = our_mob_before - our_mob_after
             seeds.append(
-                f"our_mobility_before={our_mob_before}, our_mobility_after={our_mob_after} — "
+                f"our mobility changes from {our_mob_before} to {our_mob_after} — "
                 f"decreases our mobility by {delta}"
             )
         else:
             seeds.append(
-                f"our_mobility_before={our_mob_before}, our_mobility_after={our_mob_after} — "
-                f"no change in our mobility"
+                f"our mobility remains at {our_mob_before} — "
+                "no change in our mobility"
             )
 
     # ── Strategic interpretation (LOW-STRENGTH, supporting context only) ────────────
@@ -3682,8 +4082,7 @@ def _build_grounded_reasoning_seeds(
             _is_forward = False
         if _is_forward:
             seeds.append(
-                "develops a piece forward — "
-                "improves piece activity from its starting position"
+                "develops a piece forward (simple move, no capture)"
             )
 
     # (B) Back-row origin: color-aware back row detection.
@@ -3692,10 +4091,22 @@ def _build_grounded_reasoning_seeds(
     if _src_row is not None and player != 0:
         _is_back_row = (_src_row == 7) if player == RED else (_src_row == 0)
         if _is_back_row:
-            seeds.append(
-                "moves a back-row piece — "
-                "slightly weakens back-row defensive structure"
-            )
+            # Fix 2C: condition seed text on the actual weakens_king_row fact.
+            # The old template always said "slightly weakens" regardless of the
+            # symbolic fact value, causing a seed-fact mismatch and a verifier
+            # UNSUPPORTED verdict whenever weakens_king_row=False.
+            _actually_weakens = bool(facts.get("weakens_king_row", False))
+            if _actually_weakens:
+                seeds.append(
+                    "moves a back-row piece — "
+                    "weakens back-row defensive structure (weakens_king_row=true)"
+                )
+            else:
+                seeds.append(
+                    "moves a back-row piece — "
+                    "back-row structure remains intact (weakens_king_row=false)"
+                )
+
 
     # (C) Positional (quiet) move: no captures
     if cap == 0:
@@ -3703,11 +4114,14 @@ def _build_grounded_reasoning_seeds(
             "captures_count=0 — positional move focused on improving piece placement"
         )
 
-    # (D) Center direction: destination column in center range {2,3,4,5}
+    # (D) Center direction: destination column in center range {2,3,4,5}.
+    # This is a GEOMETRIC fact only.  Do not conflate with tactical center_control
+    # (engine-computed).  "central board presence" is intentionally absent here
+    # to prevent ontology mismatch; center_control=True is already seeded above.
     if _dst_col is not None and _dst_col in {2, 3, 4, 5}:
         seeds.append(
-            "destination column in center range — "
-            "contributes to central board presence"
+            f"destination column in center range (col={_dst_col}) — "
+            "geometric center position"
         )
 
     # ── Comparison vs next-best alternative ──────────────────────────────
@@ -3760,6 +4174,7 @@ def _generate_seeded_reasoning(
     chosen_move: dict,
     all_candidates: list,
     player: int = 0,
+    score_state: Optional[str] = None,
 ) -> tuple[Optional[str], list[str]]:
     """
     Build grounded seeds for chosen_move, then call the LLM once to turn them
@@ -3767,11 +4182,16 @@ def _generate_seeded_reasoning(
     NEVER modifies chosen_move or any candidate.
     NEVER calls safety_filter, override, or scoring.
     player  INT constant (RED or BLACK); 0 = unknown (safe fallback).
+    score_state  Optional strategic_context["score_state"].  Forwarded to
+                 _build_grounded_reasoning_seeds so adversity seeds activate
+                 by position state rather than the per-move minimax_score.
     Returns (reasoning_string_or_None, seeds_list).
     """
     import time as _time
 
-    seeds = _build_grounded_reasoning_seeds(chosen_move, all_candidates, player=player)
+    seeds = _build_grounded_reasoning_seeds(
+        chosen_move, all_candidates, player=player, score_state=score_state,
+    )
     if not seeds:
         return None, []
 
@@ -3814,12 +4234,14 @@ def ranker_agent(state: CheckersState) -> dict:
         system = RANKER_SYSTEM_PROMPT_SINGLE
         user = build_ranker_user_prompt_single(state, legal[0])
         import time
+        _api_call_failure_count = 0
         raw = None
         for attempt in range(3):
             try:
                 raw = call_ranker(system, user)
                 break
             except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError) as e:
+                _api_call_failure_count += 1
                 wait = 2 ** attempt * 10   # 10s, 20s ,40s
                 print(f"[ranker_agent] call failed (attempt {attempt+1}): {e} — waiting {wait}s")
                 time.sleep(wait)
@@ -3868,12 +4290,14 @@ def ranker_agent(state: CheckersState) -> dict:
         user = build_ranker_user_prompt(state, filtered, index_map)
 
         import time
+        _api_call_failure_count = 0
         raw = None
         for attempt in range(3):
             try:
                 raw = call_ranker(system, user)
                 break
             except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError) as e:
+                _api_call_failure_count += 1
                 wait = 2 ** attempt * 10   # 10s, 20s, 40s
                 print(f"[ranker_agent] call failed (attempt {attempt+1}): {e} — waiting {wait}s")
                 time.sleep(wait)
@@ -3957,6 +4381,10 @@ def ranker_agent(state: CheckersState) -> dict:
         _retry_reasoning:      Optional[str] = None   # text from most-recent retry LLM call
         _last_retry_llm_idx:   Optional[int]  = None  # legal[] index of last retry parse
         _last_retry_llm_path:  Optional[list] = None  # path of last retry LLM choice
+        # Phase 2 provenance — append-only, never read by decision logic
+        _or_tried_paths:       list          = []     # every path chosen by override-retry LLM calls
+        # Phase 2.3a: branch name each time an audit fires triggered=True (diagnostics only)
+        _or_rejection_reasons: list          = []     # one entry per rejected audit call
 
         # Attempt-0 setup
         attempt_moves        = filtered                    # NEVER overwrite filtered
@@ -3995,6 +4423,9 @@ def ranker_agent(state: CheckersState) -> dict:
                     _or_retry_resolved = True
                 break
 
+            # Phase 2.3a: record rejection reason for every triggered audit (diagnostics only)
+            _or_rejection_reasons.append(_branch or "unknown")
+
             # Record branch on first trigger
             if _or_branch_name is None:
                 _or_branch_name = _branch
@@ -4032,6 +4463,10 @@ def ranker_agent(state: CheckersState) -> dict:
                 _branch,
                 chosen_score=_get_minimax_score(attempt_moves[idx_in_attempt_moves]),
                 best_score=_get_minimax_score(_best_move) if _best_move is not None else None,
+                # Phase 2.3b: inform retry LLM about previously rejected paths.
+                # _or_tried_paths is empty on attempt 1; non-empty on attempt 2+.
+                # Read-only informational context — no hard filtering.
+                rejected_paths=_or_tried_paths if _or_tried_paths else None,
             )
             _retry_user    = _build_retry_user_prompt(
                 state       = state,
@@ -4099,6 +4534,8 @@ def ranker_agent(state: CheckersState) -> dict:
             # Track last successfully-parsed retry for attribution logging.
             _last_retry_llm_idx  = _retry_idx_legal
             _last_retry_llm_path = _retry_chosen_move.get("path")
+            # Phase 2 provenance: record every retry path (evaluation-only, never read).
+            _or_tried_paths.append(_last_retry_llm_path)
 
             # ── Set up next audit iteration ───────────────────────────────
             # Retries always audit against the full proposal list.
@@ -4327,8 +4764,13 @@ def ranker_agent(state: CheckersState) -> dict:
     # then ask the LLM to rewrite them into a paragraph.
     # Safety filter, override, scoring, and move selection are NEVER called.
     _candidates_for_seeds = locals().get("filtered", [chosen])
+    # Conservative fallback: when strategic_context is missing (first ply or
+    # test harness), default to "EQUAL" so adversity seeds stay OFF and a
+    # winning forced line cannot be mislabelled as losing.
+    _score_state_for_seeds = _resolve_score_state_for_seeds(state)
     _seeded, _active_seeds = _generate_seeded_reasoning(
-        chosen, _candidates_for_seeds, player=state.current_player
+        chosen, _candidates_for_seeds, player=state.current_player,
+        score_state=_score_state_for_seeds,
     )
     if _seeded:
         reasoning = _seeded
@@ -4341,6 +4783,11 @@ def ranker_agent(state: CheckersState) -> dict:
         reasoning, _chosen_facts, seeds=_active_seeds
     )
     _reasoning_retry_count  = 0
+    _reasoning_is_seed_fallback = False
+    # Phase 2 provenance: snapshot the pre-refinement text (evaluation-only).
+    # Captured here — before the repair loop may overwrite `reasoning`.
+    # Never read by any decision, scoring, or fallback logic.
+    _raw_reasoning_snapshot: Optional[str] = reasoning
 
     if _initial_contradictions:
         for _w in _initial_contradictions:
@@ -4365,11 +4812,19 @@ def ranker_agent(state: CheckersState) -> dict:
                 f"[RANKER_TRUTHFULNESS] seed_fallback_reasoning={_seed_fallback!r}"
             )
             reasoning = _seed_fallback
+            _reasoning_is_seed_fallback = True
 
 
     reasoning = re.sub(r"\s+", " ", reasoning).strip()
     if len(reasoning) > 1500:
         reasoning = reasoning[:1497] + "..."
+
+    # ── Evaluation logging: final contradiction state after all refinement ────
+    # Pure read — never modifies reasoning, chosen_move, or any pipeline state.
+    _reasoning_final_contradictions = _check_reasoning_truthfulness(
+        reasoning, _chosen_facts, seeds=_active_seeds
+    )
+    _reasoning_has_unresolved = bool(_reasoning_final_contradictions)
 
 
     # ── Phase 8: thesis instrumentation ──────────────────────────────────────
@@ -4387,6 +4842,22 @@ def ranker_agent(state: CheckersState) -> dict:
     _or_retry_res    = locals().get("_or_retry_resolved",   False)
     _or_fallback_res = locals().get("_or_fallback_applied", False)
     _or_branch       = locals().get("_or_branch_name",      None)
+
+    # ── Phase 2 provenance helpers (read-only, after all decision logic) ─────
+    _p2_best_move   = locals().get("best_move", None)
+    _p2_tie_count   = len(locals().get("legal_best_idxs", []))
+    _p2_raw_rsn     = locals().get("_raw_reasoning_snapshot", None)
+    _p2_retry_paths = list(locals().get("_or_tried_paths", []))
+    # Phase 2.3a: branch name for each rejected audit (evaluation-only).
+    _p2_rejection_reasons = list(locals().get("_or_rejection_reasons", []))
+    # Paths of all moves whose minimax_score equals the best score (the full tie set).
+    # Evaluation-only: never read by any decision, override, or scoring logic.
+    _p2_legal       = locals().get("legal", [])
+    _p2_tied_paths  = [
+        _p2_legal[i].get("path")
+        for i in locals().get("legal_best_idxs", [])
+        if i < len(_p2_legal)
+    ]
 
     # Attribution: what was the initial LLM choice and what drove the final move?
     _llm_initial_path = (locals().get("chosen_before_override") or {}).get("path")
@@ -4415,6 +4886,33 @@ def ranker_agent(state: CheckersState) -> dict:
     _legal_for_diag   = locals().get("legal", [])
     _final_chosen_idx = next(
         (i for i, m in enumerate(_legal_for_diag) if m.get("path") == _final_path), None
+    )
+
+    # ── Next-best minimax score (evaluation-only, never read by decisions) ───
+    # Phase-6 Fix 2: surfaces enough candidate-score context for the
+    # score_gap_advantage verifier to do hard verification.  Computed across
+    # the filtered candidate list, excluding the chosen path.  Returns None
+    # when there is no alternative (single-candidate branch).
+    def _compute_next_best_minimax(filtered_list: list, chosen_path) -> Optional[float]:
+        if not filtered_list:
+            return None
+        scores: list = []
+        for m in filtered_list:
+            if m.get("path") == chosen_path:
+                continue
+            s = _get_minimax_score(m)
+            if s is None:
+                continue
+            try:
+                if s != float("-inf"):
+                    scores.append(float(s))
+            except (TypeError, ValueError):
+                continue
+        return max(scores) if scores else None
+
+    _next_best_minimax = _compute_next_best_minimax(
+        locals().get("filtered", []) or _legal_for_diag,
+        _final_path,
     )
 
     _final_matches_raw   = (
@@ -4448,6 +4946,46 @@ def ranker_agent(state: CheckersState) -> dict:
         "promotion_tiebreak_applied": _promo_tb,
         # ── Legacy alias ─────────────────────────────────────────────────────
         "llm_initial_choice_path":    _llm_initial_path,
+        # ── Evaluation logging (audit additions — read-only, no behavior change)
+        "ranker_selected_valid_candidate": (
+            _raw_llm_idx_diag is not None
+            or _final_choice_source == "single_candidate"
+        ),
+        "api_call_failure_count":          locals().get("_api_call_failure_count", 0),
+        "reasoning_seeds":                 _active_seeds,
+        "reasoning_final_contradictions":  _reasoning_final_contradictions,
+        "reasoning_has_unresolved_contradiction": _reasoning_has_unresolved,
+        "reasoning_refinement_retry_count": _reasoning_retry_count,
+        "reasoning_is_seed_fallback":      _reasoning_is_seed_fallback,
+        # ── Pre-repair contradiction diagnostics (evaluation only) ───────────
+        # _initial_contradictions is set unconditionally at line 4344, before
+        # the repair loop. These fields expose it for post-hoc auditing.
+        # No decision, repair, or fallback logic is affected.
+        "reasoning_initial_contradictions": list(_initial_contradictions),
+        "reasoning_contradiction_detected": bool(_initial_contradictions),
+        "reasoning_contradiction_repaired": (
+            bool(_initial_contradictions)
+            and not _reasoning_is_seed_fallback
+            and not _reasoning_final_contradictions
+        ),
+        "override_reason_str":             locals().get("override_reason", None),
+        "final_chosen_path_in_legal_moves": _final_chosen_idx is not None,
+        # ── Phase 2 provenance (evaluation-only, never read by decision logic) ─
+        "best_score_tie_count":             _p2_tie_count,
+        "minimax_best_path":                (_p2_best_move or {}).get("path"),
+        "minimax_best_score":               (
+            _get_minimax_score(_p2_best_move)
+            if _p2_best_move is not None else None
+        ),
+        # Phase-6 Fix 2: best minimax_score among non-chosen filtered candidates.
+        # Read-only.  Used by the evaluator's score_gap_advantage verifier to
+        # decide SUPPORTED vs CONTRADICTED.  None when no alternative exists.
+        "next_best_minimax_score":          _next_best_minimax,
+        "raw_llm_reasoning_pre_refinement": _p2_raw_rsn,
+        "retry_all_paths":                  _p2_retry_paths,
+        "retry_rejection_reasons":          _p2_rejection_reasons,
+        "tie_break_reason":                 ("promotion" if _promo_tb else None),
+        "tied_candidate_paths":             _p2_tied_paths,
     }
 
     out = {
@@ -4458,5 +4996,10 @@ def ranker_agent(state: CheckersState) -> dict:
         "ranker_filtered_menu": ranker_filtered_menu_snapshot,
         "llm_agreed_with_symbolic_best": llm_agreed,
         "ranker_diagnostics": _ranker_diagnostics,
+        # Evaluation export only — full facts dict for the chosen move.
+        # _chosen_facts is already computed above (line ~4343); this just
+        # surfaces it onto state so logger_node can write it without
+        # touching any decision logic.
+        "chosen_move_facts": _chosen_facts or None,
     }
     return out
