@@ -5,17 +5,16 @@
 """
 Game trace using the simplified pipeline: RED = AI, BLACK = human.
 
+Architecture (proposal-authoritative):
+  - deterministic_proposal_node is the SOLE move authority.
+  - ranker_agent is a PURE reasoning/explanation node (no decision authority).
+  - chosen_move flows: proposal → ranker (unchanged) → update_agent.
+
 Per-turn flow:
   RED turn  — graph runs scorer → proposal → ranker → update_agent then
               stops (interrupt_after update_agent).  The graph does NOT loop.
   BLACK turn — legal moves printed with indices; human enters a move index;
               update_agent is called directly (scorer/proposal/ranker skipped).
-
-Key differences from run_full_trace.py:
-  - USE_SIMPLIFIED_PIPELINE is forced to "true" before the graph is imported.
-  - state_manager, win_condition, logger_node and inter_turn_memory are called
-    inside update_agent (not as separate graph nodes).
-  - Completion is detected by last_completed_node == "update_agent".
 
 Usage:
   python run_simplified_trace.py [--max-turns N] [--quiet]
@@ -208,67 +207,64 @@ def _stream_one_ply(
                     print()
 
                 elif node_name == "deterministic_proposal_node":
-                    # deterministic_proposal_node writes the shortlist to
-                    # legal_moves (not proposed_moves) so ranker_agent sees it.
-                    pm = acc.get("legal_moves") or []
-                    print(f"── DETERMINISTIC PROPOSAL ({len(pm)} candidates) ──")
-                    for i, m in enumerate(pm):
-                        facts = m.get("facts") or {}
-                        score = facts.get("minimax_score", "n/a")
-                        rank  = facts.get("symbolic_rank", "?")
-                        cap   = m.get("captured") or []
+                    # Proposal is the SOLE move authority in the simplified pipeline.
+                    cm = acc.get("chosen_move")
+                    cm_score = acc.get("chosen_move_score")
+                    unchosen = acc.get("unchosen_moves") or []
+                    p_diag = acc.get("proposal_diagnostics") or {}
+                    n_legal = p_diag.get("n_legal", "?")
+                    gap = p_diag.get("gap")
+
+                    print(f"── PROPOSAL (move authority) ── {n_legal} legal moves ──")
+                    if cm:
+                        cap = cm.get("captured") or []
                         cap_s = f"  captures {cap}" if cap else ""
-                        print(
-                            f"  [{i}] rank={rank} score={score:>8}  "
-                            f"{m.get('type')} {m.get('path')}{cap_s}"
-                        )
+                        print(f"  ✔ CHOSEN: {cm.get('type')} {cm.get('path')}{cap_s}")
+                        print(f"    minimax_score={cm_score}  gap_to_2nd={gap}")
+                        print(f"    method={p_diag.get('selection_method', '?')}")
+                    else:
+                        print("  (no chosen move)")
+
+                    # Show top alternatives from unchosen_moves
+                    if unchosen:
+                        n_show = min(3, len(unchosen))
+                        print(f"  Top {n_show} alternatives (of {len(unchosen)} unchosen):")
+                        for i, m in enumerate(unchosen[:n_show]):
+                            f = m.get("facts") or {}
+                            alt_score = f.get("minimax_score", "n/a")
+                            alt_cap = m.get("captured") or []
+                            alt_cap_s = f"  captures {alt_cap}" if alt_cap else ""
+                            print(
+                                f"    [{i+1}] score={alt_score:>8}  "
+                                f"{m.get('type')} {m.get('path')}{alt_cap_s}"
+                            )
                     print()
 
 
                 elif node_name == "ranker_agent":
                     cm = acc.get("chosen_move")
                     lm = acc.get("legal_moves") or []
-                    print("── RANKER AGENT ──")
+                    _diag = acc.get("ranker_diagnostics") or {}
+                    _source = _diag.get("final_choice_source", "unknown")
+
+                    print("── RANKER (explanation only — proposal-authoritative) ──")
+
                     if cm:
-                        idx = -1
-                        chosen_facts: dict = {}
-                        best_score = float("-inf")
-                        best_idx   = -1
-                        for i, m in enumerate(lm):
-                            f = m.get("facts") or {}
-                            s = f.get("minimax_score", float("-inf"))
-                            try:
-                                s = float(s)
-                            except (TypeError, ValueError):
-                                s = float("-inf")
-                            if s > best_score:
-                                best_score = s
-                                best_idx   = i
-                            if m.get("type") == cm.get("type") and m.get("path") == cm.get("path"):
-                                idx = i
-                                chosen_facts = f
                         cap   = cm.get("captured") or []
                         cap_s = f" captures {cap}" if cap else ""
-                        print(f"Chose index: {idx}")
+                        chosen_facts = cm.get("facts") or {}
+                        chosen_score = chosen_facts.get("minimax_score", "n/a")
                         print(f"Move: {cm.get('type')} {cm.get('path')}{cap_s}")
-                        chosen_score = chosen_facts.get("minimax_score", float("-inf"))
-                        try:
-                            chosen_score = float(chosen_score)
-                        except (TypeError, ValueError):
-                            chosen_score = float("-inf")
-                        gap_from_best = round(best_score - chosen_score, 2)
                         print(
-                            f"Chosen facts: minimax_score={chosen_facts.get('minimax_score', 'n/a')}  "
+                            f"Chosen facts: minimax_score={chosen_score}  "
                             f"net_gain={chosen_facts.get('net_gain', 'n/a')}  "
-                            f"opp_recapture={chosen_facts.get('opponent_can_recapture', 'n/a')}  "
-                            f"counterplay={chosen_facts.get('counterplay_score', 'n/a')}  "
-                            f"king_activity={chosen_facts.get('king_activity_score', 'n/a')}"
+                            f"opp_recapture={chosen_facts.get('opponent_can_recapture', 'n/a')}"
                         )
+
+                        # Reasoning
                         _reasoning = (acc.get("last_move_reasoning") or "").strip()
                         print("Reasoning:")
                         if _reasoning:
-                            # Print indented, word-wrapped at 100 chars.
-                            # textwrap.fill never cuts mid-word.
                             print(textwrap.fill(
                                 _reasoning,
                                 width=100,
@@ -280,10 +276,22 @@ def _stream_one_ply(
                         else:
                             print("  (none)")
 
-                        print(f"── RANKER QUALITY ──")
-                        print(f"best_legal_idx={best_idx}  best_minimax={best_score}")
-                        print(f"chosen_idx={idx}  chosen_minimax={chosen_score}")
-                        print(f"minimax_gap_from_best={_red_if(gap_from_best, gap_from_best > 50)}")
+                        # Reasoning diagnostics
+                        _seeds = _diag.get("reasoning_seeds") or []
+                        _contradictions = _diag.get("reasoning_initial_contradictions") or []
+                        _fallback = _diag.get("reasoning_is_seed_fallback", False)
+                        print(f"── REASONING DIAGNOSTICS ──")
+                        print(f"  final_choice_source={_source}")
+                        print(f"  seeds={len(_seeds)}  contradictions={len(_contradictions)}  seed_fallback={_fallback}")
+
+                        # ranker_agent has no decision authority in this pipeline.
+                        print(f"  override/retry: INACTIVE (proposal-authoritative)")
+
+                        # Move identity verification
+                        _proposal_cm = acc.get("chosen_move_score")
+                        if _proposal_cm is not None:
+                            _match = (chosen_score == _proposal_cm) if chosen_score != "n/a" else False
+                            print(f"  proposal_score={_proposal_cm}  ranker_score={chosen_score}  identity={'✅' if _match else '❌'}")
                     else:
                         print("Chose index: (none — ranker failure)")
                     print()

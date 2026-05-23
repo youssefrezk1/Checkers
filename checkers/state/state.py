@@ -18,22 +18,37 @@ class CheckersState(BaseModel):
 
     legal_moves: list[dict[str, Any]] = Field(default_factory=list)
 
-    # ── Ranker output ────────────────────────────────────
+    # ── Chosen move (sole authority: deterministic_proposal_node) ─────────────
+    # chosen_move is WRITTEN ONLY by deterministic_proposal_node. ranker_agent
+    # treats it as read-only and never reassigns it. Cleared by state_manager.
     chosen_move: Optional[dict[str, Any]] = Field(default=None)
-    # Explanation for the applied move (ranker or symbolic fallback); cleared each ply.
+    # Natural-language explanation of the chosen move, produced by ranker_agent.
+    # Reasoning-only output — has no effect on which move was selected.
     last_move_reasoning: Optional[str] = Field(default=None)
 
-    # ── Ranker decision-time snapshot (for evaluation) ───────────────────────
-    # Captures the exact filtered candidate list the ranker saw (order + minimax_score),
-    # so evaluation can measure filtered gaps against the same menu.
+    # ── Deterministic proposal output ─────────────────────
+    # Written by deterministic_proposal_node; cleared by state_manager each turn.
+    # chosen_move_score: minimax_score of the deterministically selected move.
+    chosen_move_score: Optional[float] = Field(default=None)
+    # unchosen_moves: all legal moves EXCEPT the chosen one, preserving full facts.
+    # Passed to ranker_agent for comparative explanation only — never used to
+    # re-rank, re-score, or revisit the proposal's selection.
+    unchosen_moves: list[dict[str, Any]] = Field(default_factory=list)
+
+    # ── Candidate-menu evaluation snapshot ───────────────────────────────────
+    # Snapshot of the full candidate list (paths + minimax_score) made visible
+    # to ranker_agent when it generates its explanation. Used purely for
+    # evaluation/replay so reviewers can see the same menu the ranker saw.
+    # NOT a decision channel — the proposal has already selected by the time
+    # this snapshot is taken.
     ranker_filtered_menu: Optional[list[dict[str, Any]]] = Field(default=None)
 
-    # ── Ranker retry / thesis metrics ────────────────────
-    # Per-ply attempts that returned no valid choice; reset in state_manager.
+    # ── Legacy ranker retry / thesis metrics ──────────────────────────────────
+    # Retained for log-schema compatibility with the pre-simplified pipeline.
+    # In the proposal-authoritative pipeline the ranker performs no decision
+    # work and never retries or falls back, so these counters stay at 0.
     ranker_retry_count: int = Field(default=0)
-    # Ranker attempts that failed (LLM/parse/invalid index); cumulative session total.
     ranker_failure_count: int = Field(default=0)
-    # Legacy field — ranker_fallback node removed; always 0. Kept for log schema compatibility.
     ranker_fallback_count: int = Field(default=0)
     ranker_retry_budget: int = Field(default=3)
 
@@ -98,13 +113,16 @@ class CheckersState(BaseModel):
     llm_invoked: bool = Field(default=False)
     llm_agreed_with_symbolic_best: Optional[bool] = Field(default=None)
     proposal_diagnostics: Optional[dict[str, Any]] = Field(default=None)
-    # Structured diagnostics from ranker_agent override retry loop.
-    # Keys: override_retry_attempts, override_retry_resolved, override_fallback_applied,
-    #       override_branch_name, retry_used_full_proposal.
-    # Set by ranker_agent each ply; persists until overwritten by the next ranker_agent
+    # Structured diagnostics emitted by ranker_agent when it generates the
+    # explanation for the proposal-chosen move. Tracks reasoning provenance
+    # (seeds, contradictions, refinement attempts, seed-fallback usage) plus
+    # neutral placeholders for legacy decision-path keys (override/retry
+    # counters always 0, final_choice_source="proposal_authoritative") so
+    # evaluation schemas remain stable. Persists until the next ranker_agent
     # call (state_manager does NOT clear this field between turns).
     ranker_diagnostics: Optional[dict[str, Any]] = Field(default=None)
-    # Full compute_move_facts() output for the chosen move.
-    # Set by ranker_agent each ply; cleared by state_manager.
-    # Used only for evaluation export — zero gameplay impact.
+    # Full compute_move_facts() output for the proposal-chosen move.
+    # Captured by ranker_agent from chosen_move["facts"] for evaluation export;
+    # cleared by state_manager each turn. Read-only mirror of proposal output —
+    # zero gameplay impact.
     chosen_move_facts: Optional[dict[str, Any]] = Field(default=None)

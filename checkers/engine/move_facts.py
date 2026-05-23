@@ -1337,6 +1337,7 @@ def compute_move_facts(board, move, current_player):
 
         # Capture details
         "captures_count": captures_count,
+        "jump_count": captures_count,
         "is_multi_jump": is_multi_jump,
         "kings_captured": kings_captured,
         "regulars_captured": regulars_captured,

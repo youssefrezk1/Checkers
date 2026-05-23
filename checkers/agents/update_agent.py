@@ -14,10 +14,11 @@
 #
 # Terminal case
 # ─────────────
-# ranker_agent sets chosen_move=None when legal_moves is empty (current
-# player is stuck = loss). Phase A is skipped; win_condition receives
-# the unmodified board and determines the winner correctly because
-# current_player is still the stuck player at that point.
+# When the current player has no legal moves (stuck = loss), Phase A is
+# skipped (defensive guard on state.chosen_move) and win_condition is
+# invoked on the unmodified board. It correctly identifies the loser
+# because current_player has not yet been switched. chosen_move is owned
+# entirely by deterministic_proposal_node — ranker_agent never assigns it.
 #
 # Player perspective after Phase A
 # ─────────────────────────────────
@@ -49,8 +50,9 @@ def update_agent(state: CheckersState) -> dict:
 
     Evaluation-field lifecycle
     ──────────────────────────
-    chosen_move_facts is set by ranker_agent and CLEARED by state_manager.
-    To let logger_node (Phase C) export it for the evaluation-source JSONL,
+    chosen_move_facts is captured by ranker_agent (a read-only mirror of
+    the proposal-chosen move's facts) and CLEARED by state_manager. To
+    let logger_node (Phase C) export it for the evaluation-source JSONL,
     we snapshot it here before Phase A runs, then restore it only in a
     temporary log-only state copy passed to logger_node.  inter_turn_memory
     (Phase D) and the final merged dict still receive None, preventing any
@@ -63,6 +65,9 @@ def update_agent(state: CheckersState) -> dict:
     # turn's facts into the evaluation-source JSONL without touching any
     # decision state.
     _eval_chosen_facts = state.chosen_move_facts
+    # Proposal-authoritative fields: also cleared by state_manager each turn.
+    _eval_chosen_move_score = state.chosen_move_score
+    _eval_proposal_diagnostics = state.proposal_diagnostics
 
     # ── Phase A: Apply chosen move ────────────────────────────────────────────
     # Terminal guard: skip move application when ranker_agent received an
@@ -79,12 +84,16 @@ def update_agent(state: CheckersState) -> dict:
     post_wc_state = post_move_state.model_copy(update=wc_result)
 
     # ── Phase C: Logging ──────────────────────────────────────────────────────
-    # Build a log-only state copy with chosen_move_facts restored from the
-    # pre-Phase-A snapshot so logger_node can write it to evaluation_source/.
+    # Build a log-only state copy with evaluation fields restored from the
+    # pre-Phase-A snapshot so logger_node can write them to evaluation_source/.
     # This copy is NEVER merged back; inter_turn_memory still receives
-    # post_wc_state (chosen_move_facts=None), preventing next-turn leakage.
+    # post_wc_state (all cleared to None), preventing next-turn leakage.
     _log_state = post_wc_state.model_copy(
-        update={"chosen_move_facts": _eval_chosen_facts}
+        update={
+            "chosen_move_facts": _eval_chosen_facts,
+            "chosen_move_score": _eval_chosen_move_score,
+            "proposal_diagnostics": _eval_proposal_diagnostics,
+        }
     )
     log_result = logger_node(_log_state)
 

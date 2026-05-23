@@ -100,6 +100,8 @@ def state_manager(state: CheckersState) -> dict:
         "proposed_moves": [],
         "legal_moves": [],
         "chosen_move": None,
+        "chosen_move_score": None,
+        "unchosen_moves": [],
         "last_move_reasoning": None,
         "ranker_retry_count": 0,
         "retry_count": 0,

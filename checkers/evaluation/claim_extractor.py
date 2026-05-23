@@ -658,6 +658,210 @@ _ENTRY_BY_TYPE: dict[str, _PhraseEntry] = {e.claim_type: e for e in _PHRASE_TABL
 
 
 # ---------------------------------------------------------------------------
+# Clause-level negation pre-pass (E.2)
+# ---------------------------------------------------------------------------
+# Splits the reasoning into clauses and marks each as polarity-positive or
+# polarity-negative based on lexical negation markers found inside it.
+# Phrase matching for polarity-sensitive claim types is then restricted to
+# positive-polarity clauses.  This catches negations the older look-behind
+# window misses, such as
+#   "the opponent can recapture after the other move but not here"
+#   "without capturing, prioritizing piece placement over material gain"
+#
+# Deterministic, no LLM, no external dependencies.
+
+import re as _re_neg
+
+# Clause boundary: split on punctuation, semicolons, conjunctions, and the
+# phrases "but not" / "instead of" / "rather than" / "over" / "although" /
+# "though" / "however" — anything that can flip polarity within a sentence.
+_CLAUSE_SPLIT_RE = _re_neg.compile(
+    r"(?<=[.!?;:])\s+"
+    r"|,\s+"
+    r"|\s+(?:but|yet|while|although|though|however|whereas)\s+"
+    r"|\s+(?:and)\s+",
+    flags=_re_neg.IGNORECASE,
+)
+
+# Negation tokens / prefixes searched as whole-word matches inside each clause.
+# Bound by \b to avoid matching inside other words ("note", "snowball").
+# `avoids` is deliberately excluded — it appears inside positive phrases
+# such as "avoids recapture" (which is its own claim type), and treating it
+# as a generic negation would mask the affirmative meaning.
+_NEGATION_TOKENS: tuple[str, ...] = (
+    r"\bnot\b",
+    r"\bcannot\b",
+    r"\bcan'?t\b",
+    r"\bnever\b",
+    r"\bno\b",
+    r"\bnone\b",
+    r"\bnor\b",
+    r"\bnothing\b",
+    r"\bwithout\b",
+    r"\bdoes\s+not\b",
+    r"\bdid\s+not\b",
+    r"\bdon'?t\b",
+    r"\bdoesn'?t\b",
+    r"\bdidn'?t\b",
+    r"\bwon'?t\b",
+    r"\bwouldn'?t\b",
+    r"\bshouldn'?t\b",
+    r"\bisn'?t\b",
+    r"\baren'?t\b",
+    r"\bwasn'?t\b",
+    r"\bweren'?t\b",
+    r"\bhasn'?t\b",
+    r"\bhaven'?t\b",
+    # Multi-word negation flips
+    r"\bbut\s+not\b",
+    r"\binstead\s+of\b",
+    r"\brather\s+than\b",
+    r"\bdespite\b",
+    r"\black\s+of\b",
+    r"\bfailing\s+to\b",
+    r"\bfails?\s+to\b",
+)
+_NEGATION_RE = _re_neg.compile("|".join(_NEGATION_TOKENS), flags=_re_neg.IGNORECASE)
+
+# Tokens that, if they BEGIN a contrast clause (after "but"/"yet"/etc.),
+# imply the PRECEDING clause should also be treated as negated.
+# Handles constructions like "X can recapture after the other move but not here"
+# where the affirmative-looking first clause is actually contrasted away.
+_CONTRAST_NEGATION_LEADERS: tuple[str, ...] = (
+    "not ", "no ", "never ", "none ", "nor ", "nothing ",
+)
+
+# Trailing-negation sentinels: when one of these appears WITHIN a small
+# window AFTER the matched phrase, the phrase is being explicitly contrasted
+# away ("…can recapture after the other move but not here").
+_TRAILING_NEGATION_SENTINELS: tuple[str, ...] = (
+    "but not",
+    "not here",
+    "not in this",
+    "not for this",
+    "not by this",
+    "not with this",
+)
+
+# Polarity-sensitive claim types: phrase matches inside negated clauses for
+# these types should be suppressed.  ONLY include types whose phrases are
+# AFFIRMATIVE assertions (so a surrounding negation truly flips polarity).
+# Claim types whose phrases are themselves negations of a fact
+# ("cannot recapture", "does not isolate") are excluded — for them the
+# verifier rule already inverts based on the fact value, and suppressing
+# matches in negated clauses would silently drop affirmative claims.
+_POLARITY_SENSITIVE_CLAIM_TYPES: frozenset[str] = frozenset({
+    "gains_material",
+    "can_be_recaptured",
+    "weakens_king_row",
+    "center_control",
+    "piece_isolated",
+    "creates_immediate_threat",
+    "blocks_landing_square",
+    "promotes_to_king",
+})
+
+
+def _build_clause_polarity_map(text_lower: str) -> list[tuple[int, int, bool]]:
+    """
+    Return a list of (start, end, is_negated) triples, one per clause.
+
+    The full text is partitioned: every character of `text_lower` lies inside
+    exactly one clause span (whitespace boundaries are absorbed by the next
+    clause to avoid gaps).  is_negated is True iff a negation token occurs
+    inside the clause's text.
+
+    Contrast retro-propagation: when a clause begins with a contrast
+    conjunction whose immediate continuation is a negation leader
+    (e.g. "…but not here", "…yet none"), the PRECEDING clause is also
+    flagged as negated.  Handles affirmative-looking first clauses that are
+    contrasted away by the second.
+
+    Deterministic.  Pure string scan.
+    """
+    if not text_lower:
+        return []
+
+    # Find all split boundaries and remember the literal text of each
+    # separator so we can detect contrast conjunctions.
+    boundaries: list[tuple[int, int, str]] = []
+    cursor = 0
+    last_separator = ""
+    for m in _CLAUSE_SPLIT_RE.finditer(text_lower):
+        if m.start() > cursor:
+            boundaries.append((cursor, m.start(), last_separator))
+        last_separator = m.group(0)
+        cursor = m.end()
+    if cursor < len(text_lower):
+        boundaries.append((cursor, len(text_lower), last_separator))
+
+    if not boundaries:
+        boundaries = [(0, len(text_lower), "")]
+
+    polarity_map: list[tuple[int, int, bool]] = []
+    for start, end, _sep in boundaries:
+        clause = text_lower[start:end]
+        is_negated = bool(_NEGATION_RE.search(clause))
+        polarity_map.append((start, end, is_negated))
+
+    # Contrast retro-propagation: if clause[i] STARTS with a negation leader
+    # AND the separator that introduced it is a contrast conjunction
+    # ("but", "yet", "however", "whereas"), mark clause[i-1] as negated too.
+    for i in range(1, len(boundaries)):
+        sep = boundaries[i][2].lower()
+        if not any(
+            c in sep for c in (" but ", " yet ", " however ", " whereas ", " though ", " although ")
+        ):
+            continue
+        clause = text_lower[boundaries[i][0]: boundaries[i][1]].lstrip()
+        if any(clause.startswith(leader) for leader in _CONTRAST_NEGATION_LEADERS):
+            prev = polarity_map[i - 1]
+            polarity_map[i - 1] = (prev[0], prev[1], True)
+
+    return polarity_map
+
+
+def _position_is_negated(
+    polarity_map: list[tuple[int, int, bool]],
+    position: int,
+) -> bool:
+    """Return True iff `position` falls inside a clause flagged as negated."""
+    for start, end, is_negated in polarity_map:
+        if start <= position < end:
+            return is_negated
+    return False
+
+
+def _find_first_non_negated_occurrence(
+    text_lower: str,
+    phrase: str,
+    polarity_map: list[tuple[int, int, bool]],
+    *,
+    trailing_window: int = 40,
+) -> int:
+    """
+    Return the position of the first occurrence of `phrase` in `text_lower`
+    that lies inside a NON-negated clause AND is not followed within
+    `trailing_window` characters by a trailing-negation sentinel
+    (e.g. "but not", "not here").  Returns -1 otherwise.
+    """
+    start = 0
+    plen = len(phrase)
+    while True:
+        idx = text_lower.find(phrase, start)
+        if idx == -1:
+            return -1
+        if _position_is_negated(polarity_map, idx):
+            start = idx + plen
+            continue
+        tail = text_lower[idx + plen : idx + plen + trailing_window]
+        if any(s in tail for s in _TRAILING_NEGATION_SENTINELS):
+            start = idx + plen
+            continue
+        return idx
+
+
+# ---------------------------------------------------------------------------
 # Polarity detection helpers
 # ---------------------------------------------------------------------------
 # These helpers suppress or redirect claims whose matched phrase appears inside
@@ -679,6 +883,8 @@ _MATERIAL_NEGATABLE_PHRASES: frozenset[str] = frozenset({
 
 # Negation sentinels for material gain suppression.
 # Mirror the sentinels used in _check_reasoning_truthfulness in ranker_agent.
+# "over " covers constructions like "prioritizing piece placement over material gain"
+# where the matched phrase is the rejected alternative.
 _MATERIAL_NEGATION_SENTINELS: tuple[str, ...] = (
     "no ",
     "not ",
@@ -687,6 +893,10 @@ _MATERIAL_NEGATION_SENTINELS: tuple[str, ...] = (
     "lack of",
     "despite the lack",
     "no material",
+    "over ",
+    "instead of",
+    "rather than",
+    "prioritizing",
 )
 
 # Opponent-entity context indicators for near_promotion claim disambiguation.
@@ -887,15 +1097,33 @@ def extract_claims(
     fact_dict: dict[str, Any] = dict(facts) if facts else {}
     text_lower = reasoning_text.lower()
 
+    # ── E.2: pre-compute clause-level polarity map ──────────────────────────
+    # Phrase matches for polarity-sensitive claim types must lie in a
+    # NON-negated clause to count.  Catches negations the older 40-char
+    # look-behind misses ("but not here", "over material gain", etc.).
+    _polarity_map = _build_clause_polarity_map(text_lower)
+
     records: list[ClaimRecord] = []
 
     for entry in _PHRASE_TABLE:
         # ── Phase 1: find the first matching phrase in the text ────────
         matched_phrase: Optional[str] = None
         for phrase in entry.phrases:
-            if phrase.lower() in text_lower:
-                matched_phrase = phrase
-                break
+            phrase_lower = phrase.lower()
+            # For polarity-sensitive claim types, only count occurrences in
+            # non-negated clauses.  For everything else, preserve legacy
+            # first-occurrence semantics.
+            if entry.claim_type in _POLARITY_SENSITIVE_CLAIM_TYPES:
+                idx = _find_first_non_negated_occurrence(
+                    text_lower, phrase_lower, _polarity_map,
+                )
+                if idx >= 0:
+                    matched_phrase = phrase
+                    break
+            else:
+                if phrase_lower in text_lower:
+                    matched_phrase = phrase
+                    break
 
         if matched_phrase is None:
             continue  # claim type not present in this reasoning text

@@ -199,6 +199,10 @@ def logger_node(state: CheckersState) -> dict:
             "strategic_priorities": priorities,
             "material_advantage": material_adv,
             "winning_assessment": winning_asm,
+            # ── Proposal-authoritative pipeline fields (simplified mode) ───
+            # Additive: absent in old logs, present in simplified-pipeline logs.
+            "chosen_move_score": state.chosen_move_score,
+            "proposal_diagnostics": state.proposal_diagnostics,
         }
         # game_log_id is already "game_YYYYMMDD_HHMMSS"; avoid "game_game_..." in path
         _append_jsonl(os.path.join(LOG_DIR, f"{game_log_id}.jsonl"), jsonl_record)
@@ -217,16 +221,46 @@ def logger_node(state: CheckersState) -> dict:
         #                          cleared by state_manager; null for human moves)
         #   turn_id              ← "{game_log_id}_t{turn_number}"
         # ──────────────────────────────────────────────────────────────────────
+        _diag = state.ranker_diagnostics or {}
+        # ── Ablation tag propagation ────────────────────────────────────────
+        # Default is "seed_on" so legacy logs / non-ablation runs keep a
+        # stable, valid value. The ranker writes the same tag into its
+        # diagnostics; we mirror it here as a top-level eval-source field so
+        # downstream readers don't have to dig into ranker_diagnostics.
+        _run_tag = _diag.get("run_tag")
+        if not isinstance(_run_tag, str) or not _run_tag:
+            _run_tag = "seed_on"
+
         eval_source_record = {
             "turn_id":            f"{game_log_id}_t{state.turn_number}",
             "last_move_reasoning": reasoning,          # from move_history[-1]
             "ranker_diagnostics": state.ranker_diagnostics,
             "chosen_move_facts":  state.chosen_move_facts,  # None for human moves
+            # ── Proposal-authoritative pipeline fields ─────────────────────
+            # Additive: absent in old logs, always present in simplified-pipeline logs.
+            "final_choice_source":  _diag.get("final_choice_source"),
+            "chosen_move_score":    state.chosen_move_score,
+            "proposal_diagnostics": state.proposal_diagnostics,
+            # ── Ablation provenance (top-level for easy pairing) ───────────
+            "run_tag":              _run_tag,
         }
-        _append_jsonl(
-            os.path.join(LOG_DIR, "evaluation_source", f"{game_log_id}.jsonl"),
-            eval_source_record,
+        # Nest eval_source by run_tag whenever an ablation harness has
+        # explicitly tagged the run via RANKER_RUN_TAG (or implicitly via
+        # RANKER_SEEDS_DISABLED). Without an explicit tag we keep the legacy
+        # flat path so existing log readers continue to work.
+        _tag_explicit = bool(
+            os.environ.get("RANKER_RUN_TAG")
+            or os.environ.get("RANKER_SEEDS_DISABLED")
         )
+        if _tag_explicit:
+            _eval_path = os.path.join(
+                LOG_DIR, "evaluation_source", _run_tag, f"{game_log_id}.jsonl",
+            )
+        else:
+            _eval_path = os.path.join(
+                LOG_DIR, "evaluation_source", f"{game_log_id}.jsonl",
+            )
+        _append_jsonl(_eval_path, eval_source_record)
 
     # ── Final summary ─────────────────────────────────────────
     if state.game_over:

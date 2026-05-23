@@ -1,9 +1,28 @@
 # agents/ranker_agent.py
 #
-# LLM ranker for the American Checkers pipeline.
+# Reasoning-only explanation node for the American Checkers
+# simplified proposal-authoritative pipeline.
+#
+# In this pipeline the move is selected ENTIRELY by
+# deterministic_proposal_node. ranker_agent receives the already-chosen
+# move plus the full candidate list and produces a grounded natural-
+# language explanation. It MUST NOT — and structurally CANNOT — modify,
+# re-score, re-rank, override, retry, or otherwise revisit the chosen
+# move. unchosen_moves are read solely as comparative context for the
+# explanation (i.e. why alternatives are weaker, expressed in symbolic
+# facts), never as input to a selection decision.
+#
 # Backend : Mistral API only (call_mistral_ranker / call_ranker).
 # Model   : MISTRAL_RANKER_MODEL env var, default "mistral-small-latest".
 # Key     : MISTRAL_API_KEY env var (console.mistral.ai).
+#
+# NOTE: a large block of legacy decision-mode helpers (safety filter,
+# override/retry loop, LLM-selection prompts, deterministic fallback
+# selectors, …) is preserved further down in this module because
+# external evaluation scripts and regression tests still import them by
+# name. None of those helpers are invoked from `ranker_agent` — the
+# entry point at the bottom of this file routes unconditionally to the
+# explanation-only path `_explain_chosen_move`.
 
 from __future__ import annotations
 
@@ -32,6 +51,34 @@ RANKER_TEMPERATURE = float(os.environ.get("RANKER_TEMPERATURE", "0.2"))
 _include = os.environ.get("RANKER_INCLUDE_STRATEGIC_CONTEXT", "true").lower()
 RANKER_INCLUDE_STRATEGIC_CONTEXT = _include in ("1", "true", "yes", "on")
 
+
+# ── Ablation toggle ──────────────────────────────────────────────────────────
+# When RANKER_SEEDS_DISABLED is truthy, the explanation path runs with an
+# EMPTY reasoning_seeds list. The user prompt to the LLM is structurally
+# identical (the same "Verified reasoning seeds (use ONLY these — …)" template
+# is rendered), but no seed lines are included. The refinement loop and the
+# symbolic truthfulness verifier remain active. The deterministic seed-derived
+# fallbacks are deliberately suppressed in this mode so the metric layer can
+# observe ungrounded reasoning behaviour.
+#
+# Purpose: produce reproducible evidence that symbolic seeds reduce
+# contradictions and hallucinations. Read by _seeds_disabled() and
+# _current_run_tag() below; not consulted anywhere else in the pipeline.
+
+def _seeds_disabled() -> bool:
+    return os.environ.get("RANKER_SEEDS_DISABLED", "").lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _current_run_tag() -> str:
+    """Tag emitted into ranker_diagnostics and the eval-source record."""
+    explicit = os.environ.get("RANKER_RUN_TAG")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    return "seed_off" if _seeds_disabled() else "seed_on"
+
+# LEGACY — safety-filter constants, unused in simplified proposal-authoritative pipeline.
 MINIMAX_ALL_UNSAFE_MARGIN = float(os.environ.get("MINIMAX_ALL_UNSAFE_MARGIN", "3.0"))
 # Minimum minimax advantage over the best safe move required for an unsafe move
 # to pass through the safety filter in non-losing (equal/winning) positions.
@@ -139,6 +186,8 @@ def _resolve_ranker_index(raw_idx: Optional[int], n: int) -> Optional[int]:
 
 
 # ── Safety filter ─────────────────────────────────────────────────────────────
+# LEGACY — unused in simplified proposal-authoritative pipeline.
+# Retained for rollback compatibility with the legacy decision-making path.
 
 def _apply_safety_filter(
     legal: list[dict[str, Any]],
@@ -304,6 +353,7 @@ def _apply_safety_filter(
 
 
 # ── Minimax dominance guardrail ──────────────────────────────────────────────
+# LEGACY — override constants, unused in simplified proposal-authoritative pipeline.
 
 MINIMAX_DOMINANCE_MARGIN = float(os.environ.get("MINIMAX_DOMINANCE_MARGIN", "2.0"))
 QUIET_MINIMAX_MARGIN = float(os.environ.get("QUIET_MINIMAX_MARGIN", "2.0"))
@@ -316,14 +366,14 @@ LOW_DANGER_MINIMAX_GAP = float(os.environ.get("LOW_DANGER_MINIMAX_GAP", "3.0"))
 # the search has already priced in the structural risk — letting isolation
 # cancel a 15+ pt gap is wrong.  Previous value was 50.0 (too permissive),
 # which caused the T5-class bug where a 17 pt gap was vetoed by isolation.
-STRUCTURE_EXCEPTION_FLOOR = float(os.environ.get("STRUCTURE_EXCEPTION_FLOOR", "15.0"))
+STRUCTURE_EXCEPTION_FLOOR = float(os.environ.get("STRUCTURE_EXCEPTION_FLOOR", "15.0"))  # LEGACY
 # Gap at which the override fires even when the best move is unsafe (threat_after=1)
 # but the chosen move is fully safe. Prevents the LLM's safety-first bias from
 # ignoring a tactically dominant move that was explicitly shown in the filtered menu.
 # Lowered from 18.0 → 15.0: the T5-class gap is 17pt which was 1pt below threshold.
 # At depth-4 minimax, 15pt already accounts for structural risk; letting the LLM
 # absorb a 15+ pt penalty for safety bias is no longer acceptable.
-SAFE_VS_UNSAFE_OVERRIDE_GAP = float(os.environ.get("SAFE_VS_UNSAFE_OVERRIDE_GAP", "15.0"))
+SAFE_VS_UNSAFE_OVERRIDE_GAP = float(os.environ.get("SAFE_VS_UNSAFE_OVERRIDE_GAP", "15.0"))  # LEGACY
 # Fallback gap threshold for the unsafe-vs-unsafe blind spot.
 # When BOTH chosen and best are unsafe (no branch covers them), this fires if
 # the gap is large enough to be unambiguous.
@@ -332,12 +382,12 @@ SAFE_VS_UNSAFE_OVERRIDE_GAP = float(os.environ.get("SAFE_VS_UNSAFE_OVERRIDE_GAP"
 #     despite both being "unsafe". Confirmed at T11 (gap=42, best_th=1 < chosen_th=2).
 #   Tier-2 (gap ≥ 150): fires when threat exposure is equal — conservative to
 #     avoid false positives from noise in deep-game scores.
-UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP", "35.0"))
-UNSAFE_VS_UNSAFE_FALLBACK_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_FALLBACK_GAP", "150.0"))
+UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP", "35.0"))  # LEGACY
+UNSAFE_VS_UNSAFE_FALLBACK_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_FALLBACK_GAP", "150.0"))  # LEGACY
 # Midgap threshold: equal threat exposure on both moves, override purely by minimax.
 # Slightly above tier-1 (35) because no threat advantage justifies the override —
 # minimax must work alone. Confirmed T13-class miss: gap=56, best_threat=chosen_threat=1.
-UNSAFE_VS_UNSAFE_MIDGAP_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_MIDGAP_GAP", "40.0"))
+UNSAFE_VS_UNSAFE_MIDGAP_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_MIDGAP_GAP", "40.0"))  # LEGACY
 
 
 def _get_minimax_score(move: dict[str, Any]) -> float:
@@ -349,6 +399,7 @@ def _get_minimax_score(move: dict[str, Any]) -> float:
         return float("-inf")
 
 
+# LEGACY — unused in simplified proposal-authoritative pipeline.
 def _best_and_second_best_minimax(moves: list[dict[str, Any]]) -> tuple[Optional[int], Optional[float], Optional[float]]:
     """
     Returns:
@@ -366,6 +417,7 @@ def _best_and_second_best_minimax(moves: list[dict[str, Any]]) -> tuple[Optional
     return best_idx, best_score, second_best_score
 
 
+# LEGACY — unused in simplified proposal-authoritative pipeline.
 def _should_force_best_minimax(
     moves: list[dict[str, Any]],
 ) -> tuple[bool, Optional[int], str]:
@@ -378,6 +430,8 @@ def _should_force_best_minimax(
     return False, None, ""
 
 
+# LEGACY — override system, unused in simplified proposal-authoritative pipeline.
+# Retained for rollback compatibility with the legacy decision-making path.
 def _override_if_llm_chose_much_worse_minimax(
     filtered: list[dict[str, Any]],
     llm_idx: int,
@@ -1270,6 +1324,8 @@ def _format_ranker_context(ctx: Optional[dict[str, Any]]) -> str:
 
 
 # ── System prompts ────────────────────────────────────────────────────────────
+# LEGACY — decision-mode system prompts, unused in simplified proposal-authoritative pipeline.
+# Retained for rollback compatibility with the legacy decision-making path.
 
 RANKER_SYSTEM_PROMPT = """\
 You are the move ranker for American Checkers (8×8). Pick the single best move
@@ -1857,6 +1913,7 @@ REASONING REQUIREMENTS:
   - Do NOT describe a move as a trap mainly because of blocks_opponent_landing,
     restriction_score, or frozen_enemy_pieces if opponent_safe_reply_count remains high."""
 
+# LEGACY — single-candidate decision prompt, unused in simplified proposal-authoritative pipeline.
 RANKER_SYSTEM_PROMPT_SINGLE = """\
 You are the move ranker for American Checkers (8×8).
 Exactly ONE legal candidate is available — list index 0. Output chosen_index: 0.
@@ -1916,6 +1973,8 @@ OUTPUT FORMAT — reply with ONLY this JSON object, no markdown, no extra text:
 
 
 # ── Prompt builders ───────────────────────────────────────────────────────────
+# LEGACY — decision-mode prompt builders, unused in simplified proposal-authoritative pipeline.
+# Retained for rollback compatibility with the legacy decision-making path.
 
 def build_ranker_user_prompt(
     state: CheckersState,
@@ -1984,6 +2043,7 @@ def build_ranker_user_prompt(
     return "\n".join(lines)
 
 
+# LEGACY — single-candidate prompt builder, unused in simplified proposal-authoritative pipeline.
 def build_ranker_user_prompt_single(
     state: CheckersState,
     move: dict[str, Any],
@@ -2104,6 +2164,7 @@ def call_ranker(system: str, user: str) -> str:
 
 # ── Response interpretation ───────────────────────────────────────────────────
 
+# LEGACY — LLM response parser (decision extraction), unused in simplified proposal-authoritative pipeline.
 def _interpret_ranker_response(raw: str, n: int) -> tuple[Optional[int], str]:
     parsed = _parse_ranker_json(raw)
     raw_idx: Optional[int] = None
@@ -2137,6 +2198,8 @@ def _failure_patch(state: CheckersState) -> dict[str, Any]:
 
 
 # ── Failure diagnostics / fallback helpers ───────────────────────────────────
+# LEGACY — diagnostics and fallback selectors, unused in simplified proposal-authoritative pipeline.
+# Retained for rollback compatibility with the legacy decision-making path.
 
 def _candidate_signal_snapshot(m: dict[str, Any]) -> dict[str, Any]:
     facts = m.get("facts", {}) or {}
@@ -2202,6 +2265,7 @@ def _parse_diagnostics(raw: Optional[str], n_filtered: int) -> dict[str, Any]:
     }
 
 
+# LEGACY — fallback selector, unused in simplified proposal-authoritative pipeline.
 def _choose_best_minimax_with_origin(
     legal: list[dict[str, Any]],
     filtered: list[dict[str, Any]],
@@ -2225,6 +2289,7 @@ def _choose_best_minimax_with_origin(
     return legal[best_legal_idx], best_legal_idx, "legal_best_minimax"
 
 
+# LEGACY — failure logging for decision path, unused in simplified proposal-authoritative pipeline.
 def _log_no_chosen_move_failure(
     *,
     state: CheckersState,
@@ -2256,8 +2321,10 @@ def _log_no_chosen_move_failure(
 
 
 # ── Override audit helpers ───────────────────────────────────────────────────
+# LEGACY — override/retry system, unused in simplified proposal-authoritative pipeline.
+# Retained for rollback compatibility with the legacy decision-making path.
 
-OVERRIDE_MAX_RETRIES = int(os.environ.get("OVERRIDE_MAX_RETRIES", "3"))
+OVERRIDE_MAX_RETRIES = int(os.environ.get("OVERRIDE_MAX_RETRIES", "3"))  # LEGACY
 
 
 def _audit_override(
@@ -2289,6 +2356,7 @@ def _audit_override(
     return triggered, branch_name, best_move, override_reason, override_debug
 
 
+# LEGACY — override feedback builder, unused in simplified proposal-authoritative pipeline.
 def _build_override_feedback_str(
     override_debug: dict[str, Any],
     branch_name: Optional[str],
@@ -2417,6 +2485,7 @@ def _build_override_feedback_str(
     return "\n".join(lines)
 
 
+# LEGACY — retry prompt builder, unused in simplified proposal-authoritative pipeline.
 def _build_retry_user_prompt(
     state: "CheckersState",
     move_list: list[dict[str, Any]],
@@ -2506,64 +2575,28 @@ from checkers.ontology.semantic_ontology import (
     GENERIC_FILLER_PHRASES as _ONTOLOGY_GENERIC_FILLER,
 )
 
-_FORBIDDEN_VOCAB: list[str] = [
-    # Conversion / endgame jargon (invented)
-    "conversion potential",
-    "winning conversion",
-    "trade conversion",
-    "conversion score",
-    "quiet_move_role",
-    "winning_conversion_score",
-    # King / escape concepts (not in any seed)
-    "escape squares",
-    "escape routes",
-    "king escape",
-    "king distance",
-    "king_activity_score",
-    # Diagonal invented concepts
-    "diagonal pressure",
-    "diagonal risks",
-    "long diagonal",
-    # Invented strategic framing
-    "strategic goal",
-    "positional adjustment",
-    "real trap",
-    # Internal metric names (LLM pattern-matches from pipeline logs)
-    "counterplay_score",
-    "creates_real_trap",         # Python field name — schema leak in reasoning text
-    "restriction_score",         # Python field name — schema leak in reasoning text
-    "coordination score",
-    "activity score",
-    "king activity score",
-    "quiet move role",
-    # Material accounting terms not in any seed
-    "regulars_captured",
-    # Vague positional framing — unsupported positional characterisations
-    "structural restriction",
-    "positional step",
-    "neutral positional",
-    # Generic filler — no symbolic fact can ground these phrases
-    "improves activity",         # sub-phrase of "improves piece activity"
-    "piece activity",            # broader "piece activity" variants
-    "more active position",      # directional claim without numeric grounding
-    "maintains pressure",        # strategic claim — no fact field exists
-]
+# Forbidden-vocab lists are sourced from the shared evaluator module
+# `checkers.evaluation.forbidden_vocab` so the unified verifier and this
+# runtime checker consult the SAME list object.  The ontology-merge function
+# below extends them in place; both consumers see the merged list.
+from checkers.evaluation.forbidden_vocab import (
+    ABSOLUTE_FORBIDDEN_VOCAB as _FORBIDDEN_VOCAB,
+)
 
-# Terms that are only forbidden when NOT present verbatim in the seed list.
-# These are allowed when the seed explicitly introduces them.
-_CONTEXT_FORBIDDEN_VOCAB: list[str] = [
-    "conversion",
-    "traps",
+# Context-forbidden lists are sourced from the shared evaluator module so
+# the unified verifier and this runtime checker consult the SAME list.  The
+# ontology-merge function below extends this list in place.
+from checkers.evaluation.forbidden_vocab import (
+    CONTEXT_FORBIDDEN_VOCAB as _CONTEXT_FORBIDDEN_VOCAB,
+)
+
+# (legacy commentary on retired entries — preserved for the historical
+# rationale; the current list is canonical in
+# `checkers.evaluation.forbidden_vocab.CONTEXT_FORBIDDEN_VOCAB`.)
+_LEGACY_CONTEXT_FORBIDDEN_NOTES: list[str] = [
     # "escape" removed — too short; fires on valid tactical phrasing such as
-    # "The opponent cannot escape the capture".  More specific compound phrases
-    # ("escape squares", "escape routes", "king escape") are already covered
-    # by the absolute _FORBIDDEN_VOCAB list above.
+    # "The opponent cannot escape the capture".
     # "diagonal" removed — bare "diagonal" is valid checkers vocabulary.
-    # Compound invented forms ("diagonal pressure", "diagonal risks",
-    # "long diagonal") remain in the absolute _FORBIDDEN_VOCAB list above.
-    "no kings lost",
-    "piece count unchanged",
-    "no vulnerabilities",
     # Ontology conflation — geometric ∩ tactical center.  No seed emits this
     # phrase; any occurrence in LLM output is an unsupported semantic conflation.
     # The full set is unioned from semantic_ontology.FORBIDDEN_CONFLATION_PHRASES
@@ -2611,6 +2644,15 @@ def _check_reasoning_truthfulness(
     Post-hoc scan of LLM reasoning for claims that contradict engine-computed
     facts.  Returns a (possibly empty) list of human-readable warning strings.
     NEVER raises.  NEVER modifies the chosen move or reasoning text.
+
+    Composition (post-E.1):
+      1. Legacy in-file phrase/vocabulary/numeric checks (below).
+      2. UNIFIED layer via checkers.evaluation.unified_verifier.contradiction_strings
+         which runs extract_claims + verify_claims + numeric (E.3) + schema-leak
+         (E.4) on the same text.  Any CONTRADICTED record produced there is
+         appended as a warning string.  This guarantees that the runtime
+         refinement loop and the evaluator metric layer see the same
+         contradictions — the E.1 invariant.
 
     Parameters
     ----------
@@ -2718,36 +2760,13 @@ def _check_reasoning_truthfulness(
                 "REASONING_CONTRADICTION: claims capture but captures_count=0"
             )
 
-    net_gain = facts.get("net_gain", 0)
-    if net_gain <= 0:
-        gain_phrases = ["gains material", "material gain", "gains a piece"]
-        # Negation-aware filter: do NOT fire when the matched phrase is
-        # inside a negating context such as:
-        #   "lack of material gain", "no material gain",
-        #   "without material gain", "despite material gain",
-        #   "despite the lack of material gain", "without gaining ..."
-        # Strategy: for each matched phrase, check the 40-char window to the
-        # left of its position.  If a negation sentinel appears there, the
-        # sentence is acknowledging zero gain — not claiming it.
-        _NEGATION_SENTINELS = (
-            "lack of", "no ", "without", "despite", "not a",
-        )
-        def _is_negated_gain(full_text: str, phrase: str) -> bool:
-            """Return True if every occurrence of phrase is negation-scoped."""
-            import re as _re
-            positions = [m.start() for m in _re.finditer(_re.escape(phrase), full_text)]
-            if not positions:
-                return False  # phrase not present
-            for pos in positions:
-                window = full_text[max(0, pos - 40): pos]
-                if not any(s in window for s in _NEGATION_SENTINELS):
-                    return False  # at least one non-negated occurrence
-            return True  # all occurrences are negation-scoped
-
-        if any(p in text and not _is_negated_gain(text, p) for p in gain_phrases):
-            warnings.append(
-                f"REASONING_CONTRADICTION: claims material gain but net_gain={net_gain}"
-            )
+    # ── (removed: in-file gains_material check) ──────────────────────────────
+    # gains_material contradiction detection is now provided by the unified
+    # verifier (clause-level negation pre-pass + verify_claims).  Keeping a
+    # second copy here would diverge from the evaluator on edge cases like
+    # "does not result in a net material gain", breaking the E.1 invariant.
+    # The unified-verifier merge below re-emits the equivalent warning string
+    # whenever a contradiction is detected.
 
     # ── Promotion ─────────────────────────────────────────────────────────────
     results_in_king = facts.get("results_in_king", False)
@@ -3053,6 +3072,33 @@ def _check_reasoning_truthfulness(
         warnings.append(
             f"REASONING_CONTRADICTION: {_label} — not found in seeds"
         )
+
+    # ── E.1 unification: merge unified-verifier findings ─────────────────────
+    # The unified verifier runs extract_claims + verify_claims (with the
+    # clause-level negation pre-pass), the numeric verifier (E.3), and the
+    # schema-leak detector (E.4) against the SAME reasoning text.  Any
+    # CONTRADICTED claim found there is appended as a warning string in the
+    # same "REASONING_CONTRADICTION: …" shape the refinement loop already
+    # consumes.  After this merge, runtime contradictions ⊇ evaluator
+    # contradictions, which is exactly what the E.1 invariant requires.
+    try:
+        from checkers.evaluation.unified_verifier import contradiction_strings as _unified_strings
+        _unified = _unified_strings(
+            reasoning,
+            reasoning_seeds=list(seeds or []),
+            facts=facts,
+            context=None,
+        )
+        # Deduplicate against existing warnings (string equality).
+        _existing = set(warnings)
+        for _w in _unified:
+            if _w not in _existing:
+                warnings.append(_w)
+                _existing.add(_w)
+    except Exception as _e:
+        # The unified verifier must never crash the runtime refinement loop.
+        # If it raises, log and proceed with the legacy warnings only.
+        print(f"[RANKER_TRUTHFULNESS] unified verifier error (ignored): {_e}")
 
     return warnings
 
@@ -4192,7 +4238,19 @@ def _generate_seeded_reasoning(
     seeds = _build_grounded_reasoning_seeds(
         chosen_move, all_candidates, player=player, score_state=score_state,
     )
-    if not seeds:
+
+    # ── Ablation: force-empty seed list ────────────────────────────────────────
+    # When RANKER_SEEDS_DISABLED is on, we DROP every grounded seed but still
+    # call the LLM with the same prompt skeleton.  The "use ONLY these" line
+    # remains, which means the LLM must produce reasoning without any
+    # symbolic guardrail — exactly the ungrounded baseline the experiment
+    # needs.  No deterministic seed-derived fallback is taken in this mode.
+    if _seeds_disabled():
+        seeds = []
+        print("[RANKER_SEED_REASONING] ablation: seeds disabled (RANKER_SEEDS_DISABLED=1)")
+    elif not seeds:
+        # Normal mode: no grounded seed produced ⇒ leave reasoning to the
+        # deterministic fallback in _explain_chosen_move.
         return None, []
 
     user_prompt = _build_seed_reasoning_prompt(chosen_move, seeds)
@@ -4220,615 +4278,128 @@ def _generate_seeded_reasoning(
     return result, seeds
 
 
-# ── Main node ─────────────────────────────────────────────────────────────────
+# ── Proposal-authoritative explanation path ──────────────────────────────────
+# Sole reasoning entry point in the simplified pipeline. The move was already
+# selected by deterministic_proposal_node; this function only produces the
+# natural-language explanation for it. It NEVER selects, re-scores, re-ranks,
+# overrides, retries, tie-breaks, or mutates chosen_move.
 
-def ranker_agent(state: CheckersState) -> dict:
-    legal = state.legal_moves
-    if not legal:
-        return _failure_patch(state)
+def _explain_chosen_move(state: CheckersState) -> dict:
+    """
+    Generate a grounded explanation for the proposal-chosen move.
 
-    n = len(legal)
+    Inputs read:
+      - state.chosen_move          (move selected by proposal — IMMUTABLE)
+      - state.chosen_move_score    (proposal's minimax score for that move)
+      - state.legal_moves          (full menu, for seeded comparative context)
+      - state.unchosen_moves       (alternatives, for comparative seeds only)
+      - state.strategic_context    (for adversity / score-state seeds)
+      - state.symbolic_best_move   (for the LLM-vs-symbolic agreement metric)
 
-    if n == 1:
-        ranker_filtered_menu_snapshot = _build_ranker_filtered_menu_snapshot(legal)
-        system = RANKER_SYSTEM_PROMPT_SINGLE
-        user = build_ranker_user_prompt_single(state, legal[0])
-        import time
-        _api_call_failure_count = 0
-        raw = None
-        for attempt in range(3):
-            try:
-                raw = call_ranker(system, user)
-                break
-            except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError) as e:
-                _api_call_failure_count += 1
-                wait = 2 ** attempt * 10   # 10s, 20s ,40s
-                print(f"[ranker_agent] call failed (attempt {attempt+1}): {e} — waiting {wait}s")
-                time.sleep(wait)
-        if raw is None:
-            chosen = legal[0]
-            reasoning = "Fallback: ranker call failed; choosing only legal candidate."
-            _log_no_chosen_move_failure(
-                state=state,
-                legal=legal,
-                filtered=legal,
-                raw=None,
-                reason="llm_call_failed_after_retries_single",
-                fallback_path="single_candidate_only_legal",
-                fallback_original_idx=0,
-                override_path=None,
-            )
-            return {
-                "chosen_move": chosen,
-                "last_move_reasoning": reasoning,
-                "ranker_retry_count": state.ranker_retry_count + 1,
-                "ranker_failure_count": state.ranker_failure_count + 1,
-                "ranker_filtered_menu": ranker_filtered_menu_snapshot,
-                "last_completed_node": "ranker_agent",
-            }
-        _, reasoning = _interpret_ranker_response(raw, 1)
-        chosen = legal[0]
+    Outputs returned (LangGraph state delta):
+      - chosen_move                (PASS-THROUGH, unchanged)
+      - last_move_reasoning        (the generated explanation)
+      - ranker_diagnostics         (reasoning provenance + neutral legacy keys)
+      - chosen_move_facts          (read-only mirror of chosen_move["facts"])
+      - ranker_filtered_menu       (candidate-menu snapshot, evaluation only)
+      - llm_agreed_with_symbolic_best (Boolean metric)
+      - ranker_retry_count = 0     (always 0 — no decision-time retries here)
 
-    else:
-        ctx = state.strategic_context or {}
-        game_phase = ctx.get("game_phase", "MIDGAME")
-        score_state = ctx.get("score_state", "EQUAL")
-        priorities = ctx.get("strategic_priorities", [])
+    Guarantees:
+      - chosen_move is NEVER mutated, re-selected, or overridden.
+      - Safety filter is NEVER called.
+      - Override guardrail is NEVER called.
+      - Decision-time retry loop is NEVER called.
+      - The LLM is used ONLY for reasoning generation (seeds → prose) and
+        for the reasoning-only truthfulness refinement loop.
+      - chosen_move passes through unchanged: proposal → ranker → updater.
+    """
+    chosen = state.chosen_move
+    legal = state.legal_moves or []
 
-        filtered, index_map = _apply_safety_filter(
-            legal,
-            strategic_priorities=priorities,
-            score_state=score_state,
-        )
-        ranker_filtered_menu_snapshot = _build_ranker_filtered_menu_snapshot(filtered)
-        all_unsafe = len(filtered) == len(legal) and all(
-            m.get("facts", {}).get("opponent_can_recapture", False)
-            for m in legal
-        )
+    print(
+        f"[RANKER] proposal_authoritative_path: "
+        f"chosen_path={chosen.get('path')} "
+        f"chosen_score={state.chosen_move_score} "
+        f"legal_count={len(legal)} "
+        f"unchosen_count={len(state.unchosen_moves)}"
+    )
 
-        system = RANKER_SYSTEM_PROMPT
-        user = build_ranker_user_prompt(state, filtered, index_map)
+    # ── 1. Build seed-based reasoning (reuses existing infrastructure) ────────
+    _score_state = _resolve_score_state_for_seeds(state)
+    _candidates = legal if legal else [chosen]
+    reasoning, _active_seeds = _generate_seeded_reasoning(
+        chosen, _candidates,
+        player=state.current_player,
+        score_state=_score_state,
+    )
 
-        import time
-        _api_call_failure_count = 0
-        raw = None
-        for attempt in range(3):
-            try:
-                raw = call_ranker(system, user)
-                break
-            except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError) as e:
-                _api_call_failure_count += 1
-                wait = 2 ** attempt * 10   # 10s, 20s, 40s
-                print(f"[ranker_agent] call failed (attempt {attempt+1}): {e} — waiting {wait}s")
-                time.sleep(wait)
-
-        if raw is None:
-            chosen, original_idx, fallback_path = _choose_best_minimax_with_origin(
-                legal, filtered, index_map
-            )
-            reasoning = (
-                "Fallback: ranker call failed after retries; selected deterministic "
-                f"{fallback_path}."
-            )
-            _log_no_chosen_move_failure(
-                state=state,
-                legal=legal,
-                filtered=filtered,
-                raw=None,
-                reason="llm_call_failed_after_retries",
-                fallback_path=fallback_path,
-                fallback_original_idx=original_idx,
-                override_path=None,
-            )
-            return {
-                "chosen_move": chosen,
-                "last_move_reasoning": reasoning,
-                "ranker_retry_count": state.ranker_retry_count + 1,
-                "ranker_failure_count": state.ranker_failure_count + 1,
-                "ranker_filtered_menu": ranker_filtered_menu_snapshot,
-                "last_completed_node": "ranker_agent",
-            }
-
-        idx, reasoning = _interpret_ranker_response(raw, len(filtered))
-        if idx is None:
-            chosen, original_idx, fallback_path = _choose_best_minimax_with_origin(
-                legal, filtered, index_map
-            )
-            reasoning = (
-                "Fallback: ranker output had no valid chosen_index; selected deterministic "
-                f"{fallback_path}."
-            )
-            _log_no_chosen_move_failure(
-                state=state,
-                legal=legal,
-                filtered=filtered,
-                raw=raw,
-                reason="parsed_index_invalid_or_missing",
-                fallback_path=fallback_path,
-                fallback_original_idx=original_idx,
-                override_path=None,
-            )
-            return {
-                "chosen_move": chosen,
-                "last_move_reasoning": reasoning,
-                "ranker_retry_count": state.ranker_retry_count + 1,
-                "ranker_failure_count": state.ranker_failure_count + 1,
-                "ranker_filtered_menu": ranker_filtered_menu_snapshot,
-                "last_completed_node": "ranker_agent",
-            }
-
-        # ── Post-LLM override: audit → retry loop → Python fallback ─────────
-        #
-        # Variables that are NEVER mutated after initial assignment:
-        #   filtered    — safety-filter output (the menu the LLM saw on attempt 0)
-        #   legal       — full proposal shortlist (state.legal_moves)
-        #   index_map   — filtered→legal index translation
-        #   idx         — raw parsed index from the first LLM call (filtered space)
-        #
-        # Working variables updated each retry iteration:
-        #   attempt_moves      — filtered on attempt 0; legal on retries
-        #   idx_in_attempt_moves — correct index into attempt_moves for this iteration
-        #   idx_legal          — same choice expressed in legal[] space
-
-        # Diagnostic accumulators
-        _or_retry_attempts:    int           = 0
-        _or_retry_resolved:    bool          = False
-        _or_fallback_applied:  bool          = False
-        _or_branch_name:       Optional[str] = None
-        _or_retry_full:        bool          = False
-        _last_override_debug:  dict[str, Any] = {}
-        _last_override_reason: Optional[str] = None
-        _retry_reasoning:      Optional[str] = None   # text from most-recent retry LLM call
-        _last_retry_llm_idx:   Optional[int]  = None  # legal[] index of last retry parse
-        _last_retry_llm_path:  Optional[list] = None  # path of last retry LLM choice
-        # Phase 2 provenance — append-only, never read by decision logic
-        _or_tried_paths:       list          = []     # every path chosen by override-retry LLM calls
-        # Phase 2.3a: branch name each time an audit fires triggered=True (diagnostics only)
-        _or_rejection_reasons: list          = []     # one entry per rejected audit call
-
-        # Attempt-0 setup
-        attempt_moves        = filtered                    # NEVER overwrite filtered
-        idx_in_attempt_moves = idx                         # in filtered space
-        idx_legal            = index_map[idx]              # same move in legal space
-        _raw_llm_idx_legal   = idx_legal                   # raw LLM choice in legal[] space
-
-        _chosen_final: Optional[dict[str, Any]] = None
-
-        while True:
-            # ── Audit ────────────────────────────────────────────────────────
-            # comparison_moves=legal is ALWAYS the full proposal shortlist.
-            # candidate_moves=attempt_moves and idx_in_attempt_moves are
-            # iteration-local — never bleed back into filtered or idx.
-            (
-                _triggered,
-                _branch,
-                _best_move,
-                _override_reason,
-                _override_debug,
-            ) = _audit_override(
-                candidate_moves   = attempt_moves,
-                idx_in_candidates = idx_in_attempt_moves,
-                game_phase        = game_phase,
-                score_state       = score_state,
-                priorities        = priorities,
-                comparison_moves  = legal,
-            )
-            _last_override_debug  = _override_debug
-            _last_override_reason = _override_reason
-
-            if not _triggered:
-                # Audit passed — accept this iteration's choice.
-                _chosen_final = attempt_moves[idx_in_attempt_moves]
-                if _or_retry_attempts > 0:
-                    _or_retry_resolved = True
-                break
-
-            # Phase 2.3a: record rejection reason for every triggered audit (diagnostics only)
-            _or_rejection_reasons.append(_branch or "unknown")
-
-            # Record branch on first trigger
-            if _or_branch_name is None:
-                _or_branch_name = _branch
-
-            # ── C2: Log audit result for retry iterations (attempt >= 1) ──────
-            if _or_retry_attempts > 0:
-                print(
-                    f"[override_retry] attempt={_or_retry_attempts}  "
-                    f"audit_still_triggered=True  "
-                    f"branch={_branch}  "
-                    f"gap={_override_debug.get('best_vs_chosen_minimax_gap')}"
-                )
-
-            if _or_retry_attempts >= OVERRIDE_MAX_RETRIES:
-                # ── C3: Fallback exit log ─────────────────────────────────────
-                print(
-                    f"[override_retry] FALLBACK  "
-                    f"original_branch={_or_branch_name}  "
-                    f"final_audit_branch={_branch}  "
-                    f"attempts={_or_retry_attempts}  "
-                    f"fallback_path={(_best_move or {}).get('path')}"
-                )
-                # All retries exhausted — Python fallback (best_move from last audit).
-                _chosen_final = _best_move if _best_move is not None else attempt_moves[idx_in_attempt_moves]
-                _or_fallback_applied = True
-                _last_override_reason = _override_reason
-                break
-
-            # ── Build and fire retry call ─────────────────────────────────
-            _or_retry_attempts += 1
-            _or_retry_full = True
-
-            _feedback_str  = _build_override_feedback_str(
-                _override_debug,
-                _branch,
-                chosen_score=_get_minimax_score(attempt_moves[idx_in_attempt_moves]),
-                best_score=_get_minimax_score(_best_move) if _best_move is not None else None,
-                # Phase 2.3b: inform retry LLM about previously rejected paths.
-                # _or_tried_paths is empty on attempt 1; non-empty on attempt 2+.
-                # Read-only informational context — no hard filtering.
-                rejected_paths=_or_tried_paths if _or_tried_paths else None,
-            )
-            _retry_user    = _build_retry_user_prompt(
-                state       = state,
-                move_list   = legal,                     # full proposal shortlist
-                index_map   = list(range(len(legal))),  # identity map
-                feedback_str = _feedback_str,
-                system_prompt = system,
-            )
-            import time as _time
-            _retry_raw: Optional[str] = None
-            for _api_attempt in range(3):
-                try:
-                    _retry_raw = call_ranker(system, _retry_user)
-                    break
-                except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError) as _e:
-                    _wait = 2 ** _api_attempt * 10
-                    print(
-                        f"[ranker_agent][override_retry] API call failed "
-                        f"(attempt {_api_attempt+1}): {_e} — waiting {_wait}s"
-                    )
-                    _time.sleep(_wait)
-
-            if _retry_raw is None:
-                # API totally failed on this retry slot — burn slot, continue
-                # (will fall back if _or_retry_attempts reaches OVERRIDE_MAX_RETRIES)
-                continue
-
-            _retry_idx_legal, _retry_reasoning = _interpret_ranker_response(_retry_raw, len(legal))
-
-            # ── Task 1: Retry-path truthfulness pre-validation ─────────────────
-            # Validate retry reasoning immediately after extraction — before it
-            # can reach the final output via any path (including seeding failure).
-            # Seeds are not yet available here; the final truthfulness check at
-            # the end of the ranker will re-validate with seeds. This early check
-            # ensures forbidden-vocab violations are logged and that dirty retry
-            # reasoning is flagged so the downstream refinement loop can clean it.
-            if _retry_reasoning and _retry_idx_legal is not None and (
-                0 <= _retry_idx_legal < len(legal)
-            ):
-                _retry_pre_facts = legal[_retry_idx_legal].get("facts") or {}
-                _retry_pre_contradictions = _check_reasoning_truthfulness(
-                    _retry_reasoning, _retry_pre_facts, seeds=None
-                )
-                if _retry_pre_contradictions:
-                    for _rpc in _retry_pre_contradictions:
-                        print(f"[RANKER_TRUTHFULNESS][RETRY_RAW] {_rpc}")
-
-            if _retry_idx_legal is None or not (0 <= _retry_idx_legal < len(legal)):
-                # Bad parse — burn retry slot
-                print(
-                    f"[ranker_agent][override_retry] retry {_or_retry_attempts}: "
-                    f"bad parse or out-of-range index ({_retry_idx_legal}) — burning slot"
-                )
-                continue
-
-            # ── C1: Per-retry chosen move log ─────────────────────────────
-            _retry_chosen_move = legal[_retry_idx_legal]
-            print(
-                f"[override_retry] attempt={_or_retry_attempts}  "
-                f"chosen_idx={_retry_idx_legal}  "
-                f"chosen_path={_retry_chosen_move.get('path')}  "
-                f"chosen_minimax={_get_minimax_score(_retry_chosen_move):.1f}  "
-                f"reasoning_prefix=\"{(_retry_reasoning or '')[:80]}\""
-            )
-            # Track last successfully-parsed retry for attribution logging.
-            _last_retry_llm_idx  = _retry_idx_legal
-            _last_retry_llm_path = _retry_chosen_move.get("path")
-            # Phase 2 provenance: record every retry path (evaluation-only, never read).
-            _or_tried_paths.append(_last_retry_llm_path)
-
-            # ── Set up next audit iteration ───────────────────────────────
-            # Retries always audit against the full proposal list.
-            # Do NOT overwrite attempt_moves with filtered or legal:
-            # re-assign local working variables only.
-            attempt_moves        = legal             # full proposal — not filtered
-            idx_in_attempt_moves = _retry_idx_legal  # index into legal[] space
-            idx_legal            = _retry_idx_legal  # keep aligned
-            # Loop → audit runs again with attempt_moves=legal
-
-        # attempt_moves and idx_in_attempt_moves resolved; _chosen_final is set.
-        # filtered, legal, index_map, idx are all still their original values.
-
-        # ── Emit DECISION_DEBUG ──────────────────────────────────────────────
-        _override_debug  = _last_override_debug
-        override_reason  = _last_override_reason
-        if _or_retry_resolved and _retry_reasoning:
-            reasoning = _retry_reasoning
-        elif override_reason and not _or_retry_resolved:
-            reasoning = override_reason
-
-        best_idx, _, _ = _best_and_second_best_minimax(legal)
-        best_move = legal[best_idx] if best_idx is not None else None
-        chosen_before_override = filtered[idx]          # original LLM choice (never mutated)
-        legal_scores = [_get_minimax_score(m) for m in legal]
-        legal_best_score = max(legal_scores) if legal_scores else None
-        legal_best_idxs = (
-            [i for i, s in enumerate(legal_scores)
-             if legal_best_score is not None and s == legal_best_score]
-            if legal_scores else []
-        )
-        best_idx_is_argmax = (
-            best_idx is not None
-            and legal_best_score is not None
-            and _get_minimax_score(legal[best_idx]) == legal_best_score
-        )
-
-        # ── Attribution snapshot (pre-tiebreak) ─────────────────────────────
-        _raw_llm_choice_path_d   = chosen_before_override.get("path")
-        _retry_llm_idx_d         = _last_retry_llm_idx                  # None if no retry
-        _retry_llm_choice_path_d = _last_retry_llm_path                 # None if no retry
-        _pre_tb_path             = (_chosen_final or {}).get("path")
-
-        def _norm_pre(p: Any) -> list:
-            return [list(sq) for sq in (p or [])]
-
-        _pre_tb_idx = next(
-            (i for i, m in enumerate(legal) if m.get("path") == _pre_tb_path), None
-        )
-        _final_matches_raw   = _norm_pre(_pre_tb_path) == _norm_pre(_raw_llm_choice_path_d)
-        _final_matches_retry = (
-            _retry_llm_idx_d is not None
-            and _norm_pre(_pre_tb_path) == _norm_pre(_retry_llm_choice_path_d)
-        )
-
-        if _or_fallback_applied:
-            _pre_tb_source = "python_fallback"
-        elif _or_retry_resolved:
-            _pre_tb_source = "retry_llm"
-        else:
-            _pre_tb_source = "raw_llm"
-
-        chosen_debug_facts = (_chosen_final or {}).get("facts", {}) or {}
-        best_debug_facts = (best_move.get("facts", {}) if best_move else {}) or {}
-        print(
-            "[DECISION_DEBUG] "
-            f"raw_llm_idx={idx} "
-            f"raw_llm_idx_legal={_raw_llm_idx_legal} "
-            f"raw_llm_choice_path={_raw_llm_choice_path_d} "
-            f"retry_llm_idx={_retry_llm_idx_d} "
-            f"retry_llm_choice_path={_retry_llm_choice_path_d} "
-            f"final_chosen_idx={_pre_tb_idx} "
-            f"final_chosen_path={_pre_tb_path} "
-            f"final_choice_source={_pre_tb_source} "
-            f"final_matches_raw_llm={_final_matches_raw} "
-            f"final_matches_retry_llm={_final_matches_retry} "
-            f"best_path={(best_move.get('path') if best_move else None)} "
-            f"gap={_override_debug.get('best_vs_chosen_minimax_gap')} "
-            f"best_idx={best_idx} "
-            f"filtered_menu_size={len(filtered)} "
-            f"final_minimax={_get_minimax_score(_chosen_final) if _chosen_final else None} "
-            f"best_minimax={_get_minimax_score(best_move) if best_move else None} "
-            f"best_idx_is_argmax={best_idx_is_argmax} "
-            f"best_score_tie_count={len(legal_best_idxs)} "
-            f"chosen_passive_safe={_override_debug.get('is_passive_safe_structural', {}).get('chosen')} "
-            f"best_passive_safe={_override_debug.get('is_passive_safe_structural', {}).get('best')} "
-            f"chosen_low_danger={_override_debug.get('is_low_danger_active', {}).get('chosen')} "
-            f"best_low_danger={_override_debug.get('is_low_danger_active', {}).get('best')} "
-            f"override_triggered={_override_debug.get('override_branch_triggered')} "
-            f"override_branch_name={_override_debug.get('override_branch_name')} "
-            f"override_block_reason={_override_debug.get('override_block_reason')} "
-            f"best_move_rejected_reason={_override_debug.get('best_move_rejected_reason')} "
-            f"threat_delta={_override_debug.get('best_vs_chosen_threat_delta')} "
-            f"override_retry_attempts={_or_retry_attempts} "
-            f"override_retry_resolved={_or_retry_resolved} "
-            f"override_fallback_applied={_or_fallback_applied} "
-            f"retry_used_full_proposal={_or_retry_full}"
-        )
-        print(
-            "[DECISION_DEBUG] "
-            f"final_move_facts={{"
-            f"'path': {_pre_tb_path}, "
-            f"'is_passive_safe_structural': {_override_debug.get('is_passive_safe_structural', {}).get('chosen')}, "
-            f"'is_low_danger_active': {_override_debug.get('is_low_danger_active', {}).get('chosen')}, "
-            f"'threat_after': {chosen_debug_facts.get('our_pieces_threatened_after')}, "
-            f"'minimax_score': {_get_minimax_score(_chosen_final) if _chosen_final else None}"
-            f"}} "
-            f"best_move_facts={{"
-            f"'path': {(best_move.get('path') if best_move else None)}, "
-            f"'is_passive_safe_structural': {_override_debug.get('is_passive_safe_structural', {}).get('best')}, "
-            f"'is_low_danger_active': {_override_debug.get('is_low_danger_active', {}).get('best')}, "
-            f"'threat_after': {best_debug_facts.get('our_pieces_threatened_after')}, "
-            f"'minimax_score': {_get_minimax_score(best_move) if best_move else None}"
-            f"}} "
-            f"raw_llm_choice_path={_raw_llm_choice_path_d}"
-        )
-
-        chosen = _chosen_final
-
-        # ── Promotion tie-break ───────────────────────────────────────────────
-        # When scores are tied or near-tied and the chosen move is NOT an
-        # actual promotion, but a real promotion exists in the full legal set,
-        # prefer the promotion deterministically.
-        #
-        # Conditions (all must hold):
-        #   1. chosen move does NOT actually crown a King
-        #   2. a legal move with results_in_king=True exists (engine fact only)
-        #   3. promotion_score >= chosen_score - PROMOTION_TIEBREAK_MARGIN
-        #
-        # Explicitly does NOT fire if the promotion is clearly worse.
-        PROMOTION_TIEBREAK_MARGIN = float(
-            os.environ.get("PROMOTION_TIEBREAK_MARGIN", "3.0")
-        )
-        chosen_facts_tb = chosen.get("facts", {}) or {}
-        chosen_actually_promotes = chosen_facts_tb.get("results_in_king", False)
-        if not chosen_actually_promotes:
-            chosen_score_tb = _get_minimax_score(chosen)
-            promo_candidate = None
-            promo_score_tb = float("-inf")
-            for _m in legal:
-                _mf = _m.get("facts", {}) or {}
-                if _mf.get("results_in_king", False):
-                    _ms = _get_minimax_score(_m)
-                    if _ms >= chosen_score_tb - PROMOTION_TIEBREAK_MARGIN:
-                        if _ms > promo_score_tb:
-                            promo_score_tb = _ms
-                            promo_candidate = _m
-            if promo_candidate is not None:
-                print(
-                    f"[TIE_BREAK][PROMOTION] "
-                    f"chosen={chosen.get('path')} "
-                    f"replacement={promo_candidate.get('path')} "
-                    f"chosen_score={chosen_score_tb:.1f} "
-                    f"promotion_score={promo_score_tb:.1f} "
-                    f"gap={promo_score_tb - chosen_score_tb:.1f} "
-                    f"reason=results_in_king_near_tie"
-                )
-                _promo_tiebreak_applied = True
-                chosen = promo_candidate
-                if not reasoning or reasoning.startswith("Fallback"):
-                    reasoning = (
-                        f"Promotion tie-break: chose {promo_candidate.get('path')} "
-                        f"(score={promo_score_tb:.1f}) over "
-                        f"{chosen.get('path')} (score={chosen_score_tb:.1f}) — "
-                        f"immediate King creation preferred within tie window."
-                    )
-        # ── End promotion tie-break ───────────────────────────────────────────
-
-        if all_unsafe and reasoning:
-            reasoning = f"[All moves expose a piece] {reasoning}"
-
-    # ── Fallback reasoning (model returned empty string) ──────────────
+    # Deterministic fallback if LLM seed call fails.
+    # In ablation mode the seed-derived deterministic summary is suppressed:
+    # we deliberately keep `reasoning` empty so post-repair claim verification
+    # operates on the LLM's unguarded output (or detects the empty-string
+    # collapse), instead of silently retreating into the symbolic seeds the
+    # ablation is meant to remove.
+    _ablation_seeds_disabled = _seeds_disabled()
+    if not reasoning and not _ablation_seeds_disabled:
+        reasoning = _build_deterministic_seed_summary(_active_seeds, chosen)
     if not reasoning:
-        facts = chosen.get("facts") or {}
-        path = chosen.get("path", [])
-        dest = path[-1] if path else "unknown"
-        captures = facts.get("captures_count", 0)
-        net = facts.get("net_gain", 0)
-        recapture = facts.get("opponent_can_recapture", False)
-        center = facts.get("center_control", False)
-        promotes = facts.get("results_in_king", False)
-        creates_threat = facts.get("creates_immediate_threat", False)
+        # Either ablation is on or the deterministic summary itself was empty.
+        # Use a single neutral sentence so the truthfulness/refinement loop has
+        # something to act on; this sentence carries no symbolic claim.
+        reasoning = "No explanation was generated for the chosen move."
 
-        if captures and captures > 0:
-            safety = "with no immediate recapture risk" if not recapture else "though opponent may recapture"
-            reasoning = (
-                f"Captures {captures} piece(s) for a net gain of {net:+d}, "
-                f"landing on {dest} {safety}."
-            )
-        elif promotes:
-            reasoning = (
-                f"Advances to {dest} achieving promotion to king — "
-                f"significant structural gain."
-            )
-        elif creates_threat:
-            two_for_one = facts.get("two_for_one_potential", False)
-            forces_exchange = facts.get("forces_exchange", False)
-            restriction_score = facts.get("restriction_score", 0)
-            extra = []
-            if two_for_one:
-                extra.append("creates 2-for-1 pressure")
-            if forces_exchange:
-                extra.append("forces exchanges")
-            if restriction_score > 0:
-                extra.append(f"adds supporting restriction ({restriction_score})")
-            extra_text = ""
-            if extra:
-                extra_text = " and " + ", ".join(extra)
-            reasoning = (
-                f"Moves to {dest} safely and creates immediate tactical pressure"
-                f"{extra_text} for the next turn."
-            )
-        elif center:
-            reasoning = (
-                f"Moves to {dest}, controlling the center safely "
-                f"and maintaining piece development."
-            )
-        else:
-            reasoning = (
-                f"Advances to {dest} with no recapture risk, "
-                f"maintaining piece connectivity and structure."
-            )
-
-    # ── Seed-based reasoning generation ───────────────────────────────────
-    # chosen_move is fully locked. Build grounded seeds from its facts,
-    # then ask the LLM to rewrite them into a paragraph.
-    # Safety filter, override, scoring, and move selection are NEVER called.
-    _candidates_for_seeds = locals().get("filtered", [chosen])
-    # Conservative fallback: when strategic_context is missing (first ply or
-    # test harness), default to "EQUAL" so adversity seeds stay OFF and a
-    # winning forced line cannot be mislabelled as losing.
-    _score_state_for_seeds = _resolve_score_state_for_seeds(state)
-    _seeded, _active_seeds = _generate_seeded_reasoning(
-        chosen, _candidates_for_seeds, player=state.current_player,
-        score_state=_score_state_for_seeds,
-    )
-    if _seeded:
-        reasoning = _seeded
-
-    # ── Reasoning truthfulness check + refinement loop ───────────────────────
-    # chosen_move is fully determined above.  The refinement loop below only
-    # rewrites the text; it never calls safety_filter, override, or scoring.
-    _chosen_facts           = chosen.get("facts") or {}
+    # ── 2. Truthfulness check + refinement (reuses existing infrastructure) ───
+    _chosen_facts = chosen.get("facts") or {}
     _initial_contradictions = _check_reasoning_truthfulness(
-        reasoning, _chosen_facts, seeds=_active_seeds
+        reasoning, _chosen_facts, seeds=_active_seeds,
     )
-    _reasoning_retry_count  = 0
+    _reasoning_retry_count = 0
     _reasoning_is_seed_fallback = False
-    # Phase 2 provenance: snapshot the pre-refinement text (evaluation-only).
-    # Captured here — before the repair loop may overwrite `reasoning`.
-    # Never read by any decision, scoring, or fallback logic.
-    _raw_reasoning_snapshot: Optional[str] = reasoning
+
+    # Snapshot the reasoning BEFORE any repair / seed-fallback can overwrite it.
+    # Evaluation-only: enables pre/post repair metrics (factuality module).
+    # Never read by any decision, refinement, or runtime logic.
+    _raw_reasoning_pre_refinement: Optional[str] = reasoning
 
     if _initial_contradictions:
         for _w in _initial_contradictions:
             print(f"[RANKER_TRUTHFULNESS] {_w}")
-
-        # Refine reasoning only — chosen_move, candidates, safety filter untouched.
-        reasoning, _reasoning_retry_count, _rr_resolved = _refine_reasoning(
+        reasoning, _reasoning_retry_count, _resolved = _refine_reasoning(
             reasoning=reasoning,
             chosen_move=chosen,
             initial_contradictions=_initial_contradictions,
             max_attempts=2,
             seeds=_active_seeds,
         )
-        if not _rr_resolved:
-            print(
-                f"[RANKER_TRUTHFULNESS] reasoning still contains contradictions "
-                f"after {_reasoning_retry_count} refinement attempt(s); "
-                "falling back to deterministic seed summary"
-            )
-            _seed_fallback = _build_deterministic_seed_summary(_active_seeds, chosen)
-            print(
-                f"[RANKER_TRUTHFULNESS] seed_fallback_reasoning={_seed_fallback!r}"
-            )
-            reasoning = _seed_fallback
-            _reasoning_is_seed_fallback = True
+        if not _resolved:
+            # Ablation mode keeps the unrefined LLM text so contradictions and
+            # hallucinations remain measurable in the evaluation layer; the
+            # seed-derived deterministic summary is suppressed because it would
+            # reach back into exactly the seeds the ablation is removing.
+            if _ablation_seeds_disabled:
+                print(
+                    f"[RANKER_TRUTHFULNESS] reasoning still contains contradictions "
+                    f"after {_reasoning_retry_count} refinement attempt(s); "
+                    "ablation mode — keeping unrefined LLM text"
+                )
+            else:
+                print(
+                    f"[RANKER_TRUTHFULNESS] reasoning still contains contradictions "
+                    f"after {_reasoning_retry_count} refinement attempt(s); "
+                    "falling back to deterministic seed summary"
+                )
+                _seed_fallback = _build_deterministic_seed_summary(_active_seeds, chosen)
+                print(f"[RANKER_TRUTHFULNESS] seed_fallback_reasoning={_seed_fallback!r}")
+                reasoning = _seed_fallback
+                _reasoning_is_seed_fallback = True
 
-
+    # Normalize whitespace and cap length
     reasoning = re.sub(r"\s+", " ", reasoning).strip()
     if len(reasoning) > 1500:
         reasoning = reasoning[:1497] + "..."
 
-    # ── Evaluation logging: final contradiction state after all refinement ────
-    # Pure read — never modifies reasoning, chosen_move, or any pipeline state.
-    _reasoning_final_contradictions = _check_reasoning_truthfulness(
-        reasoning, _chosen_facts, seeds=_active_seeds
-    )
-    _reasoning_has_unresolved = bool(_reasoning_final_contradictions)
-
-
-    # ── Phase 8: thesis instrumentation ──────────────────────────────────────
-    # Compare chosen path to the symbolic engine's top-1 path.
+    # ── 3. Thesis instrumentation (reuses existing pattern) ───────────────────
     llm_agreed: bool | None = None
     if state.symbolic_best_move is not None:
         sym_path = state.symbolic_best_move.get("path")
@@ -4836,131 +4407,48 @@ def ranker_agent(state: CheckersState) -> dict:
         if sym_path is not None and chosen_path is not None:
             llm_agreed = (sym_path == chosen_path)
 
-    # ── Build structured override diagnostics ────────────────────────────────
-    # Override/retry variables are only set in the multi-candidate branch (n >= 2).
-    # For single-candidate (n == 1) they default to None/False via locals().get().
-    _or_retry_res    = locals().get("_or_retry_resolved",   False)
-    _or_fallback_res = locals().get("_or_fallback_applied", False)
-    _or_branch       = locals().get("_or_branch_name",      None)
-
-    # ── Phase 2 provenance helpers (read-only, after all decision logic) ─────
-    _p2_best_move   = locals().get("best_move", None)
-    _p2_tie_count   = len(locals().get("legal_best_idxs", []))
-    _p2_raw_rsn     = locals().get("_raw_reasoning_snapshot", None)
-    _p2_retry_paths = list(locals().get("_or_tried_paths", []))
-    # Phase 2.3a: branch name for each rejected audit (evaluation-only).
-    _p2_rejection_reasons = list(locals().get("_or_rejection_reasons", []))
-    # Paths of all moves whose minimax_score equals the best score (the full tie set).
-    # Evaluation-only: never read by any decision, override, or scoring logic.
-    _p2_legal       = locals().get("legal", [])
-    _p2_tied_paths  = [
-        _p2_legal[i].get("path")
-        for i in locals().get("legal_best_idxs", [])
-        if i < len(_p2_legal)
-    ]
-
-    # Attribution: what was the initial LLM choice and what drove the final move?
-    _llm_initial_path = (locals().get("chosen_before_override") or {}).get("path")
-    _final_path       = (chosen or {}).get("path")
-    _promo_tb         = locals().get("_promo_tiebreak_applied", False)
-
-    if _promo_tb:
-        _final_choice_source = "tiebreak"
-    elif _or_fallback_res:
-        _final_choice_source = "python_fallback"
-    elif _or_retry_res:
-        _final_choice_source = "retry_llm"
-    elif _llm_initial_path is None:
-        _final_choice_source = "single_candidate"
-    else:
-        _final_choice_source = "raw_llm"
-
-    def _norm_diag_path(p: Any) -> list:
-        return [list(sq) for sq in (p or [])]
-
-    _raw_llm_path_diag   = _llm_initial_path
-    _retry_llm_path_diag = locals().get("_last_retry_llm_path", None)
-    _retry_llm_idx_diag  = locals().get("_last_retry_llm_idx", None)
-    _raw_llm_idx_diag    = locals().get("_raw_llm_idx_legal", None)
-
-    _legal_for_diag   = locals().get("legal", [])
-    _final_chosen_idx = next(
-        (i for i, m in enumerate(_legal_for_diag) if m.get("path") == _final_path), None
+    # ── 4. Final contradiction check for diagnostics ──────────────────────────
+    _reasoning_final_contradictions = _check_reasoning_truthfulness(
+        reasoning, _chosen_facts, seeds=_active_seeds,
     )
+    _reasoning_has_unresolved = bool(_reasoning_final_contradictions)
 
-    # ── Next-best minimax score (evaluation-only, never read by decisions) ───
-    # Phase-6 Fix 2: surfaces enough candidate-score context for the
-    # score_gap_advantage verifier to do hard verification.  Computed across
-    # the filtered candidate list, excluding the chosen path.  Returns None
-    # when there is no alternative (single-candidate branch).
-    def _compute_next_best_minimax(filtered_list: list, chosen_path) -> Optional[float]:
-        if not filtered_list:
-            return None
-        scores: list = []
-        for m in filtered_list:
-            if m.get("path") == chosen_path:
-                continue
-            s = _get_minimax_score(m)
-            if s is None:
-                continue
-            try:
-                if s != float("-inf"):
-                    scores.append(float(s))
-            except (TypeError, ValueError):
-                continue
-        return max(scores) if scores else None
-
-    _next_best_minimax = _compute_next_best_minimax(
-        locals().get("filtered", []) or _legal_for_diag,
-        _final_path,
-    )
-
-    _final_matches_raw   = (
-        _raw_llm_path_diag is not None
-        and _final_path is not None
-        and _norm_diag_path(_raw_llm_path_diag) == _norm_diag_path(_final_path)
-    )
-    _final_matches_retry = (
-        _retry_llm_path_diag is not None
-        and _final_path is not None
-        and _norm_diag_path(_retry_llm_path_diag) == _norm_diag_path(_final_path)
-    )
-
+    # ── 5. Build ranker_diagnostics (backward-compatible keys) ────────────────
+    # All override/retry keys are set to neutral values since this path
+    # never performs any decision-making. Evaluator scripts that read
+    # these keys will see clean no-op values.
     _ranker_diagnostics: dict[str, Any] = {
-        # ── Override/retry state (existing tests depend on these keys) ───────
-        "override_retry_attempts":    locals().get("_or_retry_attempts", 0),
-        "override_retry_resolved":    _or_retry_res,
-        "override_fallback_applied":  _or_fallback_res,
-        "override_branch_name":       _or_branch,
-        "retry_used_full_proposal":   locals().get("_or_retry_full", False),
-        # ── Attribution (new) ────────────────────────────────────────────────
-        "raw_llm_idx":                _raw_llm_idx_diag,
-        "raw_llm_choice_path":        _raw_llm_path_diag,
-        "retry_llm_idx":              _retry_llm_idx_diag,
-        "retry_llm_choice_path":      _retry_llm_path_diag,
-        "final_chosen_idx":           _final_chosen_idx,
-        "final_chosen_path":          _final_path,
-        "final_choice_source":        _final_choice_source,
-        "final_matches_raw_llm":      _final_matches_raw,
-        "final_matches_retry_llm":    _final_matches_retry,
-        "promotion_tiebreak_applied": _promo_tb,
-        # ── Legacy alias ─────────────────────────────────────────────────────
-        "llm_initial_choice_path":    _llm_initial_path,
-        # ── Evaluation logging (audit additions — read-only, no behavior change)
-        "ranker_selected_valid_candidate": (
-            _raw_llm_idx_diag is not None
-            or _final_choice_source == "single_candidate"
+        # ── Override/retry state (always neutral — no decision authority) ─────
+        "override_retry_attempts":      0,
+        "override_retry_resolved":      False,
+        "override_fallback_applied":    False,
+        "override_branch_name":         None,
+        "retry_used_full_proposal":     False,
+        # ── Attribution ──────────────────────────────────────────────────────
+        "raw_llm_idx":                  None,
+        "raw_llm_choice_path":          None,
+        "retry_llm_idx":                None,
+        "retry_llm_choice_path":        None,
+        "final_chosen_idx":             next(
+            (i for i, m in enumerate(legal) if m.get("path") == chosen.get("path")),
+            None,
         ),
-        "api_call_failure_count":          locals().get("_api_call_failure_count", 0),
-        "reasoning_seeds":                 _active_seeds,
-        "reasoning_final_contradictions":  _reasoning_final_contradictions,
+        "final_chosen_path":            chosen.get("path"),
+        "final_choice_source":          "proposal_authoritative",
+        "final_matches_raw_llm":        False,
+        "final_matches_retry_llm":      False,
+        "promotion_tiebreak_applied":   False,
+        # ── Legacy alias ─────────────────────────────────────────────────────
+        "llm_initial_choice_path":      None,
+        # ── Evaluation logging ───────────────────────────────────────────────
+        "ranker_selected_valid_candidate": True,
+        "api_call_failure_count":        0,
+        "reasoning_seeds":               _active_seeds,
+        "reasoning_final_contradictions": _reasoning_final_contradictions,
         "reasoning_has_unresolved_contradiction": _reasoning_has_unresolved,
         "reasoning_refinement_retry_count": _reasoning_retry_count,
-        "reasoning_is_seed_fallback":      _reasoning_is_seed_fallback,
-        # ── Pre-repair contradiction diagnostics (evaluation only) ───────────
-        # _initial_contradictions is set unconditionally at line 4344, before
-        # the repair loop. These fields expose it for post-hoc auditing.
-        # No decision, repair, or fallback logic is affected.
+        "reasoning_is_seed_fallback":    _reasoning_is_seed_fallback,
+        # ── Pre-repair contradiction diagnostics ─────────────────────────────
         "reasoning_initial_contradictions": list(_initial_contradictions),
         "reasoning_contradiction_detected": bool(_initial_contradictions),
         "reasoning_contradiction_repaired": (
@@ -4968,38 +4456,89 @@ def ranker_agent(state: CheckersState) -> dict:
             and not _reasoning_is_seed_fallback
             and not _reasoning_final_contradictions
         ),
-        "override_reason_str":             locals().get("override_reason", None),
-        "final_chosen_path_in_legal_moves": _final_chosen_idx is not None,
-        # ── Phase 2 provenance (evaluation-only, never read by decision logic) ─
-        "best_score_tie_count":             _p2_tie_count,
-        "minimax_best_path":                (_p2_best_move or {}).get("path"),
-        "minimax_best_score":               (
-            _get_minimax_score(_p2_best_move)
-            if _p2_best_move is not None else None
+        "override_reason_str":           None,
+        "final_chosen_path_in_legal_moves": any(
+            m.get("path") == chosen.get("path") for m in legal
         ),
-        # Phase-6 Fix 2: best minimax_score among non-chosen filtered candidates.
-        # Read-only.  Used by the evaluator's score_gap_advantage verifier to
-        # decide SUPPORTED vs CONTRADICTED.  None when no alternative exists.
-        "next_best_minimax_score":          _next_best_minimax,
-        "raw_llm_reasoning_pre_refinement": _p2_raw_rsn,
-        "retry_all_paths":                  _p2_retry_paths,
-        "retry_rejection_reasons":          _p2_rejection_reasons,
-        "tie_break_reason":                 ("promotion" if _promo_tb else None),
-        "tied_candidate_paths":             _p2_tied_paths,
+        # ── Phase 2 provenance ───────────────────────────────────────────────
+        "best_score_tie_count":          0,
+        "minimax_best_path":             chosen.get("path"),
+        "minimax_best_score":            state.chosen_move_score,
+        "next_best_minimax_score":       (
+            max(
+                (_get_minimax_score(m) for m in state.unchosen_moves
+                 if _get_minimax_score(m) != float("-inf")),
+                default=None,
+            ) if state.unchosen_moves else None
+        ),
+        "raw_llm_reasoning_pre_refinement": _raw_reasoning_pre_refinement,
+        # ── Ablation provenance ──────────────────────────────────────────────
+        # Evaluation-only fields; never read by any decision logic.
+        # run_tag is "seed_on" / "seed_off" by default and may be overridden
+        # via the RANKER_RUN_TAG env var for arbitrary experiment labels.
+        "seeds_disabled":                _ablation_seeds_disabled,
+        "run_tag":                       _current_run_tag(),
+        "retry_all_paths":               [],
+        "retry_rejection_reasons":       [],
+        "tie_break_reason":              None,
+        "tied_candidate_paths":          [],
     }
 
-    out = {
-        "chosen_move": chosen,
+    return {
+        "chosen_move": chosen,                    # pass-through UNCHANGED
         "last_move_reasoning": reasoning,
         "ranker_retry_count": 0,
         "last_completed_node": "ranker_agent",
-        "ranker_filtered_menu": ranker_filtered_menu_snapshot,
+        "ranker_filtered_menu": _build_ranker_filtered_menu_snapshot(legal),
         "llm_agreed_with_symbolic_best": llm_agreed,
         "ranker_diagnostics": _ranker_diagnostics,
-        # Evaluation export only — full facts dict for the chosen move.
-        # _chosen_facts is already computed above (line ~4343); this just
-        # surfaces it onto state so logger_node can write it without
-        # touching any decision logic.
         "chosen_move_facts": _chosen_facts or None,
     }
-    return out
+
+
+# ── Main node ─────────────────────────────────────────────────────────────────
+#
+# In the simplified proposal-authoritative pipeline, ranker_agent is a
+# pure explanation node. It NEVER selects, re-scores, re-ranks, retries,
+# or overrides the move chosen by deterministic_proposal_node.
+#
+# Invariants (enforced below):
+#   • state.chosen_move is set by deterministic_proposal_node
+#   • state.chosen_move_score is set by deterministic_proposal_node
+#   • If either is None, the upstream graph is misconfigured and we raise
+#     immediately rather than fall back to any decision-making code path.
+#
+# All legacy decision-making helpers defined above in this file
+# (_apply_safety_filter, _override_if_llm_chose_much_worse_minimax,
+# _audit_override, _choose_best_minimax_with_origin, retry/feedback
+# builders, RANKER_SYSTEM_PROMPT, build_ranker_user_prompt, …) are NOT
+# reachable from this entry point. They are retained at module scope only
+# because external evaluation scripts and regression tests import them by
+# name. None of them are invoked when ranker_agent runs inside the
+# simplified pipeline.
+
+def ranker_agent(state: CheckersState) -> dict:
+    """
+    Reasoning-only node for the simplified proposal-authoritative pipeline.
+
+    Responsibilities:
+      1. Read the move already chosen by deterministic_proposal_node
+         (state.chosen_move + state.chosen_move_score).
+      2. Generate a grounded natural-language explanation for that move,
+         comparing it against state.unchosen_moves only as context for
+         describing why alternatives are weaker.
+      3. Emit diagnostics and the chosen_move_facts mirror for evaluation.
+
+    Guarantees:
+      • state.chosen_move is returned unchanged.
+      • No safety filter, override audit, retry loop, tie-break, or
+        fallback selector is ever invoked from this function.
+    """
+    if state.chosen_move is None or state.chosen_move_score is None:
+        raise RuntimeError(
+            "ranker_agent invariant violated: deterministic_proposal_node must "
+            "set both chosen_move and chosen_move_score before ranker_agent runs. "
+            "Got chosen_move=%r chosen_move_score=%r."
+            % (state.chosen_move, state.chosen_move_score)
+        )
+    return _explain_chosen_move(state)
