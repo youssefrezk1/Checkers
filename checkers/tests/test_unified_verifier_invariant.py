@@ -141,6 +141,8 @@ REAL_LOG_DIRS = [
     Path("logs/ablation_debug/evaluation_source/seed_off"),
     Path("logs/ablation_run_001/evaluation_source/seed_on"),
     Path("logs/ablation_run_001/evaluation_source/seed_off"),
+    Path("logs/ablation_no_fallback/evaluation_source/seed_on"),
+    Path("logs/ablation_no_fallback/evaluation_source/seed_off"),
 ]
 
 
@@ -181,3 +183,98 @@ def test_runtime_evaluator_agree_on_real_logs():
     if n_checked == 0:
         pytest.skip("no real evaluation_source records found")
     print(f"\n[invariant] checked {n_checked} real records — all agreed", file=sys.stderr)
+
+
+# ── Metric-layer ↔ unified-verifier agreement (Fix 2) ───────────────────────
+# These tests catch the bug class that allowed pre_post_repair.py and
+# zero_claim.py to silently bypass the unified verifier and undercount
+# contradictions by ~8 pp.  When any metric module switches back to
+# extract_claims+verify_claims, these tests fail loudly.
+
+from checkers.evaluation.unified_verifier import verify_all
+from checkers.evaluation.metrics.pre_post_repair import _count_statuses as _ppr_count
+from checkers.evaluation.metrics.zero_claim import evaluate_zero_claim
+from checkers.evaluation.reasoning_taxonomy import ClaimStatus
+
+
+def _verify_all_counts(reasoning, seeds, facts, context):
+    """Reference counts taken straight from verify_all."""
+    if not isinstance(reasoning, str) or not reasoning.strip():
+        return (0, 0, 0, 0, 0)
+    cs = verify_all(reasoning, reasoning_seeds=seeds, facts=facts, context=context)
+    return (
+        len(cs),
+        sum(1 for c in cs if c.claim_status == ClaimStatus.SUPPORTED),
+        sum(1 for c in cs if c.claim_status == ClaimStatus.CONTRADICTED),
+        sum(1 for c in cs if c.claim_status == ClaimStatus.UNSUPPORTED),
+        sum(1 for c in cs if c.claim_status == ClaimStatus.VAGUE),
+    )
+
+
+# --- pre_post_repair._count_statuses must equal verify_all counts ---
+@pytest.mark.parametrize("label,reasoning,seeds,facts", SYNTHETIC_CASES)
+def test_metric_pre_post_repair_matches_verify_all(label, reasoning, seeds, facts):
+    nb = None
+    ctx = {"next_best_minimax_score": nb} if isinstance(nb, (int, float)) else None
+    ref = _verify_all_counts(reasoning, seeds, facts, ctx)
+    got = _ppr_count(reasoning, seeds or [], facts or {}, ctx)
+    assert (got.total, got.supported, got.contradicted, got.unsupported, got.vague) == ref, (
+        f"pre_post_repair drift on {label!r}: got={got}, ref={ref}"
+    )
+
+
+def test_metric_pre_post_repair_matches_verify_all_on_real_logs():
+    """Every real record's pre_post_repair counts must match verify_all."""
+    n = 0
+    for rec in _iter_records():
+        reasoning = rec.get("last_move_reasoning") or ""
+        if not reasoning.strip():
+            continue
+        diag = rec.get("ranker_diagnostics") or {}
+        seeds = [s for s in (diag.get("reasoning_seeds") or []) if isinstance(s, str)]
+        facts = rec.get("chosen_move_facts") or {}
+        nb = diag.get("next_best_minimax_score")
+        ctx = {"next_best_minimax_score": nb} if isinstance(nb, (int, float)) else None
+        ref = _verify_all_counts(reasoning, seeds, facts, ctx)
+        got = _ppr_count(reasoning, seeds, facts, ctx)
+        if (got.total, got.supported, got.contradicted, got.unsupported, got.vague) != ref:
+            pytest.fail(
+                f"pre_post_repair counts drift from verify_all on "
+                f"{rec.get('turn_id', '?')}: got={got}, ref={ref}"
+            )
+        n += 1
+    if n == 0:
+        pytest.skip("no real records")
+
+
+# --- zero_claim per-turn aggregate must reconcile with verify_all over sentences ---
+def test_metric_zero_claim_matches_verify_all_on_real_logs():
+    """zero_claim's per-sentence claim counts must equal verify_all summed."""
+    import re as _re
+    n = 0
+    for rec in _iter_records():
+        reasoning = rec.get("last_move_reasoning") or ""
+        if not reasoning.strip():
+            continue
+        diag = rec.get("ranker_diagnostics") or {}
+        seeds = [s for s in (diag.get("reasoning_seeds") or []) if isinstance(s, str)]
+        facts = rec.get("chosen_move_facts") or {}
+        nb = diag.get("next_best_minimax_score")
+        ctx = {"next_best_minimax_score": nb} if isinstance(nb, (int, float)) else None
+
+        zc = evaluate_zero_claim(rec)
+        # Reference: sum verify_all over the same sentence split zc uses.
+        parts = [p.strip() for p in _re.split(r"(?<=[.!?])\s+", reasoning.strip())
+                 if len(p.strip()) >= 3]
+        ref_total = sum(
+            len(verify_all(p, reasoning_seeds=seeds, facts=facts, context=ctx))
+            for p in parts
+        )
+        if zc.total_claims != ref_total:
+            pytest.fail(
+                f"zero_claim total_claims drift from verify_all sentence sum "
+                f"on {rec.get('turn_id', '?')}: zc={zc.total_claims}, ref={ref_total}"
+            )
+        n += 1
+    if n == 0:
+        pytest.skip("no real records")

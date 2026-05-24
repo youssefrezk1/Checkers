@@ -37,6 +37,10 @@ from checkers.evaluation.metrics.self_bleu import compute_self_bleu
 from checkers.evaluation.metrics.by_claim_type import aggregate_by_claim_type
 from checkers.evaluation.metrics.by_source import aggregate_by_source
 from checkers.evaluation.metrics.compare import compare_summaries
+from checkers.evaluation.metrics.semantic_similarity import (
+    evaluate_semantic,
+    aggregate_semantic,
+)
 
 
 def _iter_records(paths: Iterable[Path]) -> Iterable[Dict[str, Any]]:
@@ -84,12 +88,23 @@ def evaluate_batch(paths: List[Path]) -> Dict[str, Any]:
     claim_type_summary  = aggregate_by_claim_type(records)
     claim_source_summary = aggregate_by_source(records)
 
+    # Semantic (Setup A — pre/post within condition).  Computed only on turns
+    # where the refinement loop actually ran AND produced a different text.
+    # Both BERTScore and BLEURT load lazily; missing backends are reported
+    # in `semantic.backend_errors` and the corresponding `_Stats` block
+    # stays populated with n=0 / mean=None so report schema is stable.
+    # If BOTH backends are missing the eligible turns become "scoring_failed"
+    # and the aggregator still produces a valid (zeroed) semantic block.
+    semantic_turns = [evaluate_semantic(r) for r in records]
+    semantic_summary = aggregate_semantic(semantic_turns).to_dict()
+
     return {
         "n_files":   len(paths),
         "n_records": len(records),
         "factuality":      pre_post_summary.to_dict(),
         "grounding":       zero_claim_summary.to_dict(),
         "diversity":       diversity_summary.to_dict(),
+        "semantic":        semantic_summary,
         "by_claim_type":   claim_type_summary.to_dict(),
         "by_claim_source": claim_source_summary.to_dict(),
     }

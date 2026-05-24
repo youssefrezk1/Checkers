@@ -29,8 +29,11 @@ import re
 from dataclasses import dataclass, asdict, field
 from typing import Any, Dict, List, Optional
 
-from checkers.evaluation.claim_extractor import extract_claims
-from checkers.evaluation.claim_verifier import verify_claims
+# Use the unified verifier so per-sentence claim counts match the runtime
+# refinement loop and every other metric module.  Bypassing it would skip
+# the numeric (E.3), schema-leak (E.4), forbidden-vocab, mobility-reduction,
+# and safe-reply contradictions that the unified verifier owns.
+from checkers.evaluation.unified_verifier import verify_all
 from checkers.evaluation.reasoning_taxonomy import ClaimStatus
 
 
@@ -165,8 +168,11 @@ def evaluate_zero_claim(
     filler       = 0
 
     for s in sentences:
-        raw_claims = extract_claims(s, reasoning_seeds=seeds, facts=facts)
-        claims     = verify_claims(raw_claims, facts or {}, context=ctx or None)
+        # Single source of truth — must match the runtime refinement loop
+        # and every other metric module.  See the import-block comment.
+        claims = verify_all(
+            s, reasoning_seeds=seeds, facts=facts, context=ctx or None,
+        )
         sup = sum(1 for c in claims if c.claim_status == ClaimStatus.SUPPORTED)
         con = sum(1 for c in claims if c.claim_status == ClaimStatus.CONTRADICTED)
         uns = sum(1 for c in claims if c.claim_status == ClaimStatus.UNSUPPORTED)

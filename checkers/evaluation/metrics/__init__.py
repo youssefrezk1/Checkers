@@ -45,6 +45,19 @@ from checkers.evaluation.metrics.by_source import (
     ClaimSourceSummary,
     aggregate_by_source,
 )
+from checkers.evaluation.metrics.semantic_similarity import (
+    SemanticPairTurn,
+    SemanticSummary,
+    SemanticDependencyMissing,
+    score_pair_bertscore,
+    score_pair_bleurt,
+    evaluate_semantic,
+    aggregate_semantic,
+    evaluate_records as evaluate_semantic_records,
+    model_versions as semantic_model_versions,
+    BERTSCORE_MODEL,
+    BLEURT_CHECKPOINT,
+)
 
 __all__ = [
     "PrePostRepairTurn",
@@ -65,4 +78,15 @@ __all__ = [
     "SeedVsUnsupportedDelta",
     "ClaimSourceSummary",
     "aggregate_by_source",
+    "SemanticPairTurn",
+    "SemanticSummary",
+    "SemanticDependencyMissing",
+    "score_pair_bertscore",
+    "score_pair_bleurt",
+    "evaluate_semantic",
+    "aggregate_semantic",
+    "evaluate_semantic_records",
+    "semantic_model_versions",
+    "BERTSCORE_MODEL",
+    "BLEURT_CHECKPOINT",
 ]

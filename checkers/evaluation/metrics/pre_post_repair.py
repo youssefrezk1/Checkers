@@ -26,8 +26,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
-from checkers.evaluation.claim_extractor import extract_claims
-from checkers.evaluation.claim_verifier import verify_claims
+# Use the unified verifier so this module's contradiction counts match the
+# runtime refinement loop, the per-claim-type aggregator, and the per-source
+# aggregator.  Going through extract_claims + verify_claims directly would
+# bypass the numeric (E.3), schema-leak (E.4), forbidden-vocab, mobility-
+# reduction and safe-reply contradictions that the unified verifier owns,
+# causing this metric to undercount the post-repair contradiction rate.
+from checkers.evaluation.unified_verifier import verify_all
 from checkers.evaluation.reasoning_taxonomy import ClaimStatus
 
 
@@ -130,8 +135,11 @@ def _count_statuses(
 ) -> _Counts:
     if not isinstance(reasoning, str) or not reasoning.strip():
         return _Counts()
-    raw = extract_claims(reasoning, reasoning_seeds=seeds, facts=facts)
-    verified = verify_claims(raw, facts or {}, context=context)
+    # Single source of truth — must match the runtime refinement loop and
+    # every other metric module.  See the import-block comment.
+    verified = verify_all(
+        reasoning, reasoning_seeds=seeds, facts=facts, context=context,
+    )
     c = _Counts(total=len(verified))
     for r in verified:
         if r.claim_status == ClaimStatus.SUPPORTED:

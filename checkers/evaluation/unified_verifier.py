@@ -158,14 +158,46 @@ def _check_mobility_transition(
 ) -> List[ClaimRecord]:
     """
     Flag 'from N to M' mobility narratives whose (N, M) match no known
-    before/after pair in the facts dict.  Always returns CONTRADICTED +
-    FABRICATED_CLAIM when fired.
+    before/after pair in the facts dict.
+
+    To avoid false-positives on PIECE-COUNT narratives (the LLM frequently
+    writes "from 11 to 9" when describing the opponent's piece count after
+    a capture), this verifier now:
+
+      • allows the transition when (N, M) matches ANY known before/after
+        pair — mobility OR piece counts;
+      • only fires CONTRADICTED when the surrounding 50-char window contains
+        a MOBILITY anchor word ("mobility", "moves", "replies", "options").
+
+    A "from N to M" with no mobility anchor and no matching pair is now
+    marked UNSUPPORTED (instruction-level fabrication risk) rather than
+    CONTRADICTED, so it stays visible without inflating contradiction rates.
     """
     out: List[ClaimRecord] = []
     pairs = [
-        ("opponent_mobility_before", "opponent_mobility_after"),
-        ("our_mobility_before",      "our_mobility_after"),
+        ("opponent_mobility_before",        "opponent_mobility_after"),
+        ("our_mobility_before",             "our_mobility_after"),
+        # Piece-count transitions — opp_pieces / our_pieces are dicts with
+        # a "total" key produced by compute_move_facts().
     ]
+    mobility_anchors = ("mobility", " moves", "replies", "options", "available")
+
+    def _piece_count_pairs() -> List[tuple]:
+        out: List[tuple] = []
+        for prefix in ("opp_pieces", "our_pieces"):
+            b = facts.get(f"{prefix}_before")
+            a = facts.get(f"{prefix}_after")
+            if isinstance(b, dict) and isinstance(a, dict):
+                if "total" in b and "total" in a:
+                    out.append((int(b["total"]), int(a["total"])))
+                if "regular" in b and "regular" in a:
+                    out.append((int(b["regular"]), int(a["regular"])))
+                if "kings" in b and "kings" in a:
+                    out.append((int(b["kings"]), int(a["kings"])))
+        return out
+
+    pc_pairs = _piece_count_pairs()
+
     for m in re.finditer(
         r"from\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
         r"\s+to\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)",
@@ -175,24 +207,147 @@ def _check_mobility_transition(
         b = _to_int(m.group(2))
         if a is None or b is None:
             continue
-        # Match against any known transition pair.
-        matched = False
+        # ── Allow when (a, b) matches a known mobility pair ──
+        matched_mobility = False
         for before_field, after_field in pairs:
             fb = facts.get(before_field)
             fa = facts.get(after_field)
             if isinstance(fb, (int, float)) and isinstance(fa, (int, float)):
                 if int(fb) == a and int(fa) == b:
-                    matched = True
+                    matched_mobility = True
                     break
-        if matched:
+        if matched_mobility:
             continue
-        # No pair matches → fabricated transition.
+        # ── Allow when (a, b) matches a known piece-count pair ──
+        if any(fb == a and fa == b for fb, fa in pc_pairs):
+            continue
+        # ── Decide severity: only CONTRADICTED when there is a mobility
+        #    anchor nearby (the LLM is unambiguously talking mobility).
+        start, end = m.span()
+        window = text_lower[max(0, start - 30): min(len(text_lower), end + 30)]
+        has_mobility_anchor = any(w in window for w in mobility_anchors)
+        if has_mobility_anchor:
+            status = ClaimStatus.CONTRADICTED
+            halluc = HallucinationType.FABRICATED_CLAIM
+        else:
+            # Ambiguous "from N to M" with no mobility anchor and no fact match:
+            # log as UNSUPPORTED so it appears in diagnostics but does not
+            # inflate the contradiction rate.
+            status = ClaimStatus.UNSUPPORTED
+            halluc = HallucinationType.FABRICATED_CLAIM
         out.append(ClaimRecord(
             claim_type="numeric_mobility_transition",
-            claim_status=ClaimStatus.CONTRADICTED,
+            claim_status=status,
             claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
             seed_risk_type=None,
-            hallucination_type=HallucinationType.FABRICATED_CLAIM,
+            hallucination_type=halluc,
+            matched_phrase=m.group(0),
+            matched_seed=None,
+            source="unsupported_phrase",
+        ))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Mobility-reduction claim verifier
+# ---------------------------------------------------------------------------
+#
+# Mirrors the legacy runtime check in `_check_reasoning_truthfulness`:
+# when the reasoning claims the move REDUCES opponent mobility but the
+# fact `opponent_mobility_after >= opponent_mobility_before`, that is a
+# direct factual contradiction.
+
+_MOBILITY_REDUCTION_PHRASES: tuple = (
+    "reduces mobility", "reducing mobility",
+    "reduces opponent mobility", "reducing opponent mobility",
+    "limits mobility", "limiting mobility", "limiting opponent",
+    "restricts mobility", "restricts opponent",
+    "fewer moves for", "cuts opponent moves",
+)
+
+
+def _check_mobility_reduction_claim(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    fb = facts.get("opponent_mobility_before")
+    fa = facts.get("opponent_mobility_after")
+    if not (isinstance(fb, (int, float)) and isinstance(fa, (int, float))):
+        return []
+    if fa < fb:
+        return []  # claim would actually be supported
+    out: List[ClaimRecord] = []
+    seen: set = set()
+    for phrase in _MOBILITY_REDUCTION_PHRASES:
+        if phrase in text_lower and phrase not in seen:
+            seen.add(phrase)
+            out.append(ClaimRecord(
+                claim_type="numeric_mobility_reduction",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="unsupported_phrase",
+            ))
+            break  # one finding per turn is enough
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Safe-reply-count claim verifier
+# ---------------------------------------------------------------------------
+#
+# Mirrors the legacy runtime check.  When the reasoning asserts a specific
+# count of safe opponent replies ("five safe replies") and that exact number
+# is not present in the seeds OR in opponent_safe_reply_count, the claim is
+# fabricated.  Conservative: marked CONTRADICTED only when an explicit fact
+# disagrees; UNSUPPORTED otherwise (visible but not contradiction-rate).
+
+_SAFE_REPLY_COUNT_RE = re.compile(
+    r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+    r"\s+safe\s+repl(?:y|ies)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _check_safe_reply_count(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    out: List[ClaimRecord] = []
+    fact_value = facts.get("opponent_safe_reply_count")
+    seen: set = set()
+    for m in _SAFE_REPLY_COUNT_RE.finditer(text_lower):
+        asserted = _to_int(m.group(1))
+        if asserted is None:
+            continue
+        key = (m.group(0), asserted)
+        if key in seen:
+            continue
+        seen.add(key)
+        if isinstance(fact_value, (int, float)) and int(fact_value) == asserted:
+            continue  # claim agrees with fact
+        if isinstance(fact_value, (int, float)) and int(fact_value) != asserted:
+            status = ClaimStatus.CONTRADICTED
+            halluc = HallucinationType.FACTUAL_CONTRADICTION
+        else:
+            # No fact present — runtime calls this "unsupported specific
+            # safe-reply count".  Surface it as UNSUPPORTED so it shows in
+            # diagnostics but does not inflate the contradiction rate.
+            status = ClaimStatus.UNSUPPORTED
+            halluc = HallucinationType.FABRICATED_CLAIM
+        out.append(ClaimRecord(
+            claim_type="numeric_safe_reply_count",
+            claim_status=status,
+            claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+            seed_risk_type=None,
+            hallucination_type=halluc,
             matched_phrase=m.group(0),
             matched_seed=None,
             source="unsupported_phrase",
@@ -419,6 +574,49 @@ def _check_forbidden_vocab(
 
 
 # ---------------------------------------------------------------------------
+# Absence-claim detector (instruction-inconsistency)
+# ---------------------------------------------------------------------------
+#
+# Mirrors the legacy runtime "unsupported absence claim" check.  Certain
+# absence assertions ("no kings lost", "pieces unchanged", "no
+# vulnerabilities") are strong factual claims that the verifier cannot
+# independently confirm — they must be authorised by an explicit seed.
+# When the phrase appears in the reasoning AND no seed contains it, the
+# claim is treated as a CONTRADICTED instruction-violation so that runtime
+# and evaluator remain in sync.
+
+_ABSENCE_CLAIM_PHRASES: tuple = (
+    "no kings lost",
+    "piece count unchanged",
+    "pieces unchanged",
+    "no vulnerabilities",
+)
+
+
+def _check_absence_claims(
+    text_lower: str,
+    seeds: List[str],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    seeds_text = " ".join(s.lower() for s in (seeds or []))
+    out: List[ClaimRecord] = []
+    for phrase in _ABSENCE_CLAIM_PHRASES:
+        if phrase in text_lower and phrase not in seeds_text:
+            out.append(ClaimRecord(
+                claim_type=f"absence_claim:{phrase}",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.PARTIALLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.INSTRUCTION_INCONSISTENCY,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="unsupported_phrase",
+            ))
+    return out
+
+
+# ---------------------------------------------------------------------------
 # E.1 — Unified entry point
 # ---------------------------------------------------------------------------
 
@@ -461,11 +659,14 @@ def verify_all(
     legacy = verify_claims(raw_claims, fact_dict, context=context)
 
     text_lower = reasoning_text.lower()
-    numeric  = _check_numeric_claims(text_lower, fact_dict)
-    schema   = _check_schema_leaks(reasoning_text, fact_dict)
-    forbidden = _check_forbidden_vocab(reasoning_text, text_lower, seeds_in)
+    numeric    = _check_numeric_claims(text_lower, fact_dict)
+    schema     = _check_schema_leaks(reasoning_text, fact_dict)
+    forbidden  = _check_forbidden_vocab(reasoning_text, text_lower, seeds_in)
+    mob_red    = _check_mobility_reduction_claim(text_lower, fact_dict)
+    safe_reply = _check_safe_reply_count(text_lower, fact_dict)
+    absence    = _check_absence_claims(text_lower, seeds_in)
 
-    return legacy + numeric + schema + forbidden
+    return legacy + numeric + schema + forbidden + mob_red + safe_reply + absence
 
 
 def contradictions_only(
@@ -510,7 +711,18 @@ def contradiction_strings(
         ct = r.claim_type
         phrase = r.matched_phrase or ""
         ht = r.hallucination_type.value if r.hallucination_type else "factual_contradiction"
-        if ct.startswith("numeric_"):
+        if ct == "numeric_mobility_reduction":
+            out.append(
+                f"REASONING_CONTRADICTION: claims mobility reduction but "
+                f"opponent_mobility_after >= opponent_mobility_before "
+                f"(phrase='{phrase}')"
+            )
+        elif ct == "numeric_safe_reply_count":
+            out.append(
+                f"REASONING_CONTRADICTION: specific safe-reply count not "
+                f"matched by opponent_safe_reply_count (phrase='{phrase}')"
+            )
+        elif ct.startswith("numeric_"):
             field = ct[len("numeric_"):]
             out.append(
                 f"REASONING_CONTRADICTION: numeric mismatch on {field} — "

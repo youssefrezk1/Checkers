@@ -2853,21 +2853,73 @@ def _check_reasoning_truthfulness(
                     return True
         return False
 
-    # Pattern: "from N to M" where N and M are integers
+    # Pattern: "from N to M" where N and M are integers.
+    # Kept in sync with unified_verifier._check_mobility_transition so the
+    # runtime checker and the evaluator agree on which transitions are
+    # legitimate.  A transition is allowed when (N, M) matches ANY known
+    # mobility OR piece-count pair (total / regular / kings) in the facts.
+    def _matches_piece_count_change(n1: str, n2: str) -> bool:
+        if not isinstance(facts, dict):
+            return False
+        try:
+            ni, mi = int(n1), int(n2)
+        except (TypeError, ValueError):
+            return False
+        for prefix in ("opp_pieces", "our_pieces"):
+            b = facts.get(f"{prefix}_before")
+            a = facts.get(f"{prefix}_after")
+            if isinstance(b, dict) and isinstance(a, dict):
+                for k in ("total", "regular", "kings"):
+                    if k in b and k in a:
+                        try:
+                            if int(b[k]) == ni and int(a[k]) == mi:
+                                return True
+                        except (TypeError, ValueError):
+                            pass
+        return False
+
     for m in _re.finditer(r'from\s+(\d+)\s+to\s+(\d+)', text):
         n1, n2 = m.group(1), m.group(2)
         # Both numbers must appear somewhere in the seeds OR match an actual
-        # mobility before/after pair in the facts.
-        if (n1 not in seeds_text or n2 not in seeds_text) \
-                and not _matches_mobility_change(n1, n2):
+        # mobility OR piece-count before/after pair in the facts.
+        if (
+            (n1 not in seeds_text or n2 not in seeds_text)
+            and not _matches_mobility_change(n1, n2)
+            and not _matches_piece_count_change(n1, n2)
+        ):
             warnings.append(
                 f"REASONING_CONTRADICTION: unsupported numeric statement "
                 f"'from {n1} to {n2}' — value(s) not found in seeds"
             )
-    # Pattern: "remains at N" or "stays at N" (single number assertion)
-    for m in _re.finditer(r'(?:remains?\s+at|stays?\s+at|consistent\s+at)\s+(\d+)', text):
+    # Pattern: "remains at N" or "stays at N" (single number assertion).
+    # Allow when N equals before==after for a mobility OR piece-count pair.
+    def _matches_piece_count_stable(n: str) -> bool:
+        if not isinstance(facts, dict):
+            return False
+        try:
+            ni = int(n)
+        except (TypeError, ValueError):
+            return False
+        for prefix in ("opp_pieces", "our_pieces"):
+            b = facts.get(f"{prefix}_before")
+            a = facts.get(f"{prefix}_after")
+            if isinstance(b, dict) and isinstance(a, dict):
+                for k in ("total", "regular", "kings"):
+                    if k in b and k in a:
+                        try:
+                            if int(b[k]) == ni and int(a[k]) == ni:
+                                return True
+                        except (TypeError, ValueError):
+                            pass
+        return False
+
+    for m in _re.finditer(r'(?:remains?\s+at|stays?\s+at|consistent\s+at|maintain(?:s|ing)?\s+(?:[^.,;]*?)\s+at)\s+(\d+)', text):
         n = m.group(1)
-        if n not in seeds_text and not _matches_mobility_stable(n):
+        if (
+            n not in seeds_text
+            and not _matches_mobility_stable(n)
+            and not _matches_piece_count_stable(n)
+        ):
             warnings.append(
                 f"REASONING_CONTRADICTION: unsupported numeric assertion "
                 f"'remains at {n}' — value not found in seeds"
@@ -3066,8 +3118,45 @@ def _check_reasoning_truthfulness(
                     facts.get(_bf) == _i1 and facts.get(_af) == _i2
                     for _bf, _af in _BEFORE_AFTER_PAIRS
                 )
+                # Also allow piece-count transitions (total / regular / kings)
+                # — kept in sync with unified_verifier._check_mobility_transition.
+                if not _fact_grounded:
+                    for _prefix in ("opp_pieces", "our_pieces"):
+                        _b = facts.get(f"{_prefix}_before")
+                        _a = facts.get(f"{_prefix}_after")
+                        if isinstance(_b, dict) and isinstance(_a, dict):
+                            for _k in ("total", "regular", "kings"):
+                                if _k in _b and _k in _a:
+                                    try:
+                                        if int(_b[_k]) == _i1 and int(_a[_k]) == _i2:
+                                            _fact_grounded = True
+                                            break
+                                    except (TypeError, ValueError):
+                                        pass
+                        if _fact_grounded:
+                            break
                 if _fact_grounded:
                     continue  # Factually grounded transition — suppress warning
+
+        # ── Fact-grounded bypass for "N safe replies" claims ───────────────
+        # Kept in sync with unified_verifier._check_safe_reply_count: when
+        # the asserted count equals facts["opponent_safe_reply_count"], the
+        # claim is supported — do not emit the warning.
+        if _label == "unsupported specific safe-reply count":
+            _osrc = facts.get("opponent_safe_reply_count")
+            if isinstance(_osrc, (int, float)):
+                _toks = _re_num.findall(r"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b", _matched_text.lower())
+                _asserted_int = None
+                for _t in _toks:
+                    try:
+                        _asserted_int = int(_t)
+                        break
+                    except ValueError:
+                        if _t in _WORD_TO_INT:
+                            _asserted_int = _WORD_TO_INT[_t]
+                            break
+                if _asserted_int is not None and int(_osrc) == _asserted_int:
+                    continue  # Asserted count matches fact — suppress warning
 
         warnings.append(
             f"REASONING_CONTRADICTION: {_label} — not found in seeds"
@@ -3407,16 +3496,24 @@ def _extract_targeted_repair_response(
 
 def _sanitize_seed_explanation(text: str) -> str:
     """
-    Remove raw field-style notation from a seed explanation so it reads as
-    natural language in user-facing output.
+    DEPRECATED — NOT CALLED BY THE LIVE RUNTIME PIPELINE.
 
-    Two kinds of problems are fixed:
-      1. Jargon prefixes added by the seed builder
+    Retired after the contamination audit: this helper, together with
+    `_build_deterministic_seed_summary`, used to rewrite raw `field=value`
+    patterns into natural language and produce Python-authored sentences that
+    replaced LLM reasoning when the refinement loop failed.  That path is now
+    permanently disabled — the final logged reasoning must be entirely
+    LLM-authored.
+
+    The function is preserved at module scope ONLY because legacy unit tests
+    in `checkers/tests/test_reasoning_truthfulness.py` import it.  It must
+    not be invoked from any code path that writes `state.last_move_reasoning`.
+
+    Historical behaviour (kept for reference):
+      1. Strip leading jargon prefixes
          ("immediate tactical safety:", "tactical drawback:", "positional drawback:").
-      2. Field=value patterns that leak in from comparison seeds
+      2. Substitute `field=value` patterns with natural-language phrases
          (e.g. "leaves_piece_isolated=true vs false here").
-
-    Only called by _build_deterministic_seed_summary; never touches move logic.
     """
     import re as _re
 
@@ -3470,9 +3567,22 @@ def _build_deterministic_seed_summary(
     chosen_move: dict,
 ) -> str:
     """
-    Build a grounded reasoning string from seeds without calling the LLM.
-    Hard fallback used when all refinement retries fail to resolve contradictions.
-    Seeds are engine-computed facts; no hallucination is possible here.
+    DEPRECATED — NOT CALLED BY THE LIVE RUNTIME PIPELINE.
+
+    Previously this function produced an entire reasoning paragraph from the
+    symbolic seed list (Python-authored, no LLM call), and was used as a hard
+    fallback when the refinement loop could not resolve every contradiction.
+
+    The contamination audit showed that this fallback artificially erased
+    LLM-generated contradictions on `seed_on` turns (the asymmetric Python
+    rewrite never fired on `seed_off`), biasing the per-condition contradiction
+    rates.  The fallback has therefore been permanently removed from
+    `_explain_chosen_move`: when refinement cannot resolve every contradiction,
+    the unrefined LLM text is now kept as-is.
+
+    The definition is preserved at module scope ONLY because legacy unit tests
+    in `checkers/tests/test_reasoning_truthfulness.py` import it.  It must
+    not be invoked from any code path that writes `state.last_move_reasoning`.
     """
     if not seeds:
         path = chosen_move.get("path", [])
@@ -4325,7 +4435,13 @@ def _explain_chosen_move(state: CheckersState) -> dict:
         f"unchosen_count={len(state.unchosen_moves)}"
     )
 
-    # ── 1. Build seed-based reasoning (reuses existing infrastructure) ────────
+    # ── 1. Build seed-based reasoning (LLM-authored) ─────────────────────────
+    # The reasoning text returned here is the verbatim LLM seed-prose paragraph.
+    # If the LLM call fails completely, `reasoning` is None / empty string — we
+    # log it as-is rather than substitute Python-generated text.  The
+    # deterministic seed-derived summary that previously back-filled this slot
+    # has been permanently retired; the final logged reasoning is now strictly
+    # LLM-authored (or empty when the LLM produced nothing).
     _score_state = _resolve_score_state_for_seeds(state)
     _candidates = legal if legal else [chosen]
     reasoning, _active_seeds = _generate_seeded_reasoning(
@@ -4333,36 +4449,31 @@ def _explain_chosen_move(state: CheckersState) -> dict:
         player=state.current_player,
         score_state=_score_state,
     )
+    if not isinstance(reasoning, str):
+        reasoning = ""
 
-    # Deterministic fallback if LLM seed call fails.
-    # In ablation mode the seed-derived deterministic summary is suppressed:
-    # we deliberately keep `reasoning` empty so post-repair claim verification
-    # operates on the LLM's unguarded output (or detects the empty-string
-    # collapse), instead of silently retreating into the symbolic seeds the
-    # ablation is meant to remove.
-    _ablation_seeds_disabled = _seeds_disabled()
-    if not reasoning and not _ablation_seeds_disabled:
-        reasoning = _build_deterministic_seed_summary(_active_seeds, chosen)
-    if not reasoning:
-        # Either ablation is on or the deterministic summary itself was empty.
-        # Use a single neutral sentence so the truthfulness/refinement loop has
-        # something to act on; this sentence carries no symbolic claim.
-        reasoning = "No explanation was generated for the chosen move."
-
-    # ── 2. Truthfulness check + refinement (reuses existing infrastructure) ───
+    # ── 2. Truthfulness check + refinement (LLM-authored sentence rewrite) ───
+    # `_check_reasoning_truthfulness` is read-only.  `_refine_reasoning` may
+    # ask the LLM to rewrite specific sentences, but every replacement word
+    # comes from the LLM — Python only routes (picks which sentences to send
+    # back for replacement).  If the LLM cannot resolve every contradiction,
+    # the unrefined LLM text is kept.  Python never overwrites the paragraph.
     _chosen_facts = chosen.get("facts") or {}
-    _initial_contradictions = _check_reasoning_truthfulness(
-        reasoning, _chosen_facts, seeds=_active_seeds,
+    _initial_contradictions = (
+        _check_reasoning_truthfulness(reasoning, _chosen_facts, seeds=_active_seeds)
+        if reasoning else []
     )
     _reasoning_retry_count = 0
+    # Always False going forward — the deterministic seed-summary fallback has
+    # been retired from the pipeline.  Field is kept in diagnostics for log-
+    # schema compatibility with older traces.
     _reasoning_is_seed_fallback = False
 
-    # Snapshot the reasoning BEFORE any repair / seed-fallback can overwrite it.
-    # Evaluation-only: enables pre/post repair metrics (factuality module).
-    # Never read by any decision, refinement, or runtime logic.
-    _raw_reasoning_pre_refinement: Optional[str] = reasoning
+    # Snapshot the reasoning BEFORE the LLM-driven refinement loop modifies
+    # any sentences.  Evaluation-only: enables pre/post repair metrics.
+    _raw_reasoning_pre_refinement: Optional[str] = reasoning or None
 
-    if _initial_contradictions:
+    if _initial_contradictions and reasoning:
         for _w in _initial_contradictions:
             print(f"[RANKER_TRUTHFULNESS] {_w}")
         reasoning, _reasoning_retry_count, _resolved = _refine_reasoning(
@@ -4373,29 +4484,19 @@ def _explain_chosen_move(state: CheckersState) -> dict:
             seeds=_active_seeds,
         )
         if not _resolved:
-            # Ablation mode keeps the unrefined LLM text so contradictions and
-            # hallucinations remain measurable in the evaluation layer; the
-            # seed-derived deterministic summary is suppressed because it would
-            # reach back into exactly the seeds the ablation is removing.
-            if _ablation_seeds_disabled:
-                print(
-                    f"[RANKER_TRUTHFULNESS] reasoning still contains contradictions "
-                    f"after {_reasoning_retry_count} refinement attempt(s); "
-                    "ablation mode — keeping unrefined LLM text"
-                )
-            else:
-                print(
-                    f"[RANKER_TRUTHFULNESS] reasoning still contains contradictions "
-                    f"after {_reasoning_retry_count} refinement attempt(s); "
-                    "falling back to deterministic seed summary"
-                )
-                _seed_fallback = _build_deterministic_seed_summary(_active_seeds, chosen)
-                print(f"[RANKER_TRUTHFULNESS] seed_fallback_reasoning={_seed_fallback!r}")
-                reasoning = _seed_fallback
-                _reasoning_is_seed_fallback = True
+            # Refinement loop could not resolve every contradiction.  Per the
+            # post-audit policy, we KEEP the unrefined LLM text exactly as the
+            # LLM produced it — no Python-built summary, no fact injection.
+            # The remaining contradictions stay visible in the metric layer so
+            # the evaluation reflects true LLM behaviour.
+            print(
+                f"[RANKER_TRUTHFULNESS] reasoning still contains contradictions "
+                f"after {_reasoning_retry_count} refinement attempt(s); "
+                "keeping unrefined LLM text (no deterministic fallback)"
+            )
 
-    # Normalize whitespace and cap length
-    reasoning = re.sub(r"\s+", " ", reasoning).strip()
+    # Normalize whitespace and cap length (format-only, no semantic change).
+    reasoning = re.sub(r"\s+", " ", reasoning).strip() if reasoning else ""
     if len(reasoning) > 1500:
         reasoning = reasoning[:1497] + "..."
 
@@ -4476,7 +4577,7 @@ def _explain_chosen_move(state: CheckersState) -> dict:
         # Evaluation-only fields; never read by any decision logic.
         # run_tag is "seed_on" / "seed_off" by default and may be overridden
         # via the RANKER_RUN_TAG env var for arbitrary experiment labels.
-        "seeds_disabled":                _ablation_seeds_disabled,
+        "seeds_disabled":                _seeds_disabled(),
         "run_tag":                       _current_run_tag(),
         "retry_all_paths":               [],
         "retry_rejection_reasons":       [],

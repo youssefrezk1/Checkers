@@ -1,3 +1,4 @@
+# ── Core runtime ──────────────────────────────────────────────────────────────
 annotated-types==0.7.0
 anyio==4.12.1
 certifi==2026.2.25
@@ -30,3 +31,20 @@ urllib3==2.6.3
 uuid_utils==0.14.1
 xxhash==3.6.0
 zstandard==0.25.0
+
+# ── Semantic-evaluation layer (Setup A: pre/post refinement BERTScore) ────────
+# Pinned for reproducibility of `semantic.bertscore_f1.*` in report.json.
+# The module loads lazily — pipeline still runs if this is uninstalled.
+bert_score==0.3.13
+
+# ── Optional: BLEURT (secondary semantic metric) ──────────────────────────────
+# Pinned for reproducibility of `semantic.bleurt.*` in report.json.
+# The module loads lazily; pipeline still runs and the BLEURT block in the
+# report degrades to a structured `error` shape when this is uninstalled.
+# Uses the BLEURT-20-D12 distilled checkpoint via the lucadiliello PyTorch port.
+bleurt-pytorch==0.0.1
+# protobuf is a hidden runtime requirement of bleurt-pytorch's tokenizer
+# (BleurtTokenizer falls back to a sentencepiece-via-protobuf loader when
+# the vocab file is unavailable).  Pinning it avoids the cryptic
+# "PROTOBUF_IMPORT_ERROR" on first call.
+protobuf>=6.0.0
