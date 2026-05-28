@@ -1,0 +1,19 @@
+{
+  "total_raw": 1040,
+  "skip_terminal": 0,
+  "skip_branching": 12,
+  "skip_phase": 825,
+  "skip_category": 3,
+  "skip_dup": 0,
+  "skip_cached": 0,
+  "kr_errors": 0,
+  "accepted": 200,
+  "phase_opening": 0,
+  "phase_midgame": 200,
+  "phase_endgame": 0,
+  "cat_quiet": 200,
+  "cat_tactical": 0,
+  "cat_multi_jump": 0,
+  "output_file": "benchmark_midgame_quiet.jsonl",
+  "elapsed_s": 3.51
+}

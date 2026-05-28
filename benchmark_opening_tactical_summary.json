@@ -1,0 +1,19 @@
+{
+  "total_raw": 7340,
+  "skip_terminal": 0,
+  "skip_branching": 900,
+  "skip_phase": 4500,
+  "skip_category": 1785,
+  "skip_dup": 0,
+  "skip_cached": 0,
+  "kr_errors": 0,
+  "accepted": 155,
+  "phase_opening": 155,
+  "phase_midgame": 0,
+  "phase_endgame": 0,
+  "cat_quiet": 0,
+  "cat_tactical": 155,
+  "cat_multi_jump": 42,
+  "output_file": "benchmark_opening_tactical.jsonl",
+  "elapsed_s": 2.0
+}

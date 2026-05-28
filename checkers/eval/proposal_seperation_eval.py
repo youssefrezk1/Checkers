@@ -39,6 +39,7 @@ import argparse
 import json
 import logging
 import os
+import random
 import time
 from pathlib import Path
 from typing import Any
@@ -55,9 +56,13 @@ from checkers.engine.rules import get_all_legal_moves
 from checkers.agents.proposal_seperation import (
     run_proposal_seperation,
     run_proposer_only,
+    run_strategic_selection,
+    parse_best_move_output,
     SCANNER_MODEL,
     PROPOSAL_MODEL,
 )
+from checkers.agents.scorer_agent import score_all_legal_moves
+from checkers.agents.deterministic_proposal import select_best_move
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +70,122 @@ logger = logging.getLogger(__name__)
 _DEFAULT_DATASET = os.path.join(
     os.path.dirname(__file__), "..", "data", "legality_stress", "scenarios.jsonl"
 )
+
+# ── Default best-move annotations path (optional; eval degrades gracefully) ──
+_DEFAULT_ANNOTATIONS = os.path.join(
+    os.path.dirname(__file__), "..", "data", "legality_stress",
+    "scenarios_bestmove_annotations.json"
+)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BEST-MOVE ANNOTATION LOADER
+# ══════════════════════════════════════════════════════════════════════════════
+
+def load_bestmove_annotations(path: str | None) -> dict[str, dict]:
+    """
+    Load optional scenario_id → annotation mapping from a JSON file.
+
+    Returns an empty dict (not an error) when:
+      - path is None
+      - file does not exist
+      - file is malformed
+
+    The evaluator degrades gracefully: coverage fields are None when the
+    annotation is absent, and all other metrics are unaffected.
+    """
+    if not path:
+        return {}
+    if not os.path.exists(path):
+        logger.warning(
+            "[annotations] file not found: %s — coverage metrics will be skipped", path
+        )
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            logger.warning("[annotations] expected JSON array, got %s — skipping", type(data))
+            return {}
+        mapping: dict[str, dict] = {}
+        for entry in data:
+            sid = entry.get("scenario_id")
+            if sid:
+                mapping[sid] = entry
+        logger.info("[annotations] loaded %d entries from %s", len(mapping), path)
+        return mapping
+    except Exception as exc:
+        logger.warning("[annotations] could not load %s: %s — skipping", path, exc)
+        return {}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BEST-MOVE COVERAGE CHECK
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _path_in_proposals(
+    target_path: list[list[int]] | None,
+    proposed_moves: list[dict] | None,
+) -> bool | None:
+    """
+    Check whether *target_path* appears as the path of any move in
+    *proposed_moves*.  Returns:
+
+      True  — at least one proposed move has the matching path
+      False — no proposed move matches
+      None  — target_path is unknown (annotation absent) or proposed_moves is None
+
+    Comparison is path-only (type and captured are ignored), normalised to
+    list-of-[int,int] so minor representation differences do not cause mismatches.
+    This is purely a membership test; it does NOT repair or infer moves.
+    """
+    if target_path is None:
+        return None
+    if not proposed_moves:
+        return False
+    # Normalise target
+    try:
+        t_norm = [[int(sq[0]), int(sq[1])] for sq in target_path]
+    except (TypeError, IndexError, ValueError):
+        return None
+    # Check each proposed move
+    for m in proposed_moves:
+        try:
+            p_norm = [[int(sq[0]), int(sq[1])] for sq in m.get("path", [])]
+        except (TypeError, IndexError, ValueError, AttributeError):
+            continue
+        if p_norm == t_norm:
+            return True
+    return False
+
+
+def _is_top1_match(
+    target_path: list[list[int]] | None,
+    proposed_moves: list[dict] | None,
+) -> bool | None:
+    """
+    Check whether the top-1 (first) proposed move matches target_path.
+    Returns:
+      True  — the first proposed move matches target_path
+      False — the first proposed move does not match target_path
+      None  — target_path is unknown or proposed_moves is empty/None
+    """
+    if target_path is None:
+        return None
+    if not proposed_moves:
+        return False
+    # Check only the first proposed move
+    m = proposed_moves[0]
+    try:
+        p_norm = [[int(sq[0]), int(sq[1])] for sq in m.get("path", [])]
+    except (TypeError, IndexError, ValueError, AttributeError):
+        return False
+    try:
+        t_norm = [[int(sq[0]), int(sq[1])] for sq in target_path]
+    except (TypeError, IndexError, ValueError):
+        return None
+    return p_norm == t_norm
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -297,14 +418,43 @@ def evaluate_position(
     scenario_id: str = "",
     category: str = "",
     difficulty: str = "",
+    bestmove_annotations: dict[str, dict] | None = None,
+    single_best: bool = False,
 ) -> dict[str, Any]:
     """
     Run the full pipeline and evaluate one position.
 
     Uses GROUND TRUTH routing: even if the scanner is wrong, the proposal
     is evaluated against the correct branch (jumps or simples).
+
+    bestmove_annotations: optional mapping scenario_id -> annotation dict
+    loaded by load_bestmove_annotations().  When present, each result is
+    enriched with engine_best_move / kingsrow_best_move / contains_* fields.
+    Absent or missing entry -> those fields are None (graceful degradation).
     """
     t0 = time.perf_counter()
+
+    # ── Best-move annotation lookup (evaluation reporting only) ───────────
+    # Engine best: computed live using the same scorer chain as
+    # benchmark_evaluator.py — no external dependencies.
+    # KR best: looked up from pre-computed annotation file.
+    _ann = (bestmove_annotations or {}).get(scenario_id, {})
+
+    engine_best_path: list | None = None
+    try:
+        _enriched, _, _, _ = score_all_legal_moves(board, current_player)
+        if _enriched:
+            _chosen, _, _, _ = select_best_move(_enriched)
+            engine_best_path = [[int(sq[0]), int(sq[1])] for sq in _chosen.get("path", [])]
+    except Exception as _exc:
+        logger.debug("[coverage] engine best-move error for %s: %s", scenario_id, _exc)
+
+    kr_best_path: list | None = None
+    if _ann.get("kr_path"):
+        try:
+            kr_best_path = [[int(sq[0]), int(sq[1])] for sq in _ann["kr_path"]]
+        except Exception:
+            kr_best_path = None
 
     # ── Ground truth ──────────────────────────────────────────────────────
     legal_moves = get_all_legal_moves(board, current_player)
@@ -314,7 +464,7 @@ def evaluate_position(
     legal_norm = [_norm_move(m) for m in legal_moves]
 
     # ── Run separated proposal pipeline ──────────────────────────────────
-    pipeline_result = run_proposal_seperation(board, current_player)
+    pipeline_result = run_proposal_seperation(board, current_player, single_best=single_best)
     elapsed = round(time.perf_counter() - t0, 3)
 
     # ── Handle API failures ──────────────────────────────────────────────
@@ -332,6 +482,13 @@ def evaluate_position(
             "elapsed_s": elapsed,
             "quadrant": "api_failure",
             "classification": "api_failure",
+            # Coverage — no proposals exist on API failure
+            "engine_best_move": engine_best_path,
+            "kingsrow_best_move": kr_best_path,
+            "contains_engine_best": None,
+            "contains_kingsrow_best": None,
+            "top1_engine_match": None,
+            "top1_kingsrow_match": None,
         }
 
     # ── Scanner evaluation (independent) ─────────────────────────────────
@@ -358,6 +515,13 @@ def evaluate_position(
             "quadrant": "scanner_wrong_proposal_wrong",
             "classification": "parse_failure",
             "scanner_raw": pipeline_result["scanner_raw"][:500],
+            # Coverage — parse failure means no usable proposals
+            "engine_best_move": engine_best_path,
+            "kingsrow_best_move": kr_best_path,
+            "contains_engine_best": None,
+            "contains_kingsrow_best": None,
+            "top1_engine_match": None,
+            "top1_kingsrow_match": None,
         }
 
     # ── Branch mismatch detection ────────────────────────────────────────
@@ -381,7 +545,7 @@ def evaluate_position(
             "[branch_mismatch] scanner=%s gt=%s — re-calling %s proposer",
             act_branch, gt_branch, gt_branch,
         )
-        gt_result = run_proposer_only(board, current_player, gt_branch)
+        gt_result = run_proposer_only(board, current_player, gt_branch, single_best=single_best)
 
         if gt_result["api_failure"]:
             # Ground-truth proposer call failed — fall back to api_failure result
@@ -401,6 +565,13 @@ def evaluate_position(
                 "elapsed_s": elapsed,
                 "quadrant": "api_failure",
                 "classification": "api_failure",
+                # Coverage — no proposals
+                "engine_best_move": engine_best_path,
+                "kingsrow_best_move": kr_best_path,
+                "contains_engine_best": None,
+                "contains_kingsrow_best": None,
+                "top1_engine_match": None,
+                "top1_kingsrow_match": None,
             }
 
         # Use gt_result for proposal evaluation
@@ -415,6 +586,16 @@ def evaluate_position(
     # Always compared against the engine ground truth.
     # When branch_mismatch=True, proposal_source is the gt-routed call.
     proposed_moves = proposal_source["proposal_moves"]
+
+    if single_best:
+        parsed_moves = proposed_moves
+        print(len(parsed_moves) if parsed_moves else 0, parsed_moves)
+
+    # Strict single_best validation
+    is_violation = False
+    original_len = proposal_source.get("original_proposal_moves_len", len(proposed_moves) if proposed_moves is not None else 0)
+    if single_best and proposed_moves is not None and original_len != 1:
+        is_violation = True
 
     if proposal_source["proposal_parse_failure"] or proposed_moves is None:
         proposal_class = {
@@ -435,6 +616,25 @@ def evaluate_position(
             "wrong_branch_called": 1 if branch_mismatch else 0,
             "api_failures": 0,
         }
+    elif is_violation:
+        proposal_class = {
+            "classification": "single_best_violation",
+            "legal_count": len(legal_moves),
+            "proposed_count": original_len,
+            "legal_proposed": sum(1 for m in proposed_moves if _norm_move(m) in legal_norm),
+            "illegal_proposed": sum(1 for m in proposed_moves if _norm_move(m) not in legal_norm),
+            "missing_legal": len(legal_moves),
+        }
+        failure_taxonomy = {
+            "duplicate_moves_generated": _check_duplicate_moves(proposed_moves),
+            "partial_jump_sequences": _check_partial_jumps(proposed_moves, legal_norm),
+            "illegal_geometry_moves": _check_illegal_geometry(proposed_moves),
+            "out_of_bounds_coordinates": _check_out_of_bounds(proposed_moves),
+            "missing_legal_moves": len(legal_moves),
+            "parse_failures": 0,
+            "wrong_branch_called": 1 if branch_mismatch else 0,
+            "api_failures": 0,
+        }
     else:
         proposal_class = classify_proposal(proposed_moves, legal_norm)
         failure_taxonomy = {
@@ -450,7 +650,7 @@ def evaluate_position(
 
     # ── Determine quadrant ───────────────────────────────────────────────
     scanner_correct  = scanner_eval["scanner_correct"]
-    proposal_correct = proposal_class["classification"] == "perfect"
+    proposal_correct = (proposal_class["classification"] == "perfect") and not is_violation
 
     if scanner_correct and proposal_correct:
         quadrant = "scanner_correct_proposal_correct"
@@ -495,6 +695,13 @@ def evaluate_position(
         "scanner_raw": pipeline_result["scanner_raw"][:500],
         # Timing
         "elapsed_s": elapsed,
+        # Best-move coverage (evaluation reporting only — does not affect proposal)
+        "engine_best_move": engine_best_path,
+        "kingsrow_best_move": kr_best_path,
+        "contains_engine_best": _path_in_proposals(engine_best_path, proposed_moves),
+        "contains_kingsrow_best": _path_in_proposals(kr_best_path, proposed_moves),
+        "top1_engine_match": _is_top1_match(engine_best_path, proposed_moves),
+        "top1_kingsrow_match": _is_top1_match(kr_best_path, proposed_moves),
     }
 
 
@@ -623,6 +830,9 @@ def filter_by_mode(
     if mode == "hard":
         return [e for e in dataset if e.get("difficulty") == "hard"]
 
+    if mode == "medium_hard":
+        return [e for e in dataset if e.get("difficulty") in ("medium", "hard")]
+
     if mode == "jump_only":
         return [e for e in dataset if _has_captures(e)]
 
@@ -663,6 +873,11 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(results)
     if total == 0:
         return {"total": 0}
+
+    single_best_violations = sum(
+        1 for r in results
+        if r.get("classification") == "single_best_violation"
+    )
 
     # Quadrant counts
     quadrants = {
@@ -772,6 +987,19 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         if r.get("classification") == "perfect":
             difficulty_stats[diff]["perfect"] += 1
 
+    # Calculate Top-1 match percentages
+    eng_top1_eval = [r for r in results if isinstance(r.get("top1_engine_match"), bool)]
+    eng_top1_denom = len(eng_top1_eval)
+    eng_top1_num = sum(1 for r in eng_top1_eval if r.get("top1_engine_match") is True)
+    
+    kr_top1_eval = [r for r in results if isinstance(r.get("top1_kingsrow_match"), bool)]
+    kr_top1_denom = len(kr_top1_eval)
+    kr_top1_num = sum(1 for r in kr_top1_eval if r.get("top1_kingsrow_match") is True)
+
+    top1_engine_match_pct = round(100 * eng_top1_num / eng_top1_denom, 1) if eng_top1_denom > 0 else 0.0
+    top1_kingsrow_match_pct = round(100 * kr_top1_num / kr_top1_denom, 1) if kr_top1_denom > 0 else 0.0
+
+
     return {
         "total_positions": total,
         "quadrants": quadrants,
@@ -803,14 +1031,218 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         },
         "by_category": category_stats,
         "by_difficulty": difficulty_stats,
+        "difficulty_distribution": {d: stats["total"] for d, stats in difficulty_stats.items()},
+        "best_move_coverage": _build_coverage_stats(results),
+        "branching_factor_breakdown": _build_branching_factor_breakdown(results),
+        "top1_engine_match_pct": top1_engine_match_pct,
+        "top1_kingsrow_match_pct": top1_kingsrow_match_pct,
+        "single_best_violations": single_best_violations,
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BEST-MOVE COVERAGE AGGREGATION
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _coverage_pct(num: int, denom: int) -> float | None:
+    """Return coverage percentage or None when no data exists."""
+    return round(100 * num / denom, 1) if denom > 0 else None
+
+
+def _coverage_block(
+    results: list[dict],
+    field: str,
+) -> dict:
+    """
+    Build a coverage stats block for one field ('contains_engine_best' or
+    'contains_kingsrow_best').  Only positions where the field is a bool
+    (not None) are included in the denominator — positions where the
+    annotation was absent, or where proposals were unavailable (api/parse
+    failures), are excluded so as not to inflate or deflate the metric.
+    """
+    # Positions with a definite True/False answer
+    evaluated = [r for r in results if isinstance(r.get(field), bool)]
+    n = len(evaluated)
+    contains = sum(1 for r in evaluated if r[field])
+
+    # scanner_correct / scanner_wrong split
+    sc_yes  = [r for r in evaluated if r.get("scanner_eval", {}).get("scanner_correct")]
+    sc_no   = [r for r in evaluated if not r.get("scanner_eval", {}).get("scanner_correct")]
+    sc_yes_c = sum(1 for r in sc_yes if r[field])
+    sc_no_c  = sum(1 for r in sc_no  if r[field])
+
+    # quiet / tactical split (ground_truth_has_captures is always computed)
+    quiet    = [r for r in evaluated if not r.get("ground_truth_has_captures", False)]
+    tactical = [r for r in evaluated if r.get("ground_truth_has_captures", False)]
+    quiet_c    = sum(1 for r in quiet    if r[field])
+    tactical_c = sum(1 for r in tactical if r[field])
+
+    # category breakdown
+    by_cat: dict[str, dict] = {}
+    for r in evaluated:
+        cat = r.get("category", "unknown")
+        if cat not in by_cat:
+            by_cat[cat] = {"n": 0, "contains": 0}
+        by_cat[cat]["n"] += 1
+        if r[field]:
+            by_cat[cat]["contains"] += 1
+    cat_summary = {
+        cat: {
+            "n": v["n"],
+            "contains": v["contains"],
+            "coverage_pct": _coverage_pct(v["contains"], v["n"]),
+        }
+        for cat, v in sorted(by_cat.items())
+    }
+
+    # difficulty breakdown
+    by_diff: dict[str, dict] = {}
+    for r in evaluated:
+        diff = r.get("difficulty", "unknown")
+        if diff not in by_diff:
+            by_diff[diff] = {"n": 0, "contains": 0}
+        by_diff[diff]["n"] += 1
+        if r[field]:
+            by_diff[diff]["contains"] += 1
+    diff_summary = {
+        diff: {
+            "n": v["n"],
+            "contains": v["contains"],
+            "coverage_pct": _coverage_pct(v["contains"], v["n"]),
+        }
+        for diff, v in sorted(by_diff.items())
+    }
+
+    return {
+        "evaluated": n,
+        "contains": contains,
+        "coverage_pct": _coverage_pct(contains, n),
+        "scanner_correct": {
+            "n": len(sc_yes),
+            "contains": sc_yes_c,
+            "coverage_pct": _coverage_pct(sc_yes_c, len(sc_yes)),
+        },
+        "scanner_wrong": {
+            "n": len(sc_no),
+            "contains": sc_no_c,
+            "coverage_pct": _coverage_pct(sc_no_c, len(sc_no)),
+        },
+        "quiet": {
+            "n": len(quiet),
+            "contains": quiet_c,
+            "coverage_pct": _coverage_pct(quiet_c, len(quiet)),
+        },
+        "tactical": {
+            "n": len(tactical),
+            "contains": tactical_c,
+            "coverage_pct": _coverage_pct(tactical_c, len(tactical)),
+        },
+        "by_category": cat_summary,
+        "by_difficulty": diff_summary,
+    }
+
+
+def _build_coverage_stats(results: list[dict]) -> dict:
+    """Build the full best_move_coverage block for summarize_results()."""
+    return {
+        "engine": _coverage_block(results, "contains_engine_best"),
+        "kingsrow": _coverage_block(results, "contains_kingsrow_best"),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BRANCHING-FACTOR BREAKDOWN
+# ══════════════════════════════════════════════════════════════════════════════
+# Buckets: exact counts 1–10, then "11+" for all larger values.
+# Provides thesis evidence that LLM proposal quality degrades with
+# combinatorial branching complexity.
+_BF_MAX_EXACT = 10   # buckets 1..10 are exact; >=11 is collapsed into "11+"
+
+
+def _bf_bucket(n: int) -> str:
+    """Return the bucket label for a legal-move count."""
+    if n <= _BF_MAX_EXACT:
+        return str(n)
+    return "11+"
+
+
+def _build_branching_factor_breakdown(results: list[dict]) -> dict:
+    """
+    Compute per-legal-move-count statistics over all evaluated results.
+
+    Each bucket contains:
+      n_positions              — positions in this bucket
+      perfect_proposal_pct     — % with classification=="perfect"
+      scanner_correct_pct      — % where scanner was correct
+      engine_best_coverage_pct — % containing engine best move (None if no data)
+      kingsrow_best_coverage_pct — same for KR (None if no annotations)
+
+    legal_move_count is read from result["legal_move_count"] which is always
+    populated by evaluate_position() on every code path.
+    """
+    # Ordered bucket labels for deterministic output
+    _LABELS = [str(i) for i in range(1, _BF_MAX_EXACT + 1)] + ["11+"]
+    buckets: dict[str, dict] = {
+        lbl: {
+            "n": 0,
+            "perfect": 0,
+            "scanner_correct": 0,
+            "engine_contains": 0, "engine_evaluated": 0,
+            "kr_contains":     0, "kr_evaluated":     0,
+        }
+        for lbl in _LABELS
+    }
+
+    for r in results:
+        n_legal = r.get("legal_move_count")
+        if n_legal is None:
+            continue
+        try:
+            n_legal = int(n_legal)
+        except (TypeError, ValueError):
+            continue
+        lbl = _bf_bucket(n_legal)
+        b = buckets[lbl]
+        b["n"] += 1
+        if r.get("classification") == "perfect":
+            b["perfect"] += 1
+        if r.get("scanner_eval", {}).get("scanner_correct"):
+            b["scanner_correct"] += 1
+        # Engine coverage (bool only — None excluded)
+        ce = r.get("contains_engine_best")
+        if isinstance(ce, bool):
+            b["engine_evaluated"] += 1
+            if ce:
+                b["engine_contains"] += 1
+        # KR coverage
+        ck = r.get("contains_kingsrow_best")
+        if isinstance(ck, bool):
+            b["kr_evaluated"] += 1
+            if ck:
+                b["kr_contains"] += 1
+
+    # Build output dict with computed percentages
+    out: dict[str, dict] = {}
+    for lbl in _LABELS:
+        b = buckets[lbl]
+        n = b["n"]
+        if n == 0:
+            continue   # omit empty buckets from output
+        out[lbl] = {
+            "n_positions":               n,
+            "perfect_proposal_pct":      _coverage_pct(b["perfect"], n),
+            "scanner_correct_pct":       _coverage_pct(b["scanner_correct"], n),
+            "engine_best_coverage_pct":  _coverage_pct(b["engine_contains"], b["engine_evaluated"]),
+            "kingsrow_best_coverage_pct": _coverage_pct(b["kr_contains"], b["kr_evaluated"]),
+        }
+    return out
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CLI
 # ══════════════════════════════════════════════════════════════════════════════
 
-_VALID_MODES = ["full", "balanced", "easy", "medium", "hard", "jump_only", "quiet_only"]
+_VALID_MODES = ["full", "balanced", "easy", "medium", "hard", "medium_hard", "jump_only", "quiet_only"]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -857,6 +1289,48 @@ def main(argv: list[str] | None = None) -> int:
             "Example: --inter-test-delay 1.0. Default: 0.0 (no delay)."
         ),
     )
+    p.add_argument(
+        "--bestmove-annotations", type=str, default=None, dest="bestmove_annotations",
+        help=(
+            "Path to scenarios_bestmove_annotations.json produced by "
+            "build_scenario_bestmove_annotations.py.  When supplied, each "
+            "result is enriched with engine_best_move, kingsrow_best_move, "
+            "contains_engine_best, contains_kingsrow_best fields and a "
+            "best-move coverage section is printed in the summary.  "
+            "The evaluator degrades gracefully if the file is absent."
+        ),
+    )
+    p.add_argument(
+        "--min-legal-moves", type=int, default=None, dest="min_legal_moves",
+        metavar="N",
+        help=(
+            "Keep only positions with at least N legal moves "
+            "(uses hidden_legal_moves length from dataset). "
+            "Applied after mode/scenario-id filter, before --limit."
+        ),
+    )
+    p.add_argument(
+        "--max-legal-moves", type=int, default=None, dest="max_legal_moves",
+        metavar="N",
+        help=(
+            "Keep only positions with at most N legal moves "
+            "(uses hidden_legal_moves length from dataset). "
+            "Applied after mode/scenario-id filter, before --limit."
+        ),
+    )
+    p.add_argument(
+        "--sample-size", type=int, default=None, dest="sample_size",
+        metavar="N",
+        help=(
+            "Randomly sample exactly N positions (seed=42, deterministic). "
+            "Applied AFTER legal-move filtering, BEFORE --limit. "
+            "If N >= remaining positions the full filtered set is used unchanged."
+        ),
+    )
+    p.add_argument(
+        "--single-best", action="store_true", dest="single_best",
+        help="Use single_best proposer mode (outputs only the single strategically best move)",
+    )
 
     args = p.parse_args(argv)
 
@@ -870,6 +1344,15 @@ def main(argv: list[str] | None = None) -> int:
     if not dataset:
         print(f"ERROR: no valid entries in {dataset_path}")
         return 1
+
+    # Load optional best-move annotations
+    # Tries --bestmove-annotations path first; falls back to default path;
+    # degrades silently to empty dict when neither exists.
+    _ann_path = (
+        args.bestmove_annotations
+        or (os.path.abspath(_DEFAULT_ANNOTATIONS) if os.path.exists(os.path.abspath(_DEFAULT_ANNOTATIONS)) else None)
+    )
+    bestmove_annotations = load_bestmove_annotations(_ann_path)
 
     # Filter by scenario_id (takes priority over mode)
     if args.scenario_id:
@@ -887,6 +1370,56 @@ def main(argv: list[str] | None = None) -> int:
     if args.limit is not None:
         dataset = dataset[:args.limit]
 
+    # ── Branching-factor filter (--min/max-legal-moves) ──────────────────────────
+    # Applied AFTER mode filter and --limit so the limit is on the mode-filtered
+    # pool, not the legal-move-filtered subset (consistent with all other filters).
+    _min_lm = args.min_legal_moves
+    _max_lm = args.max_legal_moves
+    _bf_filter_active = (_min_lm is not None) or (_max_lm is not None)
+    _before_bf = len(dataset)
+    if _bf_filter_active:
+        dataset = [
+            e for e in dataset
+            if (
+                (_min_lm is None or len(e.get("hidden_legal_moves", [])) >= _min_lm)
+                and (_max_lm is None or len(e.get("hidden_legal_moves", [])) <= _max_lm)
+            )
+        ]
+    _after_bf = len(dataset)
+
+    # Persist filtering metadata for the JSON report
+    _filtering_meta = {
+        "min_legal_moves": _min_lm,
+        "max_legal_moves": _max_lm,
+        "active": _bf_filter_active,
+        "positions_before": _before_bf,
+        "positions_after":  _after_bf,
+        "positions_removed": _before_bf - _after_bf,
+    }
+
+    # ── Sampling (--sample-size) ───────────────────────────────────────────────
+    # Applied AFTER BF filter, BEFORE --limit.
+    # seed=42 is fixed so every run with the same dataset + same N gives
+    # the same subset — essential for thesis reproducibility.
+    _sample_size = args.sample_size
+    _before_sample = len(dataset)
+    _sample_active = _sample_size is not None and _sample_size < _before_sample
+    if _sample_active:
+        rng = random.Random(42)
+        dataset = rng.sample(dataset, _sample_size)
+    _after_sample = len(dataset)
+
+    _sampling_meta = {
+        "active": _sample_active,
+        "sample_size": _sample_size,
+        "positions_before_sampling": _before_sample,
+        "positions_after_sampling":  _after_sample,
+    }
+
+    # ── Limit (--limit) applied last ─────────────────────────────────────────
+    if args.limit is not None:
+        dataset = dataset[:args.limit]
+
     # Print header
     print("=" * 74)
     print("PROPOSAL SEPARATION EVAL — Pure Raw LLM Baseline")
@@ -900,6 +1433,19 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  Scanner   : {SCANNER_MODEL}")
     print(f"  Proposal  : {PROPOSAL_MODEL}")
     print(f"  Output    : {out_path}")
+    if _bf_filter_active:
+        _fmin = f">={_min_lm}" if _min_lm is not None else ""
+        _fmax = f"<={_max_lm}" if _max_lm is not None else ""
+        _fstr = " ".join(filter(None, [_fmin, _fmax]))
+        print(f"  BF filter : legal_moves {_fstr}  ({_after_bf}/{_before_bf} kept)")
+    if _sample_active:
+        print(f"  Sample    : {_after_sample}/{_before_sample} sampled (seed=42)")
+    elif _sample_size is not None:
+        print(f"  Sample    : N={_sample_size} >= pool ({_before_sample}) — no-op, using full set")
+    if bestmove_annotations:
+        print(f"  Annotations: {len(bestmove_annotations)} entries loaded (best-move coverage ON)")
+    else:
+        print(f"  Annotations: none — best-move coverage metrics will be skipped")
     if args.inter_test_delay > 0:
         print(f"  Delay     : {args.inter_test_delay:.1f}s between positions")
     print("=" * 74)
@@ -921,6 +1467,8 @@ def main(argv: list[str] | None = None) -> int:
             scenario_id=scenario_id,
             category=category,
             difficulty=difficulty,
+            bestmove_annotations=bestmove_annotations,
+            single_best=args.single_best,
         )
         results.append(result)
 
@@ -936,12 +1484,39 @@ def main(argv: list[str] | None = None) -> int:
 
     # Summary
     summary = summarize_results(results)
+    summary["filtering"] = _filtering_meta
+    summary["sampling"]  = _sampling_meta
 
     print()
     print("=" * 74)
     print("SUMMARY")
     print("=" * 74)
+
+    if not results:
+        print("  Total positions       : 0")
+        print("  No positions were evaluated (dataset empty or limited to 0).")
+        print("=" * 74)
+        report = {
+            "meta": {
+                "dataset": dataset_path,
+                "mode": args.mode,
+                "position_count": len(dataset),
+                "scanner_model": SCANNER_MODEL,
+                "proposal_model": PROPOSAL_MODEL,
+                "annotations_path": _ann_path,
+                "output": str(out_path),
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            },
+            "summary": summary,
+            "results": results,
+        }
+        out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        print(f"Wrote: {out_path}")
+        return 0
+
     print(f"  Total positions       : {summary['total_positions']}")
+    if "single_best_violations" in summary:
+        print(f"  Single-Best Violations: {summary['single_best_violations']}")
     print()
     print("  ── Quadrant Breakdown ──")
     for q_name, q_count in summary["quadrants"].items():
@@ -1003,14 +1578,130 @@ def main(argv: list[str] | None = None) -> int:
             print(f"    {diff:<15}: {ds['perfect']:>3}/{ds['total']:<3} perfect ({pct:>5.1f}%)")
         print()
 
+    if summary.get("difficulty_distribution"):
+        print("  ── Difficulty Distribution ──")
+        total_pos = summary.get("total_positions", 0)
+        for diff, count in sorted(summary["difficulty_distribution"].items()):
+            pct = round(100 * count / total_pos, 1) if total_pos else 0
+            print(f"    {diff:<15}: {count:>4} ({pct:>5.1f}%)")
+        print()
+
+    # Best-move coverage summary (only printed when data is available)
+    cov = summary.get("best_move_coverage", {})
+    _eng = cov.get("engine", {})
+    _kr  = cov.get("kingsrow", {})
+    if _eng.get("evaluated", 0) > 0 or _kr.get("evaluated", 0) > 0:
+        print("  ── Best-Move Coverage ──")
+        print("  (% of positions where the LLM's proposal list included the best move)")
+        print()
+
+        def _cov_line(label: str, block: dict) -> None:
+            n   = block.get("evaluated", 0)
+            c   = block.get("contains", 0)
+            pct = block.get("coverage_pct")
+            pct_str = f"{pct:.1f}%" if pct is not None else "N/A"
+            print(f"    {label:<30}: {c:>4}/{n:<4} ({pct_str:>7})")
+
+        _cov_line("engine best move", _eng)
+        _cov_line("kingsrow best move", _kr)
+        print()
+
+        # Print top-1 match pct if single-best or annotations present
+        if "top1_engine_match_pct" in summary or "top1_kingsrow_match_pct" in summary:
+            print("  ── Top-1 Match Pct ──")
+            print("  (% of positions where the first proposed move matches the best move)")
+            print()
+            print(f"    engine best move match        : {summary.get('top1_engine_match_pct', 0.0)}%")
+            print(f"    kingsrow best move match      : {summary.get('top1_kingsrow_match_pct', 0.0)}%")
+            print()
+
+        # Scanner breakdown
+        for _lbl, _blk in (("Engine", _eng), ("KingsRow", _kr)):
+            sc_y = _blk.get("scanner_correct", {})
+            sc_n = _blk.get("scanner_wrong", {})
+            if sc_y.get("n", 0) + sc_n.get("n", 0) > 0:
+                sy_p = sc_y.get("coverage_pct") or 0
+                sn_p = sc_n.get("coverage_pct") or 0
+                print(
+                    f"    {_lbl} — scanner correct : "
+                    f"{sc_y.get('contains',0)}/{sc_y.get('n',0)}  ({sy_p:.1f}%)  "
+                    f"| scanner wrong : "
+                    f"{sc_n.get('contains',0)}/{sc_n.get('n',0)}  ({sn_p:.1f}%)"
+                )
+        print()
+
+        # Quiet / Tactical breakdown
+        for _lbl, _blk in (("Engine", _eng), ("KingsRow", _kr)):
+            qt = _blk.get("quiet", {})
+            tc = _blk.get("tactical", {})
+            if qt.get("n", 0) + tc.get("n", 0) > 0:
+                qp = qt.get("coverage_pct") or 0
+                tp = tc.get("coverage_pct") or 0
+                print(
+                    f"    {_lbl} — quiet    : "
+                    f"{qt.get('contains',0)}/{qt.get('n',0)}  ({qp:.1f}%)  "
+                    f"| tactical : "
+                    f"{tc.get('contains',0)}/{tc.get('n',0)}  ({tp:.1f}%)"
+                )
+        print()
+
+        # Category breakdown (engine only; omit if empty)
+        eng_cats = _eng.get("by_category", {})
+        if eng_cats:
+            print("    Engine coverage by category:")
+            for cat, cv in sorted(eng_cats.items()):
+                cp = cv.get("coverage_pct")
+                cp_str = f"{cp:.1f}%" if cp is not None else "N/A"
+                print(f"      {cat:<30}: {cv['contains']:>3}/{cv['n']:<3}  ({cp_str:>7})")
+            print()
+
+        # Difficulty breakdown
+        eng_diffs = _eng.get("by_difficulty", {})
+        if eng_diffs:
+            print("    Engine coverage by difficulty:")
+            for diff, dv in sorted(eng_diffs.items()):
+                dp = dv.get("coverage_pct")
+                dp_str = f"{dp:.1f}%" if dp is not None else "N/A"
+                print(f"      {diff:<15}: {dv['contains']:>3}/{dv['n']:<3}  ({dp_str:>7})")
+            print()
+
+    # Branching-factor breakdown
+    bf = summary.get("branching_factor_breakdown", {})
+    if bf:
+        print("  ── Branching-Factor Breakdown ──")
+        print("  (metrics by exact legal-move count; 11+ = all positions with ≥11 moves)")
+        print()
+        _HAS_ENG = any(v.get("engine_best_coverage_pct") is not None for v in bf.values())
+        _HAS_KR  = any(v.get("kingsrow_best_coverage_pct") is not None for v in bf.values())
+        # Header
+        _hdr = f"    {'n_legal':>7}  {'n':>5}  {'perfect%':>9}  {'scan_ok%':>9}"
+        if _HAS_ENG: _hdr += f"  {'eng_cov%':>9}"
+        if _HAS_KR:  _hdr += f"  {'kr_cov%':>8}"
+        print(_hdr)
+        print("    " + "-" * (len(_hdr) - 4))
+        for lbl, bv in bf.items():
+            n   = bv["n_positions"]
+            pp  = bv["perfect_proposal_pct"]
+            sp  = bv["scanner_correct_pct"]
+            ep  = bv["engine_best_coverage_pct"]
+            kp  = bv["kingsrow_best_coverage_pct"]
+            def _f(v): return f"{v:.1f}%" if v is not None else "  N/A"
+            row = f"    {lbl:>7}  {n:>5}  {_f(pp):>9}  {_f(sp):>9}"
+            if _HAS_ENG: row += f"  {_f(ep):>9}"
+            if _HAS_KR:  row += f"  {_f(kp):>8}"
+            print(row)
+        print()
+
     # Write report
     report = {
         "meta": {
             "dataset": dataset_path,
             "mode": args.mode,
+            "single_best": args.single_best,
             "position_count": len(dataset),
             "scanner_model": SCANNER_MODEL,
             "proposal_model": PROPOSAL_MODEL,
+            "annotations_path": _ann_path,
             "output": str(out_path),
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         },

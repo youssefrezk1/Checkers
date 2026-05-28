@@ -562,6 +562,92 @@ def build_jump_prompt(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# SINGLE-BEST JUMP PROPOSER PROMPT
+# ══════════════════════════════════════════════════════════════════════════════
+
+jump_single_best_prompt = """\
+You are an American Checkers legal jump-move generator.
+Task: output ONLY the SINGLE STRONGEST legal capture sequence (strategically best move) for the active player.
+
+SYMBOLS: r=RED man  R=RED king  b=BLACK man  B=BLACK king  .=empty  #=light(ignore)
+Row 0=TOP  Row 7=BOTTOM  Col 0=LEFT  Col 7=RIGHT  Dark=(row+col) ODD
+
+JUMP COORDINATES: for direction (dr,dc) from [r,c]:
+  mid  = [r+dr,  c+dc ]   (opponent piece here)
+  land = [r+2dr, c+2dc]   (must be empty)
+
+DIRECTIONS:
+  RED men:   NW(dr=-1,dc=-1)  NE(dr=-1,dc=+1)   [forward only, row decreases]
+  BLACK men: SW(dr=+1,dc=-1)  SE(dr=+1,dc=+1)   [forward only, row increases]
+  Kings:     NW  NE  SW  SE   [all four; kings may change direction between captures]
+
+══ PHASE 1 — SCAN all pieces ══
+For EVERY own piece, EVERY applicable direction:
+  GATE-1: land in-bounds (both row and col in 0–7)?            Skip if no.
+  GATE-2: board[mid] = OPPONENT symbol?                         Skip if no.
+  GATE-3: board[land] = '.'?                                    Skip if no.
+  All 3 pass → valid first jump. Record it.
+❖ Scan ALL pieces and ALL directions before deciding output. Do not stop early.
+
+══ PHASE 2 — CONTINUATION from each landing ══
+After landing at [land_r, land_c]:
+  Apply the same 3 gates from the new position in all applicable directions.
+  GATE-2 exception: mid2 must not already appear in this path’s captured list.
+  STOP rule: a man that lands on its promotion row (RED→row 0, BLACK→row 7) stops — no further jumps.
+  Any direction passes → MUST extend the path (stopping early = illegal partial jump).
+  No direction passes → path is complete; record it.
+  Recurse from each new landing until complete.
+
+══ PHASE 3 — VERIFY before writing output ══
+For each jump sequence:
+  □ len(path) = len(captured) + 1
+  □ captured[i] is the midpoint between path[i] and path[i+1]
+  □ No square appears twice in path; no square appears twice in captured
+  If any check fails → discard that move.
+
+FORMAT — path = squares the piece STANDS ON; captured = squares jumped OVER:
+  CORRECT single:  {"type":"jump","path":[[3,2],[1,4]],"captured":[[2,3]]}
+                   → len(path)=2, len(captured)=1 ✓
+  WRONG:           {"path":[[3,2],[2,3],[1,4]],...}  ← [2,3] is midpoint, NOT in path
+
+  CORRECT multi:   {"type":"jump","path":[[2,5],[4,3],[6,1]],"captured":[[3,4],[5,2]]}
+                   → len(path)=3, len(captured)=2 ✓
+  WRONG (partial): {"path":[[2,5],[4,3]],...}  ← illegal if continuation from [4,3] exists
+
+OUTPUT — strict JSON, no text before or after:
+{"moves":[{"type":"jump","path":[...],"captured":[...]}]
+}
+
+Choose the single strategically best legal capture sequence. Output exactly ONE move in the "moves" list. Never output alternative moves. Do not explain.
+"""
+
+
+def build_jump_single_best_prompt(
+    board: list[list[int]],
+    current_player: int,
+) -> tuple[str, str]:
+    """Build (system, user) prompts for the single-best jump proposer. No hints."""
+    player_label = "RED" if current_player == RED else "BLACK"
+    board_grid   = render_board(board)
+    piece_list   = list_pieces(board, current_player)
+
+    user_prompt = "\n".join([
+        f"Current player: {player_label}",
+        "",
+        piece_list,
+        "",
+        "BOARD:",
+        board_grid,
+        "",
+        "Choose the single strategically best legal capture sequence for the current player.",
+        "Return STRICT JSON ONLY.",
+    ])
+
+    return jump_single_best_prompt, user_prompt
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # QUIET PROPOSER PROMPT
 # ══════════════════════════════════════════════════════════════════════════════
 # Receives ONLY: board grid, current player, current player's pieces.
@@ -626,6 +712,70 @@ def build_quiet_prompt(
     ])
 
     return QUIET_SYSTEM_PROMPT, user_prompt
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SINGLE-BEST QUIET PROPOSER PROMPT
+# ══════════════════════════════════════════════════════════════════════════════
+
+quiet_single_best_prompt = """\
+You are an American Checkers non-capturing move generator.
+Task: output ONLY the SINGLE STRONGEST legal simple move (strategically best move) for the active player.
+
+SYMBOLS: r=RED man  R=RED king  b=BLACK man  B=BLACK king  .=empty  #=light(ignore)
+Row 0=TOP  Row 7=BOTTOM  Col 0=LEFT  Col 7=RIGHT  Dark=(row+col) ODD
+
+DIRECTIONS:
+  RED men:   NW=[row-1,col-1]  NE=[row-1,col+1]
+  BLACK men: SW=[row+1,col-1]  SE=[row+1,col+1]
+  Kings:     NW  NE  SW  SE  (all four)
+
+GATES — BOTH must pass to emit a move:
+  GATE-A: target in-bounds: 0 ≤ row ≤ 7  AND  0 ≤ col ≤ 7
+  GATE-B: board[target] = ‘.’  (read the grid — any piece symbol means occupied → skip)
+
+PROCEDURE:
+  For every own piece, in order:
+    Men  → check NW first, then NE.    Emit every direction that passes both gates.
+    Kings → check NW, NE, SW, SE.     Emit every direction that passes both gates.
+  ❖ Do NOT stop after finding the first valid direction — continue through all.
+  ❖ Do NOT move to the next piece until all its directions are checked.
+
+COMMON MISTAKES TO AVOID:
+  • Men have 2 directions — both must be checked. Found one valid? Check the other.
+  • Kings have 4 directions — all four must be checked.
+  • board[target] = r/R/b/B means OCCUPIED → GATE-B fails → do NOT propose it.
+  • Each piece may contribute 0, 1, or 2+ moves to the output.
+
+OUTPUT — strict JSON, no text before or after:
+{"moves":[{"type":"simple","path":[[from_r,from_c],[to_r,to_c]],"captured":[]}]}
+
+Choose the single strategically best legal simple move. Output exactly ONE move in the "moves" list. Never output alternative moves. Do not explain.
+"""
+
+
+def build_quiet_single_best_prompt(
+    board: list[list[int]],
+    current_player: int,
+) -> tuple[str, str]:
+    """Build (system, user) prompts for the single-best quiet proposer. No hints."""
+    player_label = "RED" if current_player == RED else "BLACK"
+    board_grid   = render_board(board)
+    piece_list   = list_pieces(board, current_player)
+
+    user_prompt = "\n".join([
+        f"Current player: {player_label}",
+        "",
+        piece_list,
+        "",
+        "BOARD:",
+        board_grid,
+        "",
+        "Choose the single strategically best legal non-capturing (simple) move for the current player.",
+        "Return STRICT JSON ONLY.",
+    ])
+
+    return quiet_single_best_prompt, user_prompt
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -752,6 +902,7 @@ def parse_proposal_output(raw: str) -> Optional[list[dict[str, Any]]]:
 def run_proposal_seperation(
     board: list[list[int]],
     current_player: int,
+    single_best: bool = False,
 ) -> dict[str, Any]:
     """
     Run the full separated proposal pipeline for one position.
@@ -819,10 +970,16 @@ def run_proposal_seperation(
     # ── Step 2: Proposal (jump OR quiet, never both) ─────────────────────────
     if scanner_prediction is True:
         proposal_branch = "jump"
-        proposal_sys, proposal_usr = build_jump_prompt(board, current_player)
+        if single_best:
+            proposal_sys, proposal_usr = build_jump_single_best_prompt(board, current_player)
+        else:
+            proposal_sys, proposal_usr = build_jump_prompt(board, current_player)
     else:
         proposal_branch = "quiet"
-        proposal_sys, proposal_usr = build_quiet_prompt(board, current_player)
+        if single_best:
+            proposal_sys, proposal_usr = build_quiet_single_best_prompt(board, current_player)
+        else:
+            proposal_sys, proposal_usr = build_quiet_prompt(board, current_player)
 
     result["proposal_branch"] = proposal_branch
 
@@ -845,14 +1002,25 @@ def run_proposal_seperation(
         return result
 
     proposal_moves = parse_proposal_output(proposal_raw)
-    result["proposal_moves"] = proposal_moves
+    
+    # Store original length before truncation
+    original_len = len(proposal_moves) if proposal_moves is not None else 0
+    result["original_proposal_moves_len"] = original_len
 
-    if proposal_moves is None:
+    parsed_moves = proposal_moves
+    if single_best:
+        if parsed_moves:
+            parsed_moves = [parsed_moves[0]]
+            
+    result["proposal_moves"] = parsed_moves
+
+    if parsed_moves is None:
         result["proposal_parse_failure"] = True
         result["parse_failure"] = True
         logger.warning("Proposal output malformed — marking parse_failure")
 
     return result
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -867,6 +1035,7 @@ def run_proposer_only(
     board: list[list[int]],
     current_player: int,
     branch: str,
+    single_best: bool = False,
 ) -> dict[str, Any]:
     """
     Call only the proposal LLM for the specified branch ("jump" or "quiet").
@@ -880,9 +1049,15 @@ def run_proposer_only(
       api_failure:            bool
     """
     if branch == "jump":
-        proposal_sys, proposal_usr = build_jump_prompt(board, current_player)
+        if single_best:
+            proposal_sys, proposal_usr = build_jump_single_best_prompt(board, current_player)
+        else:
+            proposal_sys, proposal_usr = build_jump_prompt(board, current_player)
     else:
-        proposal_sys, proposal_usr = build_quiet_prompt(board, current_player)
+        if single_best:
+            proposal_sys, proposal_usr = build_quiet_single_best_prompt(board, current_player)
+        else:
+            proposal_sys, proposal_usr = build_quiet_prompt(board, current_player)
 
     proposal_raw, proposal_api_ok = _call_with_infra_retry(
         system=proposal_sys,
@@ -907,6 +1082,13 @@ def run_proposer_only(
     proposal_moves = parse_proposal_output(proposal_raw)
     parse_failure  = proposal_moves is None
 
+    original_proposal_moves_len = len(proposal_moves) if proposal_moves is not None else 0
+
+    parsed_moves = proposal_moves
+    if single_best:
+        if parsed_moves:
+            parsed_moves = [parsed_moves[0]]
+
     if parse_failure:
         logger.warning(
             "[proposal_%s_gt] output malformed — marking parse_failure", branch
@@ -915,8 +1097,173 @@ def run_proposer_only(
     return {
         "proposal_raw": proposal_raw,
         "proposal_api_ok": True,
-        "proposal_moves": proposal_moves,
+        "proposal_moves": parsed_moves,
         "proposal_branch": branch,
         "proposal_parse_failure": parse_failure,
         "api_failure": False,
+        "original_proposal_moves_len": original_proposal_moves_len,
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STRATEGIC BEST-MOVE SELECTION — Mode B
+# ══════════════════════════════════════════════════════════════════════════════
+# Completely separate from the exhaustive proposal pipeline (Mode A).
+# No scanner. No move enumeration. One LLM call → one chosen move path.
+#
+# Output format: {"best_move": [[r,c],[r,c],...]}
+# NOT "moves":[...]. This is a different schema on purpose.
+
+STRATEGIC_BEST_MOVE_PROMPT = """\
+You are an expert American Checkers strategist.
+
+Your ONLY task: choose the single strongest legal move for the active player.
+
+SYMBOLS: r=RED man  R=RED king  b=BLACK man  B=BLACK king  .=empty  #=light(ignore)
+Row 0=TOP  Row 7=BOTTOM  Col 0=LEFT  Col 7=RIGHT  Dark=(row+col) ODD
+
+══ MANDATORY CAPTURE RULE ══
+If ANY legal capture (jump) exists, you MUST choose a capture.
+You may NOT choose a simple move when a capture is available.
+
+══ SIMPLE MOVE ══
+A piece slides one diagonal step to an adjacent empty dark square.
+  RED men:   NW=[row-1,col-1]  NE=[row-1,col+1]  (row DECREASES — forward only)
+  BLACK men: SW=[row+1,col-1]  SE=[row+1,col+1]  (row INCREASES — forward only)
+  Kings:     NW  NE  SW  SE   (all four directions)
+
+══ CAPTURE (JUMP) ══
+A piece jumps over an adjacent opponent piece to the empty square beyond.
+  mid =[r+dr, c+dc]   must be an OPPONENT piece
+  land=[r+2dr,c+2dc]  must be empty and in-bounds
+Multi-jumps: if another capture is available from the landing square, it is mandatory.
+
+══ OUTPUT ══
+Path = sequence of squares the piece STANDS ON during the move:
+  Simple move:   2 squares — [[from_r,from_c],[to_r,to_c]]
+  Single jump:   2 squares — [[from_r,from_c],[land_r,land_c]]
+  Multi-jump:   3+ squares — [[from],[land1],[land2],...]
+
+Choose the move that gives the best strategic advantage.
+Respond with ONLY this JSON. No text before or after. No alternatives. No explanation.
+
+{"best_move": [[r,c],[r,c],...]}
+"""
+
+
+def build_strategic_best_move_prompt(
+    board: list[list[int]],
+    current_player: int,
+) -> tuple[str, str]:
+    """
+    Build (system, user) prompts for the strategic best-move selector.
+    No scanner involved. Handles jump and quiet positions directly.
+    """
+    player_label = "RED" if current_player == RED else "BLACK"
+    board_grid   = render_board(board)
+    piece_list   = list_pieces(board, current_player)
+
+    user_prompt = "\n".join([
+        f"Current player: {player_label}",
+        "",
+        piece_list,
+        "",
+        "BOARD:",
+        board_grid,
+        "",
+        "Choose the single strongest legal move for the current player.",
+        'Respond ONLY with: {"best_move": [[r,c],[r,c],...]}',
+    ])
+
+    return STRATEGIC_BEST_MOVE_PROMPT, user_prompt
+
+
+def parse_best_move_output(raw: str) -> Optional[list[list[int]]]:
+    """
+    Parse strategic best-move output.
+
+    Expected format: {"best_move": [[r,c],[r,c],...]}
+
+    Returns path as list of [row, col] pairs (minimum length 2),
+    or None on any parse failure.
+    No repair, no reconstruction. Does NOT touch parse_proposal_output.
+    """
+    if not raw or not raw.strip():
+        return None
+    try:
+        data = json.loads(raw.strip())
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+    if not isinstance(data, dict):
+        return None
+
+    path_raw = data.get("best_move")
+    if not isinstance(path_raw, list) or len(path_raw) < 2:
+        return None
+
+    path: list[list[int]] = []
+    for coord in path_raw:
+        if not isinstance(coord, list) or len(coord) != 2:
+            return None
+        try:
+            r, c = int(coord[0]), int(coord[1])
+        except (ValueError, TypeError):
+            return None
+        path.append([r, c])
+
+    return path
+
+
+def run_strategic_selection(
+    board: list[list[int]],
+    current_player: int,
+) -> dict[str, Any]:
+    """
+    Run strategic best-move selection for one position.
+
+    No scanner. One single LLM call.
+    The model directly chooses the single strongest legal move.
+
+    Returns dict with keys:
+      strategic_raw:           raw LLM output
+      strategic_best_move:     parsed path (list of [r,c]) or None
+      strategic_api_ok:        bool
+      strategic_parse_failure: bool
+      api_failure:             bool
+    """
+    sys_prompt, usr_prompt = build_strategic_best_move_prompt(board, current_player)
+
+    raw, api_ok = _call_with_infra_retry(
+        system=sys_prompt,
+        user=usr_prompt,
+        api_key=PROPOSAL_API_KEY,
+        api_url=PROPOSAL_BASE_URL,
+        model=PROPOSAL_MODEL,
+        temperature=PROPOSAL_TEMPERATURE,
+        stage="strategic_best_move",
+    )
+
+    if not api_ok:
+        return {
+            "strategic_raw": raw,
+            "strategic_best_move": None,
+            "strategic_api_ok": False,
+            "strategic_parse_failure": False,
+            "api_failure": True,
+        }
+
+    parsed_path = parse_best_move_output(raw)
+    parse_failure = parsed_path is None
+
+    if parse_failure:
+        logger.warning("[strategic_best_move] output malformed — marking parse_failure")
+
+    return {
+        "strategic_raw": raw,
+        "strategic_best_move": parsed_path,
+        "strategic_api_ok": True,
+        "strategic_parse_failure": parse_failure,
+        "api_failure": False,
+    }
+
