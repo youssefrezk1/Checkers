@@ -102,30 +102,30 @@ class TestAdversitySeedsActivationGate:
         """Clearly losing (mm < -100) must also produce adversity seeds."""
         move = _make_move(minimax_score=-200.0, material_advantage=-2)
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert any("material_advantage" in s for s in seeds)
+        assert any("behind by" in s and "in material" in s for s in seeds)
 
     def test_integrated_fires_below_threshold(self):
         move = _make_move(minimax_score=-25.0, material_advantage=-1)
         all_c = [move, _alt(minimax_score=-80.0)]
         seeds = _build_grounded_reasoning_seeds(move, all_c)
-        assert any("material_advantage" in s for s in seeds)
+        assert any("behind by" in s and "in material" in s for s in seeds)
 
     def test_integrated_silent_at_minus_nineteen(self):
         move = _make_move(minimax_score=-19.0, material_advantage=-1)
         all_c = [move, _alt(minimax_score=-80.0)]
         seeds = _build_grounded_reasoning_seeds(move, all_c)
-        assert not any("material_advantage" in s for s in seeds)
+        assert not any("behind by" in s and "in material" in s for s in seeds)
 
     def test_integrated_silent_at_zero(self):
         move = _make_move(minimax_score=0.0, material_advantage=-1)
         all_c = [move, _alt(minimax_score=-80.0)]
         seeds = _build_grounded_reasoning_seeds(move, all_c)
-        assert not any("material_advantage" in s for s in seeds)
+        assert not any("behind by" in s and "in material" in s for s in seeds)
 
     def test_integrated_silent_at_positive(self):
         move = _make_move(minimax_score=30.0, material_advantage=-1)
         seeds = _build_grounded_reasoning_seeds(move, [move])
-        assert not any("material_advantage" in s for s in seeds)
+        assert not any("behind by" in s and "in material" in s for s in seeds)
 
     def test_no_crash_when_minimax_score_absent(self):
         move = {"path": [[5, 2], [4, 3]], "type": "simple", "facts": {}}
@@ -197,7 +197,7 @@ class TestMaterialDeficitSeed:
     def test_fires_when_behind_by_one(self):
         move = _make_move(minimax_score=-30.0, material_advantage=-1)
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert any("material_advantage=-1" in s for s in seeds)
+        assert any("behind by 1 piece" in s for s in seeds)
 
     def test_fires_when_behind_by_three(self):
         move = _make_move(minimax_score=-30.0, material_advantage=-3)
@@ -207,24 +207,23 @@ class TestMaterialDeficitSeed:
     def test_uses_exact_deficit_value(self):
         move = _make_move(minimax_score=-30.0, material_advantage=-2)
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        mat_seed = next(s for s in seeds if "material_advantage" in s)
-        assert "material_advantage=-2" in mat_seed
-        assert "behind by 2 piece(s)" in mat_seed
+        mat_seed = next(s for s in seeds if "behind by" in s and "in material" in s)
+        assert "behind by 2 piece" in mat_seed
 
     def test_absent_when_equal(self):
         move = _make_move(minimax_score=-30.0, material_advantage=0)
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert not any("material_advantage" in s for s in seeds)
+        assert not any("behind by" in s and "in material" in s for s in seeds)
 
     def test_absent_when_ahead(self):
         move = _make_move(minimax_score=-30.0, material_advantage=2)
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert not any("material_advantage" in s for s in seeds)
+        assert not any("behind by" in s and "in material" in s for s in seeds)
 
     def test_absent_when_key_missing(self):
         facts = {"minimax_score": -30.0}
         seeds = _build_adversity_context_seeds(facts, [], [[5, 2], [4, 3]])
-        assert not any("material_advantage" in s for s in seeds)
+        assert not any("behind by" in s and "in material" in s for s in seeds)
 
 
 # ---------------------------------------------------------------------------
@@ -240,7 +239,7 @@ class TestThreatReductionSeed:
             our_pieces_threatened_after=1,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert any("reduces threatened pieces from 2 to 1" in s for s in seeds)
+        assert any("reduces threatened allied pieces from 2 to 1" in s for s in seeds)
 
     def test_fires_when_fully_resolved(self):
         move = _make_move(
@@ -249,7 +248,7 @@ class TestThreatReductionSeed:
             our_pieces_threatened_after=0,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert any("reduces threatened pieces from 2 to 0" in s for s in seeds)
+        assert any("reduces threatened allied pieces from 2 to 0" in s for s in seeds)
 
     def test_contains_exact_numbers(self):
         move = _make_move(
@@ -258,7 +257,7 @@ class TestThreatReductionSeed:
             our_pieces_threatened_after=1,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        seed = next(s for s in seeds if "reduces threatened pieces" in s)
+        seed = next(s for s in seeds if "reduces threatened allied pieces" in s)
         assert "3" in seed and "1" in seed
 
     def test_absent_when_no_prior_threat(self):
@@ -268,7 +267,7 @@ class TestThreatReductionSeed:
             our_pieces_threatened_after=0,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert not any("reduces threatened pieces" in s for s in seeds)
+        assert not any("reduces threatened allied pieces" in s for s in seeds)
 
     def test_absent_when_no_improvement(self):
         move = _make_move(
@@ -277,7 +276,7 @@ class TestThreatReductionSeed:
             our_pieces_threatened_after=1,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert not any("reduces threatened pieces" in s for s in seeds)
+        assert not any("reduces threatened allied pieces" in s for s in seeds)
 
     def test_absent_when_threat_increases(self):
         move = _make_move(
@@ -286,7 +285,7 @@ class TestThreatReductionSeed:
             our_pieces_threatened_after=2,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert not any("reduces threatened pieces" in s for s in seeds)
+        assert not any("reduces threatened allied pieces" in s for s in seeds)
 
 
 # ---------------------------------------------------------------------------
@@ -298,12 +297,12 @@ class TestOpponentNearPromotionSeed:
     def test_fires_when_true(self):
         move = _make_move(minimax_score=-30.0, opponent_near_promotion=True)
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert any("opponent_near_promotion=true" in s for s in seeds)
+        assert any("At least one opponent piece" in s and "one step from promotion" in s for s in seeds)
 
     def test_uses_board_state_wording_only(self):
         move = _make_move(minimax_score=-30.0, opponent_near_promotion=True)
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        promo_seed = next(s for s in seeds if "opponent_near_promotion" in s)
+        promo_seed = next(s for s in seeds if "At least one opponent piece" in s)
         # Must describe board state, not claim move blocks it
         assert "one step from promotion" in promo_seed
         assert "block" not in promo_seed.lower()
@@ -312,12 +311,12 @@ class TestOpponentNearPromotionSeed:
     def test_absent_when_false(self):
         move = _make_move(minimax_score=-30.0, opponent_near_promotion=False)
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert not any("opponent_near_promotion" in s for s in seeds)
+        assert not any("At least one opponent piece" in s and "one step from promotion" in s for s in seeds)
 
     def test_absent_when_key_missing(self):
         facts = {"minimax_score": -30.0}
         seeds = _build_adversity_context_seeds(facts, [], [[5, 2], [4, 3]])
-        assert not any("opponent_near_promotion" in s for s in seeds)
+        assert not any("At least one opponent piece" in s and "one step from promotion" in s for s in seeds)
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +332,7 @@ class TestMobilityAsymmetrySeed:
             our_mobility_before=9,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert any("structural disadvantage" in s for s in seeds)
+        assert any("mobility disadvantage" in s for s in seeds)
 
     def test_fires_when_gap_greater_than_4(self):
         move = _make_move(
@@ -342,7 +341,7 @@ class TestMobilityAsymmetrySeed:
             our_mobility_before=8,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert any("structural disadvantage" in s for s in seeds)
+        assert any("mobility disadvantage" in s for s in seeds)
 
     def test_contains_exact_mobility_values(self):
         move = _make_move(
@@ -351,7 +350,7 @@ class TestMobilityAsymmetrySeed:
             our_mobility_before=9,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        mob_seed = next(s for s in seeds if "structural disadvantage" in s)
+        mob_seed = next(s for s in seeds if "mobility disadvantage" in s)
         assert "14" in mob_seed and "9" in mob_seed
 
     def test_fires_when_gap_exactly_3(self):
@@ -361,7 +360,7 @@ class TestMobilityAsymmetrySeed:
             our_mobility_before=9,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert any("structural disadvantage" in s for s in seeds)
+        assert any("mobility disadvantage" in s for s in seeds)
 
     def test_absent_when_gap_is_2(self):
         move = _make_move(
@@ -370,12 +369,12 @@ class TestMobilityAsymmetrySeed:
             our_mobility_before=9,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert not any("structural disadvantage" in s for s in seeds)
+        assert not any("mobility disadvantage" in s for s in seeds)
 
     def test_absent_when_mobility_facts_absent(self):
         facts = {"minimax_score": -30.0}
         seeds = _build_adversity_context_seeds(facts, [], [[5, 2], [4, 3]])
-        assert not any("structural disadvantage" in s for s in seeds)
+        assert not any("mobility disadvantage" in s for s in seeds)
 
     def test_absent_when_not_losing(self):
         """Gate: Seed E must not appear when mm >= -20 (gate in _build_grounded_reasoning_seeds)."""
@@ -385,7 +384,7 @@ class TestMobilityAsymmetrySeed:
             our_mobility_before=9,
         )
         seeds = _build_grounded_reasoning_seeds(move, [move])
-        assert not any("structural disadvantage" in s for s in seeds)
+        assert not any("mobility disadvantage" in s for s in seeds)
 
     def test_absent_when_equal(self):
         move = _make_move(
@@ -394,7 +393,7 @@ class TestMobilityAsymmetrySeed:
             our_mobility_before=9,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert not any("structural disadvantage" in s for s in seeds)
+        assert not any("mobility disadvantage" in s for s in seeds)
 
     def test_absent_when_we_have_more(self):
         move = _make_move(
@@ -403,7 +402,7 @@ class TestMobilityAsymmetrySeed:
             our_mobility_before=11,
         )
         seeds = _build_adversity_context_seeds(move["facts"], [], move["path"])
-        assert not any("structural disadvantage" in s for s in seeds)
+        assert not any("mobility disadvantage" in s for s in seeds)
 
 
 # ---------------------------------------------------------------------------
@@ -419,13 +418,13 @@ class TestAdversitySeedOrdering:
 
     def test_adversity_seeds_before_minimax_wording(self):
         seeds = self._full_seeds(material_advantage=-1)
-        mat_idx = next(i for i, s in enumerate(seeds) if "material_advantage" in s)
-        mm_idx  = next(i for i, s in enumerate(seeds) if "minimax_score=" in s)
+        mat_idx = next(i for i, s in enumerate(seeds) if "behind by" in s and "in material" in s)
+        mm_idx  = next(i for i, s in enumerate(seeds) if "The engine scores this move" in s)
         assert mat_idx < mm_idx
 
     def test_minimax_seed_is_last(self):
         seeds = self._full_seeds(material_advantage=-1)
-        assert "minimax_score=" in seeds[-1]
+        assert "The engine scores this move" in seeds[-1]
 
     def test_standard_mobility_seeds_still_present(self):
         """Phase-6 dedup: mobility seeds now use natural-language wording
@@ -447,8 +446,8 @@ class TestAdversitySeedOrdering:
             material_advantage=-2,
             opponent_can_recapture=True,
         )
-        mat_idx  = next((i for i, s in enumerate(seeds) if "material_advantage" in s), None)
-        recap_idx = next((i for i, s in enumerate(seeds) if "opponent_can_recapture" in s), None)
+        mat_idx  = next((i for i, s in enumerate(seeds) if "behind by" in s and "in material" in s), None)
+        recap_idx = next((i for i, s in enumerate(seeds) if "recapture" in s and "opponent" in s), None)
         if mat_idx is not None and recap_idx is not None:
             assert mat_idx < recap_idx
 
@@ -461,10 +460,10 @@ class TestAdversitySeedOrdering:
             opponent_mobility_before=15,
             our_mobility_before=9,
         )
-        assert any("material_advantage" in s for s in seeds)
-        assert any("reduces threatened pieces" in s for s in seeds)
-        assert any("opponent_near_promotion" in s for s in seeds)
-        assert any("structural disadvantage" in s for s in seeds)
+        assert any("behind by" in s and "in material" in s for s in seeds)
+        assert any("reduces threatened allied pieces" in s for s in seeds)
+        assert any("At least one opponent piece" in s and "one step from promotion" in s for s in seeds)
+        assert any("mobility disadvantage" in s for s in seeds)
 
 
 # ---------------------------------------------------------------------------
@@ -520,26 +519,26 @@ class TestNonLosingRegression:
 
     def test_no_adversity_seeds_at_minus_nineteen(self):
         seeds = self._seeds_at_score(-19.0)
-        assert not any("material_advantage" in s for s in seeds)
-        assert not any("reduces threatened pieces" in s for s in seeds)
-        assert not any("opponent_near_promotion=true" in s for s in seeds)
-        assert not any("structural disadvantage" in s for s in seeds)
+        assert not any("behind by" in s and "in material" in s for s in seeds)
+        assert not any("reduces threatened allied pieces" in s for s in seeds)
+        assert not any("At least one opponent piece" in s and "one step from promotion" in s for s in seeds)
+        assert not any("mobility disadvantage" in s for s in seeds)
         assert not any("points better" in s for s in seeds)
 
     def test_no_adversity_seeds_at_zero(self):
         seeds = self._seeds_at_score(0.0)
-        assert not any("material_advantage" in s for s in seeds)
-        assert not any("structural disadvantage" in s for s in seeds)
+        assert not any("behind by" in s and "in material" in s for s in seeds)
+        assert not any("mobility disadvantage" in s for s in seeds)
 
     def test_standard_seeds_still_present_at_minus_nineteen(self):
         seeds = self._seeds_at_score(-19.0)
-        assert any("opponent_can_recapture" in s for s in seeds)
-        assert any("minimax_score=" in s for s in seeds)
+        assert any("immediately recaptured" in s for s in seeds)
+        assert any("The engine scores this move" in s for s in seeds)
 
     def test_minimax_last_in_non_losing(self):
         seeds = self._seeds_at_score(-19.0)
-        assert "minimax_score=" in seeds[-1]
+        assert "The engine scores this move" in seeds[-1]
 
     def test_minimax_last_in_losing(self):
         seeds = self._seeds_at_score(-50.0)
-        assert "minimax_score=" in seeds[-1]
+        assert "The engine scores this move" in seeds[-1]

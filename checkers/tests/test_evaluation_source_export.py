@@ -18,8 +18,7 @@ snapshot and the logger call would silently drop the export.
 
 This test exercises one full `update_agent` invocation and asserts the
 JSONL artifact contains the required non-null fields.  It also confirms that
-inter_turn_memory (Phase D) and the final merged dict do NOT carry
-`chosen_move_facts` forward into the next turn.
+the final merged dict does NOT carry `chosen_move_facts` forward into the next turn.
 """
 
 from __future__ import annotations
@@ -243,47 +242,3 @@ class TestEvaluationSourceJSONLExport:
             "chosen_move_facts leaked into the merged update_agent output — "
             "evaluation-only snapshot was promoted to runtime state"
         )
-
-    def test_chosen_move_facts_not_passed_to_inter_turn_memory(
-        self, isolated_log_dir, monkeypatch,
-    ):
-        """Phase D (inter_turn_memory) must receive chosen_move_facts=None to
-        prevent next-turn leakage."""
-        captured: list[CheckersState] = []
-
-        import checkers.agents.update_agent as ua_mod
-        real_itm = ua_mod.inter_turn_memory
-
-        def _spy(state: CheckersState) -> dict:
-            captured.append(state)
-            return real_itm(state)
-
-        monkeypatch.setattr(ua_mod, "inter_turn_memory", _spy)
-
-        state, _, _ = self._run_one_ply(isolated_log_dir)
-        assert captured, "inter_turn_memory was not called"
-        # The state passed to inter_turn_memory must have chosen_move_facts=None.
-        assert captured[0].chosen_move_facts is None, (
-            "inter_turn_memory received a non-null chosen_move_facts — "
-            "snapshot leaked beyond logger_node"
-        )
-
-    # ── regression guard: reordering bug detection ───────────────────────────
-
-    def test_snapshot_taken_before_state_manager_clears_field(self, isolated_log_dir):
-        """If a future refactor moves the snapshot to AFTER state_manager,
-        chosen_move_facts in the JSONL will become null.  This test re-runs the
-        full ply and confirms the artifact contains the value that existed
-        BEFORE state_manager wiped it."""
-        state, chosen, _ = self._run_one_ply(isolated_log_dir)
-        records = self._read_eval_jsonl(isolated_log_dir, state.game_log_id)
-        rec = records[0]
-        facts = rec["chosen_move_facts"]
-        assert facts is not None
-        # Spot-check that the exported facts mirror the input chosen_move's
-        # facts dict for keys actually present on both sides.
-        for key in ("captures_count", "net_gain", "opponent_can_recapture"):
-            if key in chosen["facts"]:
-                assert facts.get(key) == chosen["facts"][key], (
-                    f"exported facts disagree with chosen_move's facts for {key}"
-                )

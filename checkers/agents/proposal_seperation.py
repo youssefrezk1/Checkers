@@ -562,12 +562,17 @@ def build_jump_prompt(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SINGLE-BEST JUMP PROPOSER PROMPT
+# SINGLE-MOVE JUMP PROPOSER PROMPT
 # ══════════════════════════════════════════════════════════════════════════════
+# Architecturally parallel to JUMP_SYSTEM_PROMPT.
+# Inherits: all legality gates, board grounding, coordinate discipline,
+#   Phase 1/2/3 procedure, format rules, anti-hallucination instructions.
+# Only difference from JUMP_SYSTEM_PROMPT: task objective changes from
+#   "output ALL legal capture sequences" → "output exactly ONE legal capture sequence".
 
-jump_single_best_prompt = """\
+JUMP_SINGLE_SYSTEM_PROMPT = """\
 You are an American Checkers legal jump-move generator.
-Task: output ONLY the SINGLE STRONGEST legal capture sequence (strategically best move) for the active player.
+Task: output exactly ONE complete legal capture sequence for the active player.
 
 SYMBOLS: r=RED man  R=RED king  b=BLACK man  B=BLACK king  .=empty  #=light(ignore)
 Row 0=TOP  Row 7=BOTTOM  Col 0=LEFT  Col 7=RIGHT  Dark=(row+col) ODD
@@ -585,7 +590,7 @@ DIRECTIONS:
 For EVERY own piece, EVERY applicable direction:
   GATE-1: land in-bounds (both row and col in 0–7)?            Skip if no.
   GATE-2: board[mid] = OPPONENT symbol?                         Skip if no.
-  GATE-3: board[land] = '.'?                                    Skip if no.
+  GATE-3: board[land] = ‘.’?                                    Skip if no.
   All 3 pass → valid first jump. Record it.
 ❖ Scan ALL pieces and ALL directions before deciding output. Do not stop early.
 
@@ -618,15 +623,19 @@ OUTPUT — strict JSON, no text before or after:
 {"moves":[{"type":"jump","path":[...],"captured":[...]}]
 }
 
-Choose the single strategically best legal capture sequence. Output exactly ONE move in the "moves" list. Never output alternative moves. Do not explain.
+Output exactly ONE complete legal capture sequence from your verified scan results.
+Output exactly ONE move in the "moves" list. Never output more than one. Do not explain.
 """
+
+# Backward-compatible alias (deprecated — use JUMP_SINGLE_SYSTEM_PROMPT)
+jump_single_best_prompt = JUMP_SINGLE_SYSTEM_PROMPT
 
 
 def build_jump_single_best_prompt(
     board: list[list[int]],
     current_player: int,
 ) -> tuple[str, str]:
-    """Build (system, user) prompts for the single-best jump proposer. No hints."""
+    """Build (system, user) prompts for the single-move jump proposer. No hints."""
     player_label = "RED" if current_player == RED else "BLACK"
     board_grid   = render_board(board)
     piece_list   = list_pieces(board, current_player)
@@ -639,11 +648,11 @@ def build_jump_single_best_prompt(
         "BOARD:",
         board_grid,
         "",
-        "Choose the single strategically best legal capture sequence for the current player.",
+        "Generate exactly one legal capture sequence for the current player.",
         "Return STRICT JSON ONLY.",
     ])
 
-    return jump_single_best_prompt, user_prompt
+    return JUMP_SINGLE_SYSTEM_PROMPT, user_prompt
 
 
 
@@ -715,12 +724,17 @@ def build_quiet_prompt(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SINGLE-BEST QUIET PROPOSER PROMPT
+# SINGLE-MOVE QUIET PROPOSER PROMPT
 # ══════════════════════════════════════════════════════════════════════════════
+# Architecturally parallel to QUIET_SYSTEM_PROMPT.
+# Inherits: all legality gates, board grounding, coordinate discipline,
+#   procedure, format rules, anti-hallucination instructions.
+# Only difference from QUIET_SYSTEM_PROMPT: task objective changes from
+#   "output ALL legal simple moves" → "output exactly ONE legal simple move".
 
-quiet_single_best_prompt = """\
+QUIET_SINGLE_SYSTEM_PROMPT = """\
 You are an American Checkers non-capturing move generator.
-Task: output ONLY the SINGLE STRONGEST legal simple move (strategically best move) for the active player.
+Task: output exactly ONE complete legal simple move for the active player.
 
 SYMBOLS: r=RED man  R=RED king  b=BLACK man  B=BLACK king  .=empty  #=light(ignore)
 Row 0=TOP  Row 7=BOTTOM  Col 0=LEFT  Col 7=RIGHT  Dark=(row+col) ODD
@@ -750,15 +764,19 @@ COMMON MISTAKES TO AVOID:
 OUTPUT — strict JSON, no text before or after:
 {"moves":[{"type":"simple","path":[[from_r,from_c],[to_r,to_c]],"captured":[]}]}
 
-Choose the single strategically best legal simple move. Output exactly ONE move in the "moves" list. Never output alternative moves. Do not explain.
+Output exactly ONE complete legal simple move from your verified scan results.
+Output exactly ONE move in the "moves" list. Never output more than one. Do not explain.
 """
+
+# Backward-compatible alias (deprecated — use QUIET_SINGLE_SYSTEM_PROMPT)
+quiet_single_best_prompt = QUIET_SINGLE_SYSTEM_PROMPT
 
 
 def build_quiet_single_best_prompt(
     board: list[list[int]],
     current_player: int,
 ) -> tuple[str, str]:
-    """Build (system, user) prompts for the single-best quiet proposer. No hints."""
+    """Build (system, user) prompts for the single-move quiet proposer. No hints."""
     player_label = "RED" if current_player == RED else "BLACK"
     board_grid   = render_board(board)
     piece_list   = list_pieces(board, current_player)
@@ -771,11 +789,11 @@ def build_quiet_single_best_prompt(
         "BOARD:",
         board_grid,
         "",
-        "Choose the single strategically best legal non-capturing (simple) move for the current player.",
+        "Generate exactly one legal non-capturing (simple) move for the current player.",
         "Return STRICT JSON ONLY.",
     ])
 
-    return quiet_single_best_prompt, user_prompt
+    return QUIET_SINGLE_SYSTEM_PROMPT, user_prompt
 
 
 # ══════════════════════════════════════════════════════════════════════════════

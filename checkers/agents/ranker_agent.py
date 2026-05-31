@@ -15,41 +15,33 @@
 # Backend : Mistral API only (call_mistral_ranker / call_ranker).
 # Model   : MISTRAL_RANKER_MODEL env var, default "mistral-small-latest".
 # Key     : MISTRAL_API_KEY env var (console.mistral.ai).
-#
-# NOTE: a large block of legacy decision-mode helpers (safety filter,
-# override/retry loop, LLM-selection prompts, deterministic fallback
-# selectors, …) is preserved further down in this module because
-# external evaluation scripts and regression tests still import them by
-# name. None of those helpers are invoked from `ranker_agent` — the
-# entry point at the bottom of this file routes unconditionally to the
-# explanation-only path `_explain_chosen_move`.
 
 from __future__ import annotations
 
-import json
 import os
 import re
-import urllib.error
-import urllib.request
 from typing import Any, Optional
 
 from checkers.state.state import CheckersState
-from checkers.engine.board import RED, BLACK
-
-# ── Backend selection ─────────────────────────────────────────────────────────
-# Ranker is fixed to Mistral API only.
-RANKER_BACKEND = "mistral"
+from checkers.engine.board import RED
+from checkers.agents.comparative_reasoner import generate_comparative_reasoning
+from checkers.agents.llm_provider import call_mistral_once, ProviderHTTPError
+from checkers.ontology.semantic_ontology import (
+    FORBIDDEN_CONFLATION_PHRASES as _ONTOLOGY_FORBIDDEN_CONFLATION,
+    GENERIC_FILLER_PHRASES as _ONTOLOGY_GENERIC_FILLER,
+)
+from checkers.evaluation.forbidden_vocab import (
+    ABSOLUTE_FORBIDDEN_VOCAB as _FORBIDDEN_VOCAB,
+    CONTEXT_FORBIDDEN_VOCAB as _CONTEXT_FORBIDDEN_VOCAB,
+)
 
 # ── Mistral settings ──────────────────────────────────────────────────────────
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 MISTRAL_RANKER_MODEL = os.environ.get("MISTRAL_RANKER_MODEL", "mistral-small-latest")
-MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
 
 
 # ── Shared settings ───────────────────────────────────────────────────────────
 RANKER_TEMPERATURE = float(os.environ.get("RANKER_TEMPERATURE", "0.2"))
-_include = os.environ.get("RANKER_INCLUDE_STRATEGIC_CONTEXT", "true").lower()
-RANKER_INCLUDE_STRATEGIC_CONTEXT = _include in ("1", "true", "yes", "on")
 
 
 # ── Ablation toggle ──────────────────────────────────────────────────────────
@@ -78,318 +70,19 @@ def _current_run_tag() -> str:
         return explicit.strip()
     return "seed_off" if _seeds_disabled() else "seed_on"
 
-# LEGACY — safety-filter constants, unused in simplified proposal-authoritative pipeline.
-MINIMAX_ALL_UNSAFE_MARGIN = float(os.environ.get("MINIMAX_ALL_UNSAFE_MARGIN", "3.0"))
-# Minimum minimax advantage over the best safe move required for an unsafe move
-# to pass through the safety filter in non-losing (equal/winning) positions.
-# Lowered from 20.0 → 14.0 to fix the T5-class bug: when a dominant unsafe move
-# (gap=17pt) was rejected by the filter, the override logic never saw it.
-# At 14.0, an unsafe move must still be meaningfully better (+14pt) to survive.
-SAFETY_FILTER_LARGE_GAP = float(os.environ.get("SAFETY_FILTER_LARGE_GAP", "14.0"))
+
+def _comparative_stage_enabled() -> bool:
+    """True by default (Step 7 cutover); disabled only by explicit opt-out.
+
+    Set RANKER_COMPARATIVE_STAGE_ENABLED to '0', 'false', 'no', or 'off' to
+    disable the comparative-reasoning paragraph and restore pre-Step-7 behaviour
+    for ablation or emergency rollback.
+    """
+    return os.environ.get("RANKER_COMPARATIVE_STAGE_ENABLED", "1").lower() not in (
+        "0", "false", "no", "off", "",
+    )
+
 # ── Utility helpers ───────────────────────────────────────────────────────────
-
-def _current_player_label(current_player: int) -> str:
-    return "RED" if current_player == RED else "BLACK"
-
-
-def _strip_markdown_fences(raw: str) -> str:
-    raw = raw.strip()
-    if raw.startswith("```"):
-        lines = raw.split("\n")
-        lines = [ln for ln in lines if not ln.strip().startswith("```")]
-        raw = "\n".join(lines).strip()
-    return raw
-
-
-def _parse_ranker_json(text: str) -> Optional[dict[str, Any]]:
-    text = _strip_markdown_fences(text)
-    try:
-        obj = json.loads(text)
-        return obj if isinstance(obj, dict) else None
-    except json.JSONDecodeError:
-        pass
-    start = text.find("{")
-    while start >= 0:
-        end = text.rfind("}", start)
-        while end > start:
-            chunk = text[start : end + 1]
-            try:
-                obj = json.loads(chunk)
-                if isinstance(obj, dict):
-                    return obj
-            except json.JSONDecodeError:
-                pass
-            end = text.rfind("}", start, end)
-        start = text.find("{", start + 1)
-    return None
-
-
-def _extract_chosen_index(obj: dict[str, Any]) -> Optional[int]:
-    for key in (
-        "chosen_index",
-        "chosen_idx",
-        "selected_index",
-        "move_index",
-        "index",
-        "choice",
-    ):
-        if key not in obj:
-            continue
-        v = obj[key]
-        if isinstance(v, bool):
-            continue
-        if isinstance(v, (int, float)):
-            return int(v)
-        if isinstance(v, str):
-            s = v.strip()
-            if re.fullmatch(r"-?\d+", s):
-                return int(s)
-    return None
-
-
-def _regex_extract_chosen_index(text: str) -> Optional[int]:
-    patterns = (
-        r'"chosen_index"\s*:\s*(\d+)',
-        r"'chosen_index'\s*:\s*(\d+)",
-        r'"selected_index"\s*:\s*(\d+)',
-        r'"move_index"\s*:\s*(\d+)',
-        r'chosen_index\s*[=:]\s*(\d+)',
-    )
-    for pat in patterns:
-        m = re.search(pat, text, re.IGNORECASE)
-        if m:
-            return int(m.group(1))
-    return None
-
-
-def _regex_extract_reasoning(text: str) -> Optional[str]:
-    m = re.search(
-        r'"reasoning"\s*:\s*"((?:\\.|[^"\\])*)"',
-        text,
-        re.DOTALL,
-    )
-    if not m:
-        return None
-    inner = m.group(1).replace("\\n", " ").replace("\\\"", '"')
-    inner = re.sub(r"\s+", " ", inner).strip()
-    return inner or None
-
-
-def _resolve_ranker_index(raw_idx: Optional[int], n: int) -> Optional[int]:
-    if raw_idx is None or n <= 0:
-        return None
-    if 0 <= raw_idx < n:
-        return raw_idx
-    if 1 <= raw_idx <= n:
-        return raw_idx - 1
-    return None
-
-
-# ── Safety filter ─────────────────────────────────────────────────────────────
-# LEGACY — unused in simplified proposal-authoritative pipeline.
-# Retained for rollback compatibility with the legacy decision-making path.
-
-def _apply_safety_filter(
-    legal: list[dict[str, Any]],
-    strategic_priorities: Optional[list[str]] = None,
-    score_state: str = "EQUAL",
-) -> tuple[list[dict[str, Any]], list[int]]:
-    """
-    Context-aware soft symbolic pre-filter.
-
-    In equal/winning positions: keep safe moves, plus any unsafe move whose
-    minimax_score exceeds the best safe score by SAFETY_FILTER_LARGE_GAP.
-    This prevents a tactically dominant move from being invisible to the ranker
-    just because it carries a small recapture risk.
-    In losing/counterplay positions: also allow unsafe moves through
-    if they have meaningfully better minimax_score AND real tactical action.
-    This gives the ranker visibility into active counterplay continuations
-    without opening the gate to every flashy unsafe move.
-
-    PROMOTION EXEMPTION: Any move with results_in_king=True is always kept in
-    the candidate set regardless of opponent_can_recapture. The King's enhanced
-    mobility means a corner threat is rarely immediately fatal. The ranker and
-    minimax override are trusted to evaluate the position correctly once the
-    promotion move is visible.
-    """
-    priorities = strategic_priorities or []
-
-    losing_mode = (
-        score_state in ("CLEARLY_LOSING", "SLIGHTLY_LOSING")
-        or "SEEK_COUNTERPLAY" in priorities
-        or "COMPLICATE" in priorities
-        or "CREATE_THREATS" in priorities
-    )
-
-    # ── Promotion exemption pass ──────────────────────────────────────────────
-    # Identify promotion moves before any filtering. They will be added back
-    # unconditionally at the end of each path so the ranker always sees them.
-    promotion_moves: list[tuple[int, dict]] = [
-        (i, m) for i, m in enumerate(legal)
-        if (m.get("facts") or {}).get("results_in_king", False)
-    ]
-    if promotion_moves:
-        promo_paths = [m.get("path") for _, m in promotion_moves]
-        promo_scores = [_get_minimax_score(m) for _, m in promotion_moves]
-        print(
-            f"[SAFETY_FILTER][PROMOTION] {len(promotion_moves)} promotion move(s) detected: "
-            f"paths={promo_paths} scores={promo_scores}. "
-            "These will survive the safety filter unconditionally."
-        )
-
-    def _merge_promotions(
-        kept: list[tuple[int, dict]],
-    ) -> list[tuple[int, dict]]:
-        """Add any promotion moves not already in kept, then sort by original index."""
-        kept_indices = {idx for idx, _ in kept}
-        for i, m in promotion_moves:
-            if i not in kept_indices:
-                kept.append((i, m))
-                print(
-                    f"[SAFETY_FILTER][PROMOTION] Promotion move {m.get('path')} "
-                    f"(score={_get_minimax_score(m):.1f}) added back after safety filter."
-                )
-        kept.sort(key=lambda x: x[0])
-        return kept
-    # ─────────────────────────────────────────────────────────────────────────
-
-    safe = [
-        (i, m) for i, m in enumerate(legal)
-        if not m.get("facts", {}).get("opponent_can_recapture", False)
-    ]
-
-    # If no safe moves exist, keep all.
-    if not safe:
-        return legal, list(range(len(legal)))
-
-    best_safe_score = max(_get_minimax_score(m) for _, m in safe)
-
-    def _has_real_action(facts: dict) -> bool:
-        return (
-            facts.get("creates_immediate_threat", False)
-            or facts.get("shot_sequence_available", False)
-            or facts.get("blocks_opponent_landing", False)
-        )
-
-    def _unsafe_qualifies(m: dict) -> bool:
-        """Returns True if an unsafe move is strong enough to show the ranker."""
-        facts = m.get("facts", {}) or {}
-        score = _get_minimax_score(m)
-        gap = score - best_safe_score
-        has_action = _has_real_action(facts)
-        strong_counterplay = facts.get("counterplay_score", 0) >= 12
-        # Always allow through if minimax gap is large enough (normal rule)
-        if gap >= MINIMAX_ALL_UNSAFE_MARGIN:
-            return True
-        # In losing/counterplay mode: allow if gap is meaningful AND
-        # the move has concrete tactical justification
-        if losing_mode and gap >= 2.0 and (has_action or strong_counterplay):
-            return True
-        return False
-
-    pre_filter_size = len(legal)
-
-    if len(safe) >= 2:
-        if not losing_mode:
-            # Normal mode: keep safe moves, plus any unsafe move that is
-            # tactically dominant (minimax gap above SAFETY_FILTER_LARGE_GAP).
-            kept = list(safe)
-            for i, m in enumerate(legal):
-                if any(i == si for si, _ in safe):
-                    continue
-                score = _get_minimax_score(m)
-                if score > best_safe_score + SAFETY_FILTER_LARGE_GAP:
-                    kept.append((i, m))
-            kept = _merge_promotions(kept)
-            post_filter_size = len(kept)
-            print(
-                f"[SAFETY_FILTER] pre={pre_filter_size} post={post_filter_size} "
-                f"mode=normal safe_count={len(safe)}"
-            )
-            if len(kept) == len([k for k in kept if any(k[0] == si for si, _ in safe)]):
-                # No dominant unsafe moves and no promotions added — fast path.
-                return [m for _, m in kept], [i for i, _ in kept]
-            kept.sort(key=lambda x: x[0])
-            return [m for _, m in kept], [i for i, _ in kept]
-        # Losing mode: keep safe moves + qualifying unsafe moves
-        kept = list(safe)
-        for i, m in enumerate(legal):
-            if any(i == si for si, _ in safe):
-                continue
-            if _unsafe_qualifies(m):
-                kept.append((i, m))
-        kept = _merge_promotions(kept)
-        post_filter_size = len(kept)
-        print(
-            f"[SAFETY_FILTER] pre={pre_filter_size} post={post_filter_size} "
-            f"mode=losing safe_count={len(safe)}"
-        )
-        kept.sort(key=lambda x: x[0])
-        return [m for _, m in kept], [i for i, _ in kept]
-
-    # Only one safe move — keep it plus any qualifying unsafe moves
-    safe_idx, safe_move = safe[0]
-    kept: list[tuple[int, dict[str, Any]]] = [(safe_idx, safe_move)]
-    for i, m in enumerate(legal):
-        if i == safe_idx:
-            continue
-        if _unsafe_qualifies(m):
-            kept.append((i, m))
-    kept = _merge_promotions(kept)
-    post_filter_size = len(kept)
-    print(
-        f"[SAFETY_FILTER] pre={pre_filter_size} post={post_filter_size} "
-        f"mode={'losing' if losing_mode else 'normal'} safe_count=1"
-    )
-    if post_filter_size == 1 and not losing_mode:
-        print(
-            f"[WARNING][SAFETY_FILTER] Collapsed to 1 candidate in non-losing mode. "
-            f"best_safe_score={best_safe_score:.1f}. "
-            "Consider reviewing SAFETY_FILTER_LARGE_GAP."
-        )
-    return [m for _, m in kept], [i for i, _ in kept]
-
-    
-
-
-# ── Minimax dominance guardrail ──────────────────────────────────────────────
-# LEGACY — override constants, unused in simplified proposal-authoritative pipeline.
-
-MINIMAX_DOMINANCE_MARGIN = float(os.environ.get("MINIMAX_DOMINANCE_MARGIN", "2.0"))
-QUIET_MINIMAX_MARGIN = float(os.environ.get("QUIET_MINIMAX_MARGIN", "2.0"))
-TACTICAL_MINIMAX_MAX_GAP = float(os.environ.get("TACTICAL_MINIMAX_MAX_GAP", "8.0"))
-LOW_DANGER_ACTIVE_MINIMAX_GAP = float(os.environ.get("LOW_DANGER_ACTIVE_MINIMAX_GAP", "8.0"))
-OPENING_LOW_DANGER_GAP = float(os.environ.get("OPENING_LOW_DANGER_GAP", "6.0"))
-LOW_DANGER_MINIMAX_GAP = float(os.environ.get("LOW_DANGER_MINIMAX_GAP", "3.0"))
-# Minimax gap above which structural exceptions (isolation, weakens_king_row)
-# can no longer suppress an override.  When the minimax gap is this large,
-# the search has already priced in the structural risk — letting isolation
-# cancel a 15+ pt gap is wrong.  Previous value was 50.0 (too permissive),
-# which caused the T5-class bug where a 17 pt gap was vetoed by isolation.
-STRUCTURE_EXCEPTION_FLOOR = float(os.environ.get("STRUCTURE_EXCEPTION_FLOOR", "15.0"))  # LEGACY
-# Gap at which the override fires even when the best move is unsafe (threat_after=1)
-# but the chosen move is fully safe. Prevents the LLM's safety-first bias from
-# ignoring a tactically dominant move that was explicitly shown in the filtered menu.
-# Lowered from 18.0 → 15.0: the T5-class gap is 17pt which was 1pt below threshold.
-# At depth-4 minimax, 15pt already accounts for structural risk; letting the LLM
-# absorb a 15+ pt penalty for safety bias is no longer acceptable.
-SAFE_VS_UNSAFE_OVERRIDE_GAP = float(os.environ.get("SAFE_VS_UNSAFE_OVERRIDE_GAP", "15.0"))  # LEGACY
-# Fallback gap threshold for the unsafe-vs-unsafe blind spot.
-# When BOTH chosen and best are unsafe (no branch covers them), this fires if
-# the gap is large enough to be unambiguous.
-# TWO TIERS:
-#   Tier-1 (gap ≥ 35): fires when best_threat < chosen_threat — best is safer
-#     despite both being "unsafe". Confirmed at T11 (gap=42, best_th=1 < chosen_th=2).
-#   Tier-2 (gap ≥ 150): fires when threat exposure is equal — conservative to
-#     avoid false positives from noise in deep-game scores.
-UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP", "35.0"))  # LEGACY
-UNSAFE_VS_UNSAFE_FALLBACK_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_FALLBACK_GAP", "150.0"))  # LEGACY
-# Midgap threshold: equal threat exposure on both moves, override purely by minimax.
-# Slightly above tier-1 (35) because no threat advantage justifies the override —
-# minimax must work alone. Confirmed T13-class miss: gap=56, best_threat=chosen_threat=1.
-UNSAFE_VS_UNSAFE_MIDGAP_GAP = float(os.environ.get("UNSAFE_VS_UNSAFE_MIDGAP_GAP", "40.0"))  # LEGACY
-
-
 def _get_minimax_score(move: dict[str, Any]) -> float:
     facts = move.get("facts", {}) or {}
     v = facts.get("minimax_score", float("-inf"))
@@ -397,1822 +90,49 @@ def _get_minimax_score(move: dict[str, Any]) -> float:
         return float(v)
     except (TypeError, ValueError):
         return float("-inf")
-
-
-# LEGACY — unused in simplified proposal-authoritative pipeline.
-def _best_and_second_best_minimax(moves: list[dict[str, Any]]) -> tuple[Optional[int], Optional[float], Optional[float]]:
-    """
-    Returns:
-      (best_idx, best_score, second_best_score)
-    based on minimax_score over the given move list.
-    """
-    if not moves:
-        return None, None, None
-
-    scored = [(i, _get_minimax_score(m)) for i, m in enumerate(moves)]
-    scored.sort(key=lambda x: x[1], reverse=True)
-
-    best_idx, best_score = scored[0]
-    second_best_score = scored[1][1] if len(scored) > 1 else None
-    return best_idx, best_score, second_best_score
-
-
-# LEGACY — unused in simplified proposal-authoritative pipeline.
-def _should_force_best_minimax(
-    moves: list[dict[str, Any]],
-) -> tuple[bool, Optional[int], str]:
-    """
-    Disabled pre-LLM forcing.
-
-    We no longer let shallow minimax choose the move before the ranker.
-    Minimax is now a strong verifier and post-LLM override signal only.
-    """
-    return False, None, ""
-
-
-# LEGACY — override system, unused in simplified proposal-authoritative pipeline.
-# Retained for rollback compatibility with the legacy decision-making path.
-def _override_if_llm_chose_much_worse_minimax(
-    filtered: list[dict[str, Any]],
-    llm_idx: int,
-    game_phase: str = "MIDGAME",
-    score_state: str = "EQUAL",
-    strategic_priorities: Optional[list[str]] = None,
-    comparison_moves: Optional[list[dict[str, Any]]] = None,
-) -> tuple[dict[str, Any], Optional[str], dict[str, Any]]:
-    """
-    Override the LLM only in a narrow case:
-    - the LLM chose a clearly worse minimax move
-    - the best minimax move is SAFE
-    - the chosen move is unsafe or tactically much worse
-
-    This prevents shallow minimax from hijacking strategy in normal positions,
-    while still protecting against catastrophic blunders.
-    """
-    moves_for_best = comparison_moves if comparison_moves is not None else filtered
-
-    best_idx, best_score, _ = _best_and_second_best_minimax(moves_for_best)
-    if best_idx is None or best_score is None:
-        return filtered[llm_idx], None, {}
-
-    best_move = moves_for_best[best_idx]
-    chosen_move = filtered[llm_idx]
-
-    best_facts = best_move.get("facts", {}) or {}
-    chosen_facts = chosen_move.get("facts", {}) or {}
-
-    best_safe = not best_facts.get("opponent_can_recapture", False)
-    chosen_safe = not chosen_facts.get("opponent_can_recapture", False)
-
-    chosen_score = _get_minimax_score(chosen_move)
-    gap = best_score - chosen_score
-
-    def _is_quiet_non_tactical(facts: dict[str, Any]) -> bool:
-        return (
-            facts.get("captures_count", 0) == 0
-            and not facts.get("creates_immediate_threat", False)
-            and not facts.get("shot_sequence_available", False)
-            and not facts.get("blocks_opponent_landing", False)
-        )
-
-    def _is_quiet_safe_opening_style(facts: dict[str, Any]) -> bool:
-        return (
-            not facts.get("opponent_can_recapture", False)
-            and not facts.get("moved_piece_is_threatened", False)
-            and facts.get("our_pieces_threatened_after", 99) <= 1
-            and facts.get("net_gain", -999) >= 0
-        )
-
-    best_quiet = _is_quiet_non_tactical(best_facts)
-    chosen_quiet = _is_quiet_non_tactical(chosen_facts)
-    best_quiet_safe = _is_quiet_safe_opening_style(best_facts)
-    chosen_quiet_safe = _is_quiet_safe_opening_style(chosen_facts)
-
-    def _is_low_danger_active(facts: dict[str, Any]) -> bool:
-        return (
-            not facts.get("opponent_can_recapture", False)
-            and not facts.get("moved_piece_is_threatened", False)
-            and facts.get("our_pieces_threatened_after", 99) <= 1
-        )
-
-    def _is_passive_safe_structural(facts: dict[str, Any]) -> bool:
-        role = str(facts.get("quiet_move_role", "") or "")
-        return (
-            role in {"STRUCTURAL_RESTRICTION", "KING_ACTIVATION", "PROMOTION_PUSH"}
-            and not facts.get("opponent_can_recapture", False)
-            and not facts.get("moved_piece_is_threatened", False)
-            and facts.get("our_pieces_threatened_after", 99) == 0
-        )
-
-    def _is_acceptable_low_danger_candidate(facts: dict[str, Any]) -> bool:
-        """
-        Broader than strict low-danger active:
-        allow tactical/forcing candidates into minimax comparison when they are
-        still not materially dangerous in immediate reply terms.
-        """
-        if facts.get("opponent_can_recapture", False):
-            return False
-        if facts.get("moved_piece_is_threatened", False):
-            return False
-
-        threat_after = facts.get("our_pieces_threatened_after", 99)
-        max_jump = facts.get("max_opponent_jump_captures", 99)
-        jump_count = facts.get("opponent_jump_count", 99)
-        forced_reply = bool(facts.get("forced_opponent_jump_reply", False))
-
-        # Strict lane remains valid.
-        if threat_after <= 1:
-            return True
-
-        # Broader lane for practical tactical candidates:
-        # modest threat footprint and no heavy immediate jump punishment.
-        return (
-            threat_after <= 2
-            and not forced_reply
-            and max_jump <= 1
-            and jump_count <= 1
-        )
-
-    best_threat = best_facts.get("our_pieces_threatened_after", 99)
-    chosen_threat = chosen_facts.get("our_pieces_threatened_after", 99)
-
-    debug_info: dict[str, Any] = {
-        "is_passive_safe_structural": {
-            "chosen": _is_passive_safe_structural(chosen_facts),
-            "best": _is_passive_safe_structural(best_facts),
-        },
-        "is_low_danger_active": {
-            "chosen": _is_low_danger_active(chosen_facts),
-            "best": _is_low_danger_active(best_facts),
-        },
-        "override_branch_triggered": False,
-        "override_branch_name": None,
-        "override_block_reason": None,
-        "best_move_rejected_reason": None,
-        "best_vs_chosen_minimax_gap": round(gap, 2),
-        "best_vs_chosen_threat_delta": (
-            best_threat - chosen_threat
-            if isinstance(best_threat, (int, float)) and isinstance(chosen_threat, (int, float))
-            else None
-        ),
-    }
-
-    def _b(x: Any) -> int:
-        return 1 if bool(x) else 0
-
-    def _f(x: Any) -> str:
-        try:
-            return f"{float(x):.1f}"
-        except (TypeError, ValueError):
-            return "None"
-
-    def _gate_kv(**kwargs: Any) -> str:
-        # Compact serialization: key=value pairs without spaces.
-        return ",".join(f"{k}={v}" for k, v in kwargs.items())
-
-    def _chosen_has_concrete_defensive_advantage_over_best() -> bool:
-        """
-        True only when chosen is materially safer on immediate reply danger metrics.
-        Offensive / forcing style must NOT count as defensive advantage.
-
-        Refined: do not veto low-danger dominance on marginal numeric edges (jump
-        metrics require >=2 margin) or when chosen is globally worse on threat
-        footprint than best. Boolean immediate-danger edges still count when they
-        asymmetrically favor chosen over best.
-        """
-        c_th = chosen_facts.get("our_pieces_threatened_after")
-        b_th = best_facts.get("our_pieces_threatened_after")
-        if isinstance(c_th, (int, float)) and isinstance(b_th, (int, float)):
-            if c_th > b_th:
-                return False
-
-        b_mpj = best_facts.get("max_opponent_jump_captures", 99)
-        c_mpj = chosen_facts.get("max_opponent_jump_captures", 99)
-        b_jc = best_facts.get("opponent_jump_count", 99)
-        c_jc = chosen_facts.get("opponent_jump_count", 99)
-        jump_captures_edge = (
-            isinstance(b_mpj, (int, float))
-            and isinstance(c_mpj, (int, float))
-            and (b_mpj - c_mpj) >= 2
-        )
-        jump_count_edge = (
-            isinstance(b_jc, (int, float))
-            and isinstance(c_jc, (int, float))
-            and (b_jc - c_jc) >= 2
-        )
-
-        moved_piece_defensive_edge = (
-            not chosen_facts.get("moved_piece_is_threatened", False)
-            and bool(best_facts.get("moved_piece_is_threatened", False))
-        )
-        forced_jump_defensive_edge = (
-            not chosen_facts.get("forced_opponent_jump_reply", False)
-            and bool(best_facts.get("forced_opponent_jump_reply", False))
-        )
-
-        return (
-            moved_piece_defensive_edge
-            or forced_jump_defensive_edge
-            or jump_captures_edge
-            or jump_count_edge
-        )
-
-    # Low-danger vs low-danger: minimax dominates when there is no concrete defensive
-    # advantage for the weaker minimax choice. Applies even when both moves are
-    # quiet-safe (quiet-safe alone must not suppress this guardrail).
-    if (
-        best_safe
-        and chosen_safe
-        and _is_low_danger_active(best_facts)
-        and _is_low_danger_active(chosen_facts)
-        and gap >= LOW_DANGER_MINIMAX_GAP
-        and abs(best_score) < 1000.0
-        and abs(chosen_score) < 1000.0
-    ):
-        best_isolated = bool(best_facts.get("leaves_piece_isolated", False))
-        chosen_isolated = bool(chosen_facts.get("leaves_piece_isolated", False))
-        best_weakens_back = bool(best_facts.get("weakens_king_row", False))
-        chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
-        best_uniquely_worse_structure = (
-            gap < STRUCTURE_EXCEPTION_FLOOR
-            and (
-                (best_isolated and not chosen_isolated)
-                or (best_weakens_back and not chosen_weakens_back)
-            )
-        )
-        if not best_uniquely_worse_structure and not _chosen_has_concrete_defensive_advantage_over_best():
-            debug_info["override_branch_triggered"] = True
-            debug_info["override_branch_name"] = "low_danger_minimax_dominance"
-            return best_move, (
-                "LLM low-danger choice overridden by minimax dominance guardrail: "
-                f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
-                f"gap={gap:.1f} (threshold={LOW_DANGER_MINIMAX_GAP:.1f})."
-            ), debug_info
-        if _chosen_has_concrete_defensive_advantage_over_best():
-            debug_info["override_block_reason"] = "chosen_concrete_defensive_better"
-            debug_info["best_move_rejected_reason"] = "chosen_concrete_defensive_better"
-
-    # Quiet-safe vs quiet-safe: minimax is primary.
-    # Structural exception is narrow: only block override if the higher-minimax move
-    # uniquely worsens isolation or king-row discipline.
-    if (
-        best_safe
-        and chosen_safe
-        and best_quiet
-        and chosen_quiet
-        and best_quiet_safe
-        and chosen_quiet_safe
-        and gap >= QUIET_MINIMAX_MARGIN
-    ):
-        best_isolated = bool(best_facts.get("leaves_piece_isolated", False))
-        chosen_isolated = bool(chosen_facts.get("leaves_piece_isolated", False))
-        best_weakens_back = bool(best_facts.get("weakens_king_row", False))
-        chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
-
-        best_uniquely_worse_structure = (
-            gap < STRUCTURE_EXCEPTION_FLOOR
-            and (
-                (best_isolated and not chosen_isolated)
-                or (best_weakens_back and not chosen_weakens_back)
-            )
-        )
-
-        if not best_uniquely_worse_structure:
-            debug_info["override_branch_triggered"] = True
-            debug_info["override_branch_name"] = "quiet_safe_minimax_primary"
-            return best_move, (
-                "LLM quiet-safe choice overridden by minimax guardrail: "
-                f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
-                f"gap={gap:.1f} (threshold={QUIET_MINIMAX_MARGIN:.1f})."
-            ), debug_info
-        debug_info["override_block_reason"] = "best_uniquely_worse_structure"
-        debug_info["best_move_rejected_reason"] = "best_uniquely_worse_structure"
-
-    # Safe-chosen vs unsafe-best: override when the gap is large enough to
-    # justify accepting the risk. This fires only when the best move was
-    # explicitly shown to the LLM (survived _apply_safety_filter) but the LLM
-    # still chose a safe-but-weaker move due to Step 1 safety bias.
-    # Does NOT modify any existing branch.
-    if (
-        chosen_safe
-        and not best_safe
-        and gap >= SAFE_VS_UNSAFE_OVERRIDE_GAP
-    ):
-        debug_info["override_branch_triggered"] = True
-        debug_info["override_branch_name"] = "safe_vs_unsafe_large_gap"
-        return best_move, (
-            "LLM safe choice overridden: best move is unsafe but minimax gap is large: "
-            f"chosen={chosen_score:.1f} (safe), best={best_score:.1f} (unsafe), "
-            f"gap={gap:.1f} (threshold={SAFE_VS_UNSAFE_OVERRIDE_GAP:.1f})."
-        ), debug_info
-
-    priorities = strategic_priorities or []
-
-    if game_phase == "OPENING":
-        dominance_threshold = 15.0
-    elif game_phase == "MIDGAME":
-        if score_state in ("CLEARLY_LOSING", "SLIGHTLY_LOSING"):
-            dominance_threshold = 4.0
-        else:
-            dominance_threshold = 6.0
-    else:  # ENDGAME
-        if score_state in ("CLEARLY_LOSING", "SLIGHTLY_LOSING"):
-            dominance_threshold = 4.0
-        elif score_state in ("CLEARLY_WINNING", "SLIGHTLY_WINNING"):
-            dominance_threshold = max(MINIMAX_DOMINANCE_MARGIN, 4.0)
-        else:
-            dominance_threshold = 6.0
-
-    if game_phase != "OPENING" and "ACTIVATE_KINGS" in priorities:
-        dominance_threshold += 3.0
-
-    chosen_king_activity = chosen_facts.get("king_activity_score", 0)
-    chosen_counterplay = chosen_facts.get("counterplay_score", 0)
-    best_counterplay = best_facts.get("counterplay_score", 0)
-
-    chosen_has_real_action = (
-        chosen_facts.get("creates_immediate_threat", False)
-        or chosen_facts.get("shot_sequence_available", False)
-        or chosen_facts.get("blocks_opponent_landing", False)
-    )
-
-    losing_mode = (
-        score_state in ("CLEARLY_LOSING", "SLIGHTLY_LOSING")
-        or "SEEK_COUNTERPLAY" in priorities
-        or "COMPLICATE" in priorities
-    )
-
-    chosen_active_counterplay = (
-        chosen_safe
-        and (
-            chosen_has_real_action
-            or chosen_counterplay >= max(10, best_counterplay + 5)
-            or chosen_king_activity >= 4
-        )
-    )
-
-    chosen_strict_safe_structural = _is_passive_safe_structural(chosen_facts)
-    best_low_danger_active = _is_low_danger_active(best_facts)
-    best_acceptable_low_danger = _is_acceptable_low_danger_candidate(best_facts)
-
-    # ── Predicate-level gate instrumentation (no behavior change) ─────────────
-    # This is only used when we would otherwise fall through to
-    # best_move_rejected_reason=no_override_condition_met.
-    best_isolated = bool(best_facts.get("leaves_piece_isolated", False))
-    chosen_isolated = bool(chosen_facts.get("leaves_piece_isolated", False))
-    best_weakens_back = bool(best_facts.get("weakens_king_row", False))
-    chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
-    best_uniquely_worse_structure = (
-        gap < STRUCTURE_EXCEPTION_FLOOR
-        and (
-            (best_isolated and not chosen_isolated) or (best_weakens_back and not chosen_weakens_back)
-        )
-    )
-
-    low_danger_minimax_dominance_gate = _gate_kv(
-        bs=_b(best_safe),
-        cs=_b(chosen_safe),
-        ldB=_b(_is_low_danger_active(best_facts)),
-        ldC=_b(_is_low_danger_active(chosen_facts)),
-        g=_f(gap),
-        th=_f(LOW_DANGER_MINIMAX_GAP),
-        gOK=_b(gap >= LOW_DANGER_MINIMAX_GAP),
-        cap=_b(abs(best_score) < 1000.0 and abs(chosen_score) < 1000.0),
-        structBlock=_b(best_uniquely_worse_structure),
-        defBlock=_b(_chosen_has_concrete_defensive_advantage_over_best()),
-    )
-
-    quiet_safe_minimax_primary_gate = _gate_kv(
-        bs=_b(best_safe),
-        cs=_b(chosen_safe),
-        bq=_b(best_quiet),
-        cq=_b(chosen_quiet),
-        bqs=_b(best_quiet_safe),
-        cqs=_b(chosen_quiet_safe),
-        g=_f(gap),
-        th=_f(QUIET_MINIMAX_MARGIN),
-        gOK=_b(gap >= QUIET_MINIMAX_MARGIN),
-        structBlock=_b(best_uniquely_worse_structure),
-    )
-
-    opening_low_danger_minimax_guardrail_gate = _gate_kv(
-        op=_b(game_phase == "OPENING"),
-        csss=_b(chosen_strict_safe_structural),
-        bAccLD=_b(best_acceptable_low_danger),
-        g=_f(gap),
-        th=_f(OPENING_LOW_DANGER_GAP),
-        gOK=_b(gap >= OPENING_LOW_DANGER_GAP),
-        structBlock=_b(best_uniquely_worse_structure),
-    )
-
-    low_danger_active_minimax_guardrail_gate = _gate_kv(
-        csss=_b(chosen_strict_safe_structural),
-        bAccLD=_b(best_acceptable_low_danger),
-        g=_f(gap),
-        th=_f(LOW_DANGER_ACTIVE_MINIMAX_GAP),
-        gOK=_b(gap >= LOW_DANGER_ACTIVE_MINIMAX_GAP),
-        structBlock=_b(best_uniquely_worse_structure),
-    )
-
-    safe_vs_safe_dominance_gate = _gate_kv(
-        bs=_b(best_safe),
-        cs=_b(chosen_safe),
-        g=_f(gap),
-        th=_f(dominance_threshold),
-        gOK=_b(gap >= dominance_threshold),
-    )
-
-    # OPENING-specific low-danger guardrail:
-    # do not let a perfectly safe structural lane (threat_after=0) suppress a
-    # low-danger active alternative (threat_after<=1) when minimax is clearly better.
-    if (
-        game_phase == "OPENING"
-        and chosen_strict_safe_structural
-        and best_acceptable_low_danger
-        and gap >= OPENING_LOW_DANGER_GAP
-    ):
-        best_isolated = bool(best_facts.get("leaves_piece_isolated", False))
-        chosen_isolated = bool(chosen_facts.get("leaves_piece_isolated", False))
-        best_weakens_back = bool(best_facts.get("weakens_king_row", False))
-        chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
-        best_uniquely_worse_structure = (
-            gap < STRUCTURE_EXCEPTION_FLOOR
-            and (
-                (best_isolated and not chosen_isolated)
-                or (best_weakens_back and not chosen_weakens_back)
-            )
-        )
-        if not best_uniquely_worse_structure:
-            debug_info["override_branch_triggered"] = True
-            debug_info["override_branch_name"] = "opening_low_danger_minimax_guardrail"
-            return best_move, (
-                "LLM opening structural-safe choice overridden by low-danger minimax guardrail: "
-                f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
-                f"gap={gap:.1f} (threshold={OPENING_LOW_DANGER_GAP:.1f})."
-            ), debug_info
-        debug_info["override_block_reason"] = "best_uniquely_worse_structure"
-        debug_info["best_move_rejected_reason"] = "best_uniquely_worse_structure"
-
-    if (
-        chosen_strict_safe_structural
-        and best_acceptable_low_danger
-        and gap >= LOW_DANGER_ACTIVE_MINIMAX_GAP
-    ):
-        best_isolated = bool(best_facts.get("leaves_piece_isolated", False))
-        chosen_isolated = bool(chosen_facts.get("leaves_piece_isolated", False))
-        best_weakens_back = bool(best_facts.get("weakens_king_row", False))
-        chosen_weakens_back = bool(chosen_facts.get("weakens_king_row", False))
-        best_uniquely_worse_structure = (
-            gap < STRUCTURE_EXCEPTION_FLOOR
-            and (
-                (best_isolated and not chosen_isolated)
-                or (best_weakens_back and not chosen_weakens_back)
-            )
-        )
-        if not best_uniquely_worse_structure:
-            debug_info["override_branch_triggered"] = True
-            debug_info["override_branch_name"] = "low_danger_active_minimax_guardrail"
-            return best_move, (
-                "LLM structural-safe choice overridden by low-danger active minimax guardrail: "
-                f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
-                f"gap={gap:.1f} (threshold={LOW_DANGER_ACTIVE_MINIMAX_GAP:.1f})."
-            ), debug_info
-        debug_info["override_block_reason"] = "best_uniquely_worse_structure"
-        debug_info["best_move_rejected_reason"] = "best_uniquely_worse_structure"
-            
-
-    # Hard cap for tactical-pressure protection:
-    # if a tactical/active move is dramatically worse than the best genuinely safe move,
-    # do not preserve it unless it is uniquely better on immediate danger severity.
-    best_safe_idx = None
-    best_safe_score = None
-    for i, m in enumerate(filtered):
-        f = m.get("facts", {}) or {}
-        if (
-            not f.get("opponent_can_recapture", False)
-            and not f.get("moved_piece_is_threatened", False)
-        ):
-            s = _get_minimax_score(m)
-            if best_safe_score is None or s > best_safe_score:
-                best_safe_score = s
-                best_safe_idx = i
-
-    if best_safe_idx is not None and chosen_active_counterplay:
-        safe_move = filtered[best_safe_idx]
-        safe_facts = safe_move.get("facts", {}) or {}
-        safe_score = _get_minimax_score(safe_move)
-        tactical_gap_vs_best_safe = safe_score - chosen_score
-
-        chosen_threat_after = chosen_facts.get("our_pieces_threatened_after", 99)
-        safe_threat_after = safe_facts.get("our_pieces_threatened_after", 99)
-        both_genuinely_low_danger = (
-            _is_low_danger_active(chosen_facts)
-            and _is_low_danger_active(safe_facts)
-        )
-        equal_threat_footprint = (
-            isinstance(chosen_threat_after, (int, float))
-            and isinstance(safe_threat_after, (int, float))
-            and chosen_threat_after == safe_threat_after
-        )
-
-        chosen_concrete_danger_better = (
-            (
-                not chosen_facts.get("moved_piece_is_threatened", False)
-                and safe_facts.get("moved_piece_is_threatened", False)
-            )
-            or (
-                not chosen_facts.get("forced_opponent_jump_reply", False)
-                and safe_facts.get("forced_opponent_jump_reply", False)
-            )
-            or (
-                chosen_facts.get("max_opponent_jump_captures", 99)
-                < safe_facts.get("max_opponent_jump_captures", 99)
-            )
-            or (
-                chosen_facts.get("opponent_jump_count", 99)
-                < safe_facts.get("opponent_jump_count", 99)
-            )
-        )
-
-        # Do not let tactical style block minimax override when both options are
-        # genuinely low-danger and equally safe on threat footprint.
-        if both_genuinely_low_danger and equal_threat_footprint:
-            chosen_better_immediate_danger = False
-        else:
-            chosen_better_immediate_danger = chosen_concrete_danger_better
-
-        if (
-            tactical_gap_vs_best_safe >= TACTICAL_MINIMAX_MAX_GAP
-            and not chosen_better_immediate_danger
-        ):
-            debug_info["override_branch_triggered"] = True
-            debug_info["override_branch_name"] = "tactical_pressure_hard_cap"
-            return safe_move, (
-                "LLM tactical-pressure choice overridden by minimax hard cap: "
-                f"chosen={chosen_score:.1f}, best_safe={safe_score:.1f}, "
-                f"gap={tactical_gap_vs_best_safe:.1f} "
-                f"(threshold={TACTICAL_MINIMAX_MAX_GAP:.1f})."
-            ), debug_info
-        if (
-            tactical_gap_vs_best_safe >= TACTICAL_MINIMAX_MAX_GAP
-            and chosen_better_immediate_danger
-        ):
-            debug_info["override_block_reason"] = "chosen_better_immediate_danger"
-            debug_info["best_move_rejected_reason"] = "chosen_better_immediate_danger"
-
-    small_safety_gap = abs(best_threat - chosen_threat) <= 1
-
-    if best_safe and gap >= dominance_threshold:
-        if not chosen_safe:
-            debug_info["override_branch_triggered"] = True
-            debug_info["override_branch_name"] = "unsafe_chosen_vs_safe_best"
-            return best_move, (
-                f"LLM choice overridden by minimax guardrail ({game_phase}): "
-                f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
-                f"safe_best=true, chosen_safe=false, gap={gap:.1f} "
-                f"(threshold={dominance_threshold:.1f})."
-            ), debug_info
-
-        if (
-            score_state in ("CLEARLY_LOSING", "SLIGHTLY_LOSING")
-            and small_safety_gap
-        ):
-            chosen_bad_danger = (
-                chosen_facts.get("moved_piece_is_threatened", False)
-                or chosen_facts.get("forced_opponent_jump_reply", False)
-                or chosen_facts.get("max_opponent_jump_captures", 0)
-                > best_facts.get("max_opponent_jump_captures", 0)
-            )
-
-            if not chosen_bad_danger:
-                debug_info["override_branch_triggered"] = True
-                debug_info["override_branch_name"] = "losing_mode_small_safety_gap"
-                return best_move, (
-                    f"LLM choice overridden in losing mode: "
-                    f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
-                    f"gap={gap:.1f}, small_safety_gap=true."
-                ), debug_info
-            debug_info["override_block_reason"] = "chosen_bad_danger"
-            debug_info["best_move_rejected_reason"] = "chosen_bad_danger"
-
-        # In OPENING, usually do NOT override safe-vs-safe choices with shallow minimax.
-        # But if the chosen move is only "safer" by a tiny margin and the best move is still
-        # opening-safe, allow the better minimax move to win.
-        if game_phase == "OPENING" and chosen_safe:
-            best_opening_safe = (
-                best_safe
-                and not best_facts.get("moved_piece_is_threatened", False)
-                and best_facts.get("net_gain", 0) >= 0
-                and best_facts.get("our_pieces_threatened_after", 99) <= 1
-            )
-            chosen_opening_safe = (
-                chosen_safe
-                and not chosen_facts.get("moved_piece_is_threatened", False)
-                and chosen_facts.get("net_gain", 0) >= 0
-                and chosen_facts.get("our_pieces_threatened_after", 99) <= 1
-            )
-
-            if best_opening_safe and chosen_opening_safe:
-                best_isolated = best_facts.get("leaves_piece_isolated", False)
-                chosen_isolated = chosen_facts.get("leaves_piece_isolated", False)
-                best_weakens_back = best_facts.get("weakens_king_row", False)
-                chosen_weakens_back = chosen_facts.get("weakens_king_row", False)
-                best_center = bool(best_facts.get("center_control", False))
-                chosen_center = bool(chosen_facts.get("center_control", False))
-
-                # Hard override when minimax difference is meaningful and the better move
-                # does not lose on back-row discipline or isolation.
-                if gap >= 2.0:
-                    structure_blocks = (
-                        gap < STRUCTURE_EXCEPTION_FLOOR
-                        and (
-                            (best_isolated and not chosen_isolated) or
-                            (best_weakens_back and not chosen_weakens_back)
-                        )
-                    )
-                    if not structure_blocks:
-                        debug_info["override_branch_triggered"] = True
-                        debug_info["override_branch_name"] = "opening_minimax_guardrail"
-                        return best_move, (
-                            f"LLM opening choice overridden by minimax guardrail: "
-                            f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
-                            f"both_opening_safe=true, gap={gap:.1f}."
-                        ), debug_info
-                    debug_info["override_block_reason"] = "best_uniquely_worse_structure"
-                    debug_info["best_move_rejected_reason"] = "best_uniquely_worse_structure"
-
-                # If minimax is near-tied, prefer the move with better development.
-                # Development here means center control without worsening isolation/back-row discipline.
-                if gap < 2.0:
-                    best_dev_better = (
-                        (best_center and not chosen_center)
-                        and not (best_isolated and not chosen_isolated)
-                        and not (best_weakens_back and not chosen_weakens_back)
-                    )
-                    if best_dev_better and best_score >= chosen_score:
-                        debug_info["override_branch_triggered"] = True
-                        debug_info["override_branch_name"] = "opening_development_guardrail"
-                        return best_move, (
-                            f"LLM opening choice overridden by development guardrail: "
-                            f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
-                            f"best_center=true, chosen_center=false."
-                        ), debug_info
-
-            debug_info["best_move_rejected_reason"] = (
-                debug_info["best_move_rejected_reason"]
-                or "opening_safe_lane_preserved"
-            )
-            return chosen_move, None, debug_info
-
-        # Protect active king / counterplay moves from shallow override
-        chosen_simplification = chosen_facts.get("simplification_value", 0)
-        chosen_smokeout = chosen_facts.get("double_corner_smokeout_pressure", 0)
-        chosen_edge = chosen_facts.get("edge_confinement_delta", 0)
-        chosen_role = chosen_facts.get("quiet_move_role", "")
-
-        # Never protect a king shuffle move
-        if chosen_role == "KING_SHUFFLE" or chosen_facts.get("anti_shuffle_penalty", 0) < 0:
-            pass  # fall through to override
-        elif (
-            chosen_safe
-            and game_phase == "ENDGAME"
-            and (
-                chosen_king_activity >= 3
-                or chosen_simplification >= 3
-                or chosen_smokeout >= 2
-                or chosen_edge >= 2
-            )
-            and gap < 10.0
-            and chosen_facts.get("our_pieces_threatened_after", 0)
-            <= best_facts.get("our_pieces_threatened_after", 0)
-        ):
-            debug_info["best_move_rejected_reason"] = "protect_endgame_activity"
-            return chosen_move, None, debug_info
-        elif (
-            chosen_safe
-            and "ACTIVATE_KINGS" in priorities
-            and chosen_king_activity >= 3
-            and chosen_counterplay >= best_counterplay
-            and gap < 10.0
-        ):
-            debug_info["best_move_rejected_reason"] = "protect_king_activation"
-            return chosen_move, None, debug_info
-        elif (
-            chosen_active_counterplay
-            and game_phase != "OPENING"
-            and losing_mode
-            and gap < 12.0
-        ):
-            debug_info["best_move_rejected_reason"] = "protect_losing_mode_counterplay"
-            return chosen_move, None, debug_info
-
-        if chosen_safe:
-            debug_info["override_branch_triggered"] = True
-            debug_info["override_branch_name"] = "safe_vs_safe_dominance"
-            return best_move, (
-                f"LLM choice overridden by minimax guardrail ({game_phase}): "
-                f"chosen={chosen_score:.1f}, best={best_score:.1f}, "
-                f"both_safe=true, gap={gap:.1f} "
-                f"(threshold={dominance_threshold:.1f})."
-            ), debug_info
-
-    debug_info["best_move_rejected_reason"] = (
-        debug_info["best_move_rejected_reason"] or "no_override_condition_met"
-    )
-    if (
-        debug_info.get("best_move_rejected_reason") == "no_override_condition_met"
-        and not debug_info.get("override_block_reason")
-    ):
-        # Encode gate outcomes into a single token (no spaces) so the evaluator
-        # can capture it without changing its parser.
-        debug_info["override_block_reason"] = (
-            "gates|"
-            f"LDMD:{low_danger_minimax_dominance_gate};"
-            f"OPNLD:{opening_low_danger_minimax_guardrail_gate};"
-            f"LDAC:{low_danger_active_minimax_guardrail_gate};"
-            f"QSAFE:{quiet_safe_minimax_primary_gate};"
-            f"SVDOM:{safe_vs_safe_dominance_gate}"
-        )
-
-    # ── Unsafe-vs-unsafe override ────────────────────────────────────────────
-    # All existing branches require at least one of {passive_safe, low_danger} to
-    # be true on either the chosen or best move.  When BOTH moves are fully unsafe
-    # (bs=0, cs=0), every prior branch is skipped regardless of gap size.
-    # Three mutually exclusive tiers handle this blind spot:
-    #
-    # TIER-1 (unsafe_vs_unsafe_fallback_tier1_lower_threat):
-    #   _best_threat < _chosen_threat AND gap >= UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP (35)
-    #   Best move leaves fewer pieces hanging AND is minimax-better. The combination
-    #   of two advantages makes 35pt sufficient. Confirmed T11: gap=42, bt=1, ct=2.
-    #
-    # MIDGAP (unsafe_vs_unsafe_midgap_minimax):
-    #   _best_threat == _chosen_threat AND gap >= UNSAFE_VS_UNSAFE_MIDGAP_GAP (40)
-    #   Equal threat exposure on both moves. Override is justified purely by minimax
-    #   dominance; no secondary threat advantage. Slightly higher threshold (40 > 35)
-    #   because minimax must work alone. Confirmed T13: gap=56, bt=ct=1.
-    #
-    # TIER-2 (unsafe_vs_unsafe_fallback_tier2_higher_threat):
-    #   _best_threat > _chosen_threat AND gap >= UNSAFE_VS_UNSAFE_FALLBACK_GAP (150)
-    #   Best move leaves MORE pieces hanging but minimax gap is extreme. Very
-    #   conservative threshold because the threat direction is counter-intuitive.
-    #
-    # Common guard (_both_fully_unsafe): not passive_safe, not low_danger,
-    # |score| < 1000 (excludes forced-loss sentinels).
-    _best_threat = best_facts.get("our_pieces_threatened_after", 0)
-    _chosen_threat = chosen_facts.get("our_pieces_threatened_after", 0)
-    _both_fully_unsafe = (
-        not chosen_safe
-        and not best_safe
-        and not _is_low_danger_active(chosen_facts)
-        and not _is_low_danger_active(best_facts)
-        and abs(best_score) < 1000.0
-        and abs(chosen_score) < 1000.0
-    )
-    if _both_fully_unsafe:
-        _tier1  = _best_threat <  _chosen_threat and gap >= UNSAFE_VS_UNSAFE_LOWER_THREAT_GAP
-        _midgap = _best_threat == _chosen_threat and gap >= UNSAFE_VS_UNSAFE_MIDGAP_GAP
-        _tier2  = _best_threat >  _chosen_threat and gap >= UNSAFE_VS_UNSAFE_FALLBACK_GAP
-        if _tier1 or _midgap or _tier2:
-            if _tier1:
-                _branch_name = "unsafe_vs_unsafe_fallback_tier1_lower_threat"
-            elif _midgap:
-                _branch_name = "unsafe_vs_unsafe_midgap_minimax"
-            else:
-                _branch_name = "unsafe_vs_unsafe_fallback_tier2_higher_threat"
-            debug_info["override_branch_triggered"] = True
-            debug_info["override_branch_name"] = _branch_name
-            return best_move, (
-                f"Unsafe-vs-unsafe override ({_branch_name}): "
-                f"chosen={chosen_score:.1f} (threat={_chosen_threat}), "
-                f"best={best_score:.1f} (threat={_best_threat}), "
-                f"gap={gap:.1f}."
-            ), debug_info
-
-
-    return chosen_move, None, debug_info
-
-# ── Strategic context formatter ───────────────────────────────────────────────
-
-_PRIORITY_GUIDANCE: dict[str, str] = {
-    "RESOLVE_TACTICS":            "a jump exists — prefer highest captures_count first",
-    "CONTROL_CENTER": (
-        "In OPENING, center_control is a late tiebreak only and must not override "
-        "DEVELOP_PIECES, MAINTAIN_BACK_ROW, or safety. "
-        "In MIDGAME/ENDGAME, prefer center_control=true only when it also brings "
-        "concrete value such as threat creation, mobility reduction, or restriction."), 
-    "DEVELOP_PIECES": "prefer moves that improve development without leaving the moved piece isolated",
-    "MAINTAIN_BACK_ROW":          "avoid moving back-row pieces unless it gains material",
-    "INCREASE_MOBILITY":          "prefer moves that keep our pieces connected; avoid isolated=true",
-    "ACTIVATE_KINGS": (
-        "prefer safe king moves with higher king_activity_score; among equally safe king moves, "
-        "prefer the one that creates threats, has shot_sequence_available=true, reduces opponent mobility, "
-        "increases restriction_score, freezes enemy pieces, blocks landing squares, or improves conversion quality; "
-        "center control is only a minor tiebreak and should not decide the move by itself"
-    ),
-    "PROMOTE":                    "prefer near_promotion=true or results_in_king=true moves",
-    "TRADE_WHEN_AHEAD":           "prefer jumps (captures_count>0) when net_gain>=0",
-    "SIMPLIFY":                   "prefer jumps that reduce total pieces; net_gain>=0 required",
-    "AVOID_TRADES":               "avoid jumps where opponent_can_recapture=true",
-    "COMPLICATE":                 "prefer moves that create tactical threats; avoid simplifying",
-    "CONVERT_ADVANTAGE": (
-        "outside the OPENING, prefer higher winning_conversion_score, higher mobility_reduction, lower opponent_mobility_after, "
-        "forces_exchange=true, restriction_score > 0, frozen_enemy_pieces > 0, or stronger king_activity_score; "
-        "in OPENING, these are supportive only and must not justify a quiet move unless it also has real action "
-        "(captures_count>0, creates_immediate_threat=true, shot_sequence_available=true, or blocks_opponent_landing=true)"
-    ),
-    "HOLD_ADVANTAGE": (
-        "prefer safe moves that preserve material, keep our_pieces_threatened_after low, "
-        "and avoid unnecessary complications"
-    ),
-    "CREATE_THREATS": (
-        "prefer moves with creates_real_trap=true first; then creates_immediate_threat=true, "
-        "shot_sequence_available=true, two_for_one_potential=true, or forces_exchange=true. "
-        "Among such moves, prefer lower opponent_safe_reply_count, then higher counterplay_score "
-        "and higher two_for_one_score. Use minimax_score to verify which threatening line survives "
-        "the opponent reply better. A move that only blocks or restricts but still leaves many "
-        "safe opponent replies is not a real trap."
-    ),
-    "SEEK_COUNTERPLAY": (
-    "prefer moves with creates_real_trap=true or low opponent_safe_reply_count. "
-    "If a move only blocks one square or raises restriction_score but the opponent still has many safe replies, "
-    "it is not real counterplay. mobility_reduction, restriction_score, and frozen_enemy_pieces are supportive only. "
-    "Among safe or nearly equally unsafe moves, use minimax_score to verify the best counterplay line."
-    ),
-    "MAINTAIN_EQUALITY":          "avoid opponent_can_recapture=true; keep net_gain=0",
-    "AVOID_SIMPLIFICATION":       "prefer simple moves over jumps when behind in kings",
-    "BLOCK_PROMOTION":            "prefer moves where opponent_near_promotion=false after move",
-    "REDUCE_OPP_MOBILITY":        "prefer moves that restrict opponent mobility; use center_control only if it also improves real restriction or king pressure",
-    "ATTACK_WEAK_PIECES":         "prefer captures_count>0 targeting opponent vulnerable squares",
-    "KEEP_BACK_ROW":              "do not move last back-row piece unless it captures a king",
-    "CENTRALIZE_KINGS":           "prefer king moves that improve king_activity_score, escape restriction, or pressure; center_control alone is not enough",
-    "CONSOLIDATE_PIECES":         "prefer moves that reduce leaves_piece_isolated=true",
-    "STRENGTHEN_PIECE_CONNECTIONS": "prefer moves where the piece lands adjacent to a friendly",
-    "BREAK_OPPONENT_BACK_ROW":    "prefer moves that threaten promotion into opp back row",
-    "PRESS_ADVANTAGE":            "prefer highest net_gain; accept recapture risk if gain>0",
-    "PRESSURE_IN_DRAW":           "prefer center_control=true to restrict opponent options",
-    "DEFEND_LEFT_FLANK":          "prefer moves on left side columns 0-3",
-    "DEFEND_RIGHT_FLANK":         "prefer moves on right side columns 4-7",
-    "PLAY_SAFE":                  "prefer moves where opponent_can_recapture=false",
-    "CREATE_IMBALANCES":          "prefer moves that lead to asymmetric piece counts",
-    "DEFEND_PIECES": (
-        "prefer moves where our_pieces_threatened_after=0; "
-        "if impossible, prefer moves with lowest our_pieces_threatened_after; "
-        "a move where our_pieces_threatened_after < our_pieces_threatened_before "
-        "is always better than one that maintains or increases the threat count"
-    ),
-    "DEFEND": (
-        "prefer moves where our_pieces_threatened_after < our_pieces_threatened_before; "
-        "also prefer blocks_opponent_landing=true to deny the opponent capture lanes"
-    ),
-}
-
-
-def _format_ranker_context(ctx: Optional[dict[str, Any]]) -> str:
-    if not ctx:
-        return "(no strategic context available)"
-
-    lines: list[str] = []
-
-    phase = ctx.get("game_phase", "UNKNOWN")
-    score = ctx.get("winning_score", 0)
-    score_state = ctx.get("score_state", "UNKNOWN")
-    lines.append(f"game_phase: {phase}  |  winning_score: {score:+d}  |  score_state: {score_state}")
-
-    mat = ctx.get("material_advantage", 0)
-    king = ctx.get("king_advantage", 0)
-    mob = ctx.get("mobility_advantage", 0)
-    center = ctx.get("center_control_advantage", 0)
-    lines.append(
-        f"material_advantage: {mat:+d}  |  king_advantage: {king:+d}  "
-        f"|  mobility_advantage: {mob:+d}  |  center_control_advantage: {center:+d}"
-    )
-
-    our_prom = ctx.get("our_promotion_threats", 0)
-    opp_prom = ctx.get("opp_promotion_threats", 0)
-    lines.append(f"our_promotion_threats: {our_prom}  |  opp_promotion_threats: {opp_prom}")
-
-    our_vuln = ctx.get("our_vulnerable_pieces", 0)
-    opp_vuln = ctx.get("opp_vulnerable_pieces", 0)
-    lines.append(f"our_vulnerable_pieces: {our_vuln}  |  opp_vulnerable_pieces: {opp_vuln}")
-
-    mat_trend = ctx.get("material_trend")
-    mob_trend = ctx.get("mobility_trend")
-    center_trend = ctx.get("center_trend")
-    if mat_trend is not None:
-        lines.append(
-            f"trends (last 4 turns): material {mat_trend:+d}  "
-            f"mobility {mob_trend:+d}  center {center_trend:+d}"
-        )
-
-    patterns = ctx.get("active_patterns", [])
-    if patterns:
-        lines.append(f"active_patterns: {', '.join(patterns)}")
-
-    stable = ctx.get("position_is_stable", False)
-    stagnation = ctx.get("stagnation_detected", False)
-    lines.append(f"position_is_stable: {stable}  |  stagnation_detected: {stagnation}")
-
-    priorities = ctx.get("strategic_priorities", [])
-    if priorities:
-        lines.append("")
-        lines.append("strategic_priorities (apply in order — each maps to facts fields):")
-        for p in priorities:
-            guidance = _PRIORITY_GUIDANCE.get(p, "no specific facts mapping defined")
-            lines.append(f"  {p}: {guidance}")
-
-    return "\n".join(lines)
-
-
-# ── System prompts ────────────────────────────────────────────────────────────
-# LEGACY — decision-mode system prompts, unused in simplified proposal-authoritative pipeline.
-# Retained for rollback compatibility with the legacy decision-making path.
-
-RANKER_SYSTEM_PROMPT = """\
-You are the move ranker for American Checkers (8×8). Pick the single best move
-from the numbered list and explain it like an experienced checkers coach.
-
-DECISION ALGORITHM — apply these steps internally in strict order.
-Do NOT narrate the steps. Use them only to arrive at your choice.
-
-STEP 1 — BOARD SAFETY
-  Prefer moves with the lowest our_pieces_threatened_after.
-  A move that leaves 0 of our pieces threatened is ideal.
-  A move that leaves 2 pieces threatened is worse than one that leaves 1.
-
-  TACTICAL EXPOSURE RULE (read before applying Step 1):
-  Tactical exposure is NOT automatically bad.
-  A move with threat_after > 0, opponent_can_recapture=true, or moved_piece_is_threatened=true
-  may still be the BEST move when ANY of the following hold:
-    - minimax_score is clearly stronger (the engine already prices in the opponent's best reply)
-    - material gain exists (captures_count > 0, net_gain > 0)
-    - a tactical threat is created (creates_immediate_threat=true, shot_sequence_available=true)
-    - the opponent's reply is constrained (forced_opponent_jump_reply=true, low opponent_safe_reply_count)
-    - strategic improvement outweighs temporary exposure
-  Do NOT automatically prefer threat_after=0 over threat_after=1 without checking compensation.
-  Evaluate whether the exposure produces: captures, threats, mobility reduction,
-  promotion progress, forced replies, or minimax advantage.
-
-  ANTI-OVERDEFENSIVE RULE:
-  Avoid assuming that the safest-looking move is best.
-  Quiet / passive safety alone is insufficient justification if minimax strongly prefers another move.
-  A move chosen ONLY because it avoids exposure — with no captures, no threats, no positional gain —
-  must be confirmed by minimax_score before selecting it over an actively better alternative.
-
-  This is the most important criterion in equal or winning positions — never let center_control,
-  near_promotion, or any positional fact override a lower
-  our_pieces_threatened_after value.
-
-  HOWEVER:
-  In clearly losing or counterplay-seeking positions, a move that is only slightly less safe
-  may still be best if it has clearly better minimax_score and real tactical action
-  (creates_immediate_threat=true, shot_sequence_available=true, or strong counterplay_score).
-
-  HARD LOSING-MODE RULE:
-  If score_state is CLEARLY_LOSING or SLIGHTLY_LOSING, and two candidate moves differ
-  by only 0 or 1 in our_pieces_threatened_after, prefer the move with the better
-  minimax_score unless:
-    - opponent_can_recapture=true for that move and false for the alternative
-    - net_gain is worse
-    - or the moved piece is directly threatened while the alternative avoids that
-
-  In losing or counterplay-seeking positions, do NOT override a clearly better minimax_score
-  using restriction_score, frozen_enemy_pieces, or generic structural language.
-  Do not automatically reject active counterplay just because it leaves 1 more threatened piece.
-
-
-  CRITICAL:
-  - If a simple move has unsafe_simple_move=true, it must score worse than any
-    simple move with unsafe_simple_move=false.
-  - If all remaining simple moves are unsafe, first minimize
-    our_pieces_threatened_after.
-  - If two unsafe moves differ by only 0 or 1 in our_pieces_threatened_after,
-    first compare danger severity:
-      * moved_piece_is_threatened
-      * forced_opponent_jump_reply
-      * max_opponent_jump_captures
-      * opponent_jump_count
-    Then use minimax_score BEFORE center_control, creates_immediate_threat,
-    leaves_piece_isolated, or other positional bonuses.
-
-  - A move that allows a forced opponent jump reply or a larger immediate jump
-    capture is worse than another move with the same threat count unless minimax
-    clearly shows the opposite by a meaningful margin.
-
-  - In all-unsafe positions, minimax_score is the PRIMARY decision signal
-    after basic safety comparison. A move with minimax_score=-17 must be
-    chosen over a move with minimax_score=-23 when our_pieces_threatened_after
-    is equal or differs by only 1.
-
-  - In losing positions, apply the same rule even when not all moves are unsafe:
-    if two moves differ by only 0 or 1 in our_pieces_threatened_after,
-    the move with clearly better minimax_score must be preferred unless the
-    worse-minimax move has a clearly better immediate tactical safety fact
-    (moved_piece_is_threatened=false, forced_opponent_jump_reply=false,
-    or much lower max_opponent_jump_captures).
-
-  - Do not pick the lower-scoring minimax move based on restriction_score,
-    frozen_enemy_pieces, vague mobility claims, or generic structure.
-
-  If all moves have the same our_pieces_threatened_after, proceed to Step 2.
-    When two moves have similar our_pieces_threatened_after, use these danger
-  severity facts BEFORE positional reasoning:
-
-  1. prefer moved_piece_is_threatened=false
-  2. prefer forced_opponent_jump_reply=false
-  3. prefer lower max_opponent_jump_captures
-  4. prefer lower opponent_jump_count
-
-  Example:
-  - if two moves both leave 2 pieces threatened, but one move makes the moved
-    piece directly capturable or allows a forced jump reply, that move is worse
-    even if the raw threat count is equal.
-
-  Do not treat two unsafe moves as equally bad just because
-  our_pieces_threatened_after is the same.
-
-  Special case: a jump that captures a piece and still leaves 1 threatened
-  may still be better than a simple move that leaves 0 threatened — weigh
-  captures_count against the threat count. This exception applies ONLY
-  to jumps with captures_count >= 1, never to simple moves.
-
-  CRITICAL: If a simple move has unsafe_simple_move=true, it must score
-worse than any simple move with unsafe_simple_move=false. No other fact
-— not creates_immediate_threat, not center_control, not near_promotion —
-can override this for simple moves. Pressure or positional benefits do not
-justify exposing pieces on a non-capturing move.
-  
-STEP 2 — CAPTURES
-  Prefer the highest captures_count.
-  If a jump exists among the remaining candidates, a simple move is never best.
-
-STEP 3 — BLOCK OPPONENT THREATS
-  Among remaining candidates, prefer moves where blocks_opponent_landing=true.
-  This means our piece physically lands on the square the opponent would have
-  used to complete a capture — it removes a threat without us having to jump.
-
-MINIMAX DOMINANCE RULE (applies between Steps 3 and 4):
-  If all remaining candidate moves are equally safe after applying Steps 1–3
-  — meaning they share the same our_pieces_threatened_after value and none is
-  disqualified by an immediate safety constraint (opponent_can_recapture,
-  moved_piece_is_threatened, or forced_opponent_jump_reply) —
-  AND one move has a minimax_score that is better than all other remaining
-  moves by 15.0 or more, then that move MUST be chosen immediately.
-
-  In this equal-safety, large-gap case:
-    - minimax_score overrides center_control
-    - minimax_score overrides quiet_move_role (STRUCTURAL_RESTRICTION,
-      KING_ACTIVATION, TACTICAL_PRESSURE, etc.)
-    - minimax_score overrides restriction_score and frozen_enemy_pieces
-    - minimax_score overrides general strategic-priority preferences from Step 4
-
-  Do NOT proceed to Step 4 if the minimax dominance condition is met.
-
-  This rule applies only when safety is genuinely equal. If moves differ in
-  our_pieces_threatened_after, or one has opponent_can_recapture=true while
-  another does not, resolve that safety difference first using Step 1 before
-  applying this rule.
-
-  When the minimax gap is below 15.0, proceed normally to Step 4.
-
-UNSAFE BEST EXCEPTION (applies alongside the MINIMAX DOMINANCE RULE):
-  If the move with the highest minimax_score has opponent_can_recapture=true
-  or our_pieces_threatened_after=1 (but NOT >= 2),
-  AND its minimax_score exceeds all fully safe candidates by 25.0 or more,
-  THEN safety alone is NOT sufficient reason to reject it.
-  A 25+ point minimax advantage means the engine already accounts
-  for the opponent's best recapture — the net result is still favorable.
-  Prefer the higher-minimax move in this case.
-  Do NOT apply this exception if our_pieces_threatened_after >= 2.
-
-STEP 4 — STRATEGIC PRIORITIES
-  Apply the strategic_priorities list in the order given.
-  Each priority maps to specific facts fields — use exactly those mappings.
-  Skip any priority that does not distinguish the remaining candidates.
-
-STEP 5 — CONVERSION, COUNTERPLAY, AND TIEBREAKERS
-  Prefer highest net_gain.
-
-  If net_gain is equal, rank in this order:
-    1. higher minimax_score
-    2. higher king_activity_score
-    3. better conversion signals (mobility_reduction, lower opponent_mobility_after, winning_conversion_score)
-    4. leaves_piece_isolated=false
-
-  Use center_control only as a final tiebreak.
-  Do not choose a move mainly because it is central.
-
-  If strategic_priorities includes CONVERT_ADVANTAGE or TRADE_WHEN_AHEAD,
-then among safe moves:
-
-  FIRST check if the move has real action:
-    - captures_count > 0
-    OR creates_immediate_threat = true
-    OR shot_sequence_available = true
-    OR blocks_opponent_landing = true
-
-  If YES:
-    prefer the move that:
-      - has higher winning_conversion_score
-      - has higher mobility_reduction
-      - has lower opponent_mobility_after
-      - keeps our_pieces_threatened_after low
-
-  If NO (quiet move with no immediate action):
-
-    In quiet positions, you MUST prefer measurable progress toward winning.
-    Do NOT choose a move mainly because it gives generic restriction.
-
-    Among quiet moves, rank in this exact order:
-      1. higher minimax_score
-      2. higher king_activity_score
-      3. higher mobility_reduction OR lower opponent_mobility_after
-      4. higher winning_conversion_score
-      5. leaves_piece_isolated=false
-
-    restriction_score and frozen_enemy_pieces are SUPPORTING signals only.
-    They must NEVER be the main reason to choose a quiet move.
-
-    If minimax_score is significantly worse than another safe move,
-    restriction_score and frozen_enemy_pieces MUST be ignored.
-
-    If two quiet moves are similarly safe, prefer the one that:
-      - improves activity
-      - improves king activation
-      - improves mobility
-      - or has the better minimax_score
-
-    Do NOT justify a quiet move mainly by "restriction" or "freezing pieces"
-    unless it also creates immediate tactical pressure or a real mobility collapse.
-
-  IMPORTANT OPENING RULE:
-  In game_phase=OPENING, winning_conversion_score, restriction_score,
-  frozen_enemy_pieces, mobility_reduction, and opponent_mobility_after
-  are weak secondary signals only.
-
-  In OPENING, these signals matter only when the move also has at least one of:
-    - captures_count > 0
-    - blocks_opponent_landing=true
-    - creates_immediate_threat=true
-    - shot_sequence_available=true
-
-  Otherwise they must NOT override cleaner opening structure,
-  back-row preservation, or a clearly better safe move.
-
-  Use counterplay_score as a strong tiebreak in favor of active play,
-but do not let it override clearly better promotion, capture, or
-safety outcomes. Never choose a move with unsafe_simple_move=true
-over a safe alternative regardless of counterplay_score.
-  
-
-  REAL TRAP RULE:
-  Do not treat a move as strong counterplay or tactical pressure merely because:
-    - blocks_opponent_landing=true
-    - restriction_score > 0
-    - frozen_enemy_pieces > 0
-
-  If opponent_safe_reply_count is still high, the move did not create a real trap.
-  Prefer a move with creates_real_trap=true or lower opponent_safe_reply_count
-  over a move that only gives generic restriction.
-
-  A fake trap is:
-    - blocks or restricts one square
-    - but still leaves the opponent several comfortable safe replies
-
-  A real trap is:
-    - creates_real_trap=true
-    - or sharply reduces opponent_safe_reply_count
-    - or combines real action with low safe-reply count
-
-If ACTIVATE_KINGS is in strategic_priorities, then among equally safe king moves,
-prefer the move with the highest king_activity_score. For kings, center_control
-is only a minor tiebreak — it matters only when it comes with concrete benefits
-such as creates_immediate_threat=true, shot_sequence_available=true,
-mobility_reduction > 0, higher restriction_score, frozen_enemy_pieces > 0,
-or stronger conversion quality. Do not choose a king move mainly because it is central.
-
-  
- KING ENDGAME ANTI-SHUFFLE RULE:
-  If quiet_move_role == "KING_SHUFFLE" or anti_shuffle_penalty < 0,
-  that move must lose to any other safe king move that has a better
-  king_activity_score, winning_conversion_score, simplification_value,
-  double_corner_smokeout_pressure, or edge_confinement_delta.
-  A king move must NOT be selected just because it is safe and central
-  when another safe king move creates real pressure or conversion progress.
-  In endgame-like positions (few pieces or multiple kings), prefer moves with:
-    1. higher king_activity_score
-    2. higher winning_conversion_score
-    3. higher simplification_value
-    4. higher double_corner_smokeout_pressure
-    5. higher edge_confinement_delta
-  over a passive king move that merely occupies a central square.
-
-  If stagnation_detected=true in strategic_context, break ties by preferring
-  moves that improve mobility, reduce opponent mobility, create threats,
-  improve king_activity_score, or improve conversion quality. Do not repeat
-  a quiet move unless it has a concrete benefit.
-
-  minimax_score is a strong tactical verifier, not an automatic winner.
-
-    OPENING positions (game_phase=OPENING):
-    Strategic development still matters, but minimax_score is NOT a weak signal.
-
-    In OPENING:
-      - Safety is important, but threat_after=0 is NOT an automatic winner.
-      - If two moves are both low-danger (no recapture, moved piece not threatened)
-        and differ by only 0 or 1 in our_pieces_threatened_after, minimax_score is
-        a strong signal and should usually decide.
-      - Strategic development (DEVELOP_PIECES / MAINTAIN_BACK_ROW / CONTROL_CENTER)
-        remains important as tiebreak context, not a reason to ignore clearly better minimax.
-
-    CRITICAL OPENING LOW-DANGER RULE:
-    If two candidate moves differ by only 0 or 1 in our_pieces_threatened_after,
-    and both have:
-      - opponent_can_recapture=false
-      - moved_piece_is_threatened=false
-    then minimax_score must be treated as a strong decision signal.
-    Do NOT choose a passive safe structural move over a low-danger active move
-    when the active move has clearly better minimax_score.
-    threat_after=0 does NOT automatically beat threat_after=1.
-
-    For quiet opening moves:
-      - center_control is only a late tiebreak
-      - winning_conversion_score is weak
-      - restriction_score and frozen_enemy_pieces are weak
-      - mobility_reduction is weak
-
-    IMPORTANT:
-    In OPENING, quiet_move_role="TACTICAL_PRESSURE" does NOT automatically mean
-    the move is worse than a STRUCTURAL_RESTRICTION move.
-
-    If opponent_can_recapture=false, moved_piece_is_threatened=false, and
-    our_pieces_threatened_after <= 1, treat that move as structurally acceptable.
-    Then compare minimax_score and development before preferring a quieter move.
-
-    If a move has:
-  creates_immediate_threat=false
-  and shot_sequence_available=false
-  and captures_count=0
-  and blocks_opponent_landing=false
-
-then it is a quiet non-tactical opening move.
-
-For such a move:
-  - winning_conversion_score
-  - restriction_score
-  - frozen_enemy_pieces
-  - mobility_reduction
-  - opponent_mobility_after
-
-MUST NOT appear in the reasoning for a quiet opening move unless the move already has a clearly stated structural justification such as center_control=true, leaves_piece_isolated=false, safer back-row discipline, or lower our_pieces_threatened_after.
-If they are mentioned, they must be secondary and brief, never the decision basis.
-  - cleaner development
-  - better structure
-  - better back-row discipline
-  - safer piece coordination
-  - center_control when relevant to opening priorities
-
-If a quiet opening move is chosen, the explanation should focus on development, structure, safety, or center control — not on conversion or freezing enemy pieces.
-
-    Among equally safe quiet opening moves, choose in this strict order:
-      1. highest safe minimax_score
-      2. stronger practical development:
-         - center_control=true
-         - better forward development from the starting structure
-         - better piece activation without weakening back-row discipline
-      3. lower isolation / better structure
-
-    HARD OPENING RULE:
-    If two quiet opening moves are both safe (opponent_can_recapture=false),
-    and one has a clearly better minimax_score by 3.0 or more, choose the
-    higher-minimax move unless it weakens back-row discipline or leaves the
-    moved piece isolated when the better-minimax alternative does not.
-
-    In a quiet non-tactical OPENING move, do NOT choose mainly because of:
-      - blocks_opponent_landing
-      - restriction_score
-      - frozen_enemy_pieces
-      - winning_conversion_score
-      - mobility_reduction
-      - opponent_mobility_after
-
-    Those signals may be mentioned only if the move already wins on opening
-    development or safety grounds. They must never be the main reason for
-    selecting a quiet opening move.
-
-    HARD OPENING SAFETY RULE:
-    In OPENING, a move with:
-      - opponent_can_recapture=false
-      - net_gain >= 0
-      - moved_piece_is_threatened=false
-      - and our_pieces_threatened_after <= 1
-
-    is still considered OPENING-SAFE for comparison purposes.
-
-    Therefore, if two quiet opening moves are both OPENING-SAFE, and one has
-    a better minimax_score by 2.0 or more, prefer the higher-minimax move.
-
-    Do NOT reject an OPENING-SAFE move just because:
-      - our_pieces_threatened_after is 1 instead of 0
-      - quiet_move_role is TACTICAL_PRESSURE
-      - center_control=true
-      - creates_immediate_threat=false
-      - shot_sequence_available=false
-
-    If a move is OPENING-SAFE and has clearly better minimax_score, do not let
-    a quieter STRUCTURAL_RESTRICTION move override it unless that alternative:
-      - preserves back-row discipline while the better-minimax move weakens it, or
-      - avoids isolation when the better-minimax move leaves the moved piece isolated.
-
-    Use generic structure only after minimax_score and practical development.
-    Do not let "cleaner structure" or vague restriction override a clearly better
-    OPENING-SAFE developmental move.
-
-  MIDGAME and ENDGAME positions:
-    Use minimax_score heavily when safety is similar, especially among
-    equally safe moves. Do not let shallow minimax override clearly better
-    strategic safety, consolidation, or threat-prevention when the position
-    is unstable.
-
-    If score_state indicates losing, or strategic_priorities includes SEEK_COUNTERPLAY,
-    COMPLICATE, or CREATE_THREATS, then do NOT automatically reject a move just because
-    it leaves 1 more threatened piece than the safest option. In these cases, prefer
-    active moves with clearly better minimax_score, creates_immediate_threat=true,
-    shot_sequence_available=true, or much higher counterplay_score.
-
-  Apply minimax_score like this:
-  - if moves are equally safe, prefer higher minimax_score
-  - if moves differ by only 0 or 1 in our_pieces_threatened_after,
-    prefer higher minimax_score unless one move has a clearly better
-    forced capture or promotion outcome
-  - in all-unsafe positions, minimax_score should guide the choice among
-    the least bad moves after basic safety comparison
-
-  minimax_score should NOT override:
-  - a forced capture with clearly better material outcome
-  - a clearly better promotion move (results_in_king=true)
-  - a large safety gap (for example, 0 threatened vs 2+ threatened)
-
-  Do NOT treat minimax_score as a last-resort tie only.
-  Use it as a strong decision signal after safety comparison,
-  but not as an automatic override in every unstable position.
-
-  If still tied after minimax_score, prefer the lower index.
-  
-
-
-FACTS REFERENCE (engine-computed — never recompute these yourself):
-  our_pieces_threatened_after  int   — how many of our pieces can be captured
-                                        next turn if we make this move (LOWER=BETTER)
-  our_pieces_threatened_before int   — how many were threatened before this move
-  opponent_can_recapture       bool  — true if our_pieces_threatened_after > 0
-  recapturable_piece_is_king   bool  — true if the threatened piece is a king
-  moved_piece_is_threatened    bool  — true if the moved piece itself is directly capturable
-                                       after this move; worse than leaving only some other piece hanging
-  max_opponent_jump_captures   int   — maximum number of our pieces the opponent can capture
-                                       in one immediate reply after this move; lower is better
-  forced_opponent_jump_reply   bool  — true if all legal opponent replies are jumps;
-                                       this means we allowed a tactically forced capture sequence
-  blocks_opponent_landing      bool  — true if we land on their jump landing square
-  captures_count               int   — pieces we capture this turn
-  net_gain                     int   — material change after this move
-  results_in_king              bool  — promotes one of our pieces to king
-  center_control               bool  — our piece lands in the strategic center
-  leaves_piece_isolated        bool  — moved piece has no friendly diagonal neighbor
-  any_piece_isolated           bool  — any of our pieces is isolated after the move
-  near_promotion               bool  — our piece is one step from promotion
-  kings_captured               int   — how many kings we captured
-  piece_type_moving            str   — "regular" or "king"
-  opponent_jump_count          int   — how many jumps opponent has after our move
-  opponent_mobility_before     int   — opponent legal move count before our move
-  opponent_mobility_after      int   — opponent legal move count after our move
-  mobility_reduction           int   — how much our move reduces opponent mobility
-  creates_immediate_threat     bool  — whether our resulting position creates a likely jump threat next turn
-  shot_sequence_available      bool  — whether our resulting position already gives us a jump next turn
-  forces_exchange              bool  — whether the move tends to force an exchange sequence
-  forces_exchange_count        int   — how many forcing jump replies appear in that exchange profile
-  two_for_one_potential        bool  — whether the move creates a likely 2-for-1 tactical opportunity
-  two_for_one_score            int   — strength of that 2-for-1 tactical opportunity
-  restriction_score            int   — how strongly the move restricts opponent structure or mobility
-  frozen_enemy_pieces          int   — how many opponent pieces become immobile after the move
-  improves_trade_conversion    bool  — whether this safely helps simplify when ahead
-  winning_conversion_score     int   — symbolic score for how well this move converts an advantage
-  unsafe_simple_move           bool  — true when a simple move leaves any of our pieces threatened;
-
-                                       this is a major warning signal — a simple move with
-                                       unsafe_simple_move=true must score worse than any simple
-                                       move with unsafe_simple_move=false
-  minimax_score                float — shallow search score (depth-limited minimax with alpha-beta)
-                                       from current_player's perspective; higher = tactically better;
-                                       use as a strong tiebreak among equally safe moves,
-                                       especially for ACTIVATE_KINGS, CONVERT_ADVANTAGE,
-                                       SEEK_COUNTERPLAY, CREATE_THREATS; do NOT let it override
-                                       clearly better immediate safety or forced captures
-  counterplay_score            int   — symbolic score for how actively a move creates pressure
-                                       when behind; higher = more active; used only when
-                                       CREATE_THREATS or SEEK_COUNTERPLAY are priorities;
-                                       does NOT override safety — use as a strong tiebreak
-                                       among equally safe moves, not as a dominant criterion
-  king_activity_score          int   — symbolic score for how actively a king improves pressure,
-                                       mobility restriction, or board control; used as a tiebreak
-                                       for ACTIVATE_KINGS and endgame king play; higher = better
-
-OUTPUT FORMAT — reply with ONLY this JSON object, no markdown, no extra text:
-
-                                       {
-  "chosen_index": <integer, 0-based>,
-  "reasoning": "<A single coherent paragraph of 3–5 sentences written like an experienced checkers coach. Do NOT use labeled section headers. Do NOT open with 'I choose this move because:'. Rules: (A) minimax_score must appear ONLY in the final sentence as confirmation — never in an earlier sentence. (B) The final sentence must be phrased as confirmation: e.g., 'The minimax score of X confirms this over move [Y] at Z'. (C) Sentences 1–3 explain using safety, tactical, and strategic facts only. (D) Comparisons MUST name the concrete fact that differs (opponent_can_recapture, our_pieces_threatened_after, leaves_piece_isolated, moved_piece_is_threatened) — NEVER 'worse', 'weaker', 'no advantage'. (E) QUALITY RULES: NEVER use generic phrases like 'stable position', 'no threats', 'solid move', 'no advantage', 'safe choice', 'good position', or 'maintains balance'. Every sentence before the final confirmation MUST contain at least one concrete fact with its actual value (e.g., opponent_can_recapture=false, our_pieces_threatened_after=0). Sentence structure to follow: S1–S2 = concrete safety or tactical facts with values (our_pieces_threatened_after, opponent_can_recapture, captures_count, moved_piece_is_threatened). S3 = positional or opponent impact (center_control, blocks_opponent_landing, leaves_piece_isolated, opponent_mobility_after, shot_sequence_available) with actual value. S4 optional = comparison using a concrete numeric or boolean difference, NOT score words. Final = minimax confirmation only. If no strong advantage exists, explain why this is the least harmful option using a concrete fact (e.g., 'Although captures_count=0, this is the only move with our_pieces_threatened_after=0'). Example: 'This move keeps all pieces safe (our_pieces_threatened_after=0) and blocks the opponent from landing on a key square (blocks_opponent_landing=true). It avoids any recapture risk (opponent_can_recapture=false) while landing on a central square (center_control=true). Move [1] was rejected because it leaves the moved piece directly threatened (moved_piece_is_threatened=true) vs zero threats here. The minimax score of X confirms this choice over move [1] at Y.'>"
-}
-
-REASONING REQUIREMENTS:
-  CRITICAL — The reasoning must be a single natural prose paragraph (3–5
-  sentences). Do NOT use labeled section headers like "Tactical:",
-  "Safety:", "Strategic:", or "vs alternatives:" anywhere in the reasoning.
-  Do NOT explain the move by saying only "highest minimax_score" or
-  "best minimax score, so best move" or any equivalent. minimax_score must
-  appear ONLY in the final sentence and must be phrased as confirmation,
-  e.g. "The minimax score of X confirms this choice over move [Y] at Z."
-  Do NOT use minimax_score as a justification in any earlier sentence.
-  Do NOT use vague alternative-comparison phrases like "no advantage",
-  "weaker", "inferior", or "lower score". When rejecting an alternative,
-  name a concrete negative fact from its facts dict instead.
-  Every claim must be grounded in at least one actual fact value.
-
-  TRUTHFULNESS RULES — only state a claim if the facts explicitly support it:
-  - Only say "reduces mobility" / "limits opponent moves" if
-    opponent_mobility_after < opponent_mobility_before.
-  - Only say "avoids recapture" / "safe from recapture" / "no recapture risk" if
-    opponent_can_recapture = false.
-  - Only say "does not isolate" / "maintains connectivity" if
-    leaves_piece_isolated = false.
-  - Only say "creates a threat" / "creates immediate threat" / "applies pressure" if
-    creates_immediate_threat = true.
-  - Only say "controls the center" / "center control" if center_control = true.
-  - Only say "captures" / "gains material" if captures_count > 0.
-  - Only say "promotes" / "crowns" if results_in_king = true.
-  - Only say "blocks the opponent" / "blocks landing" if blocks_opponent_landing = true.
-  If a fact value does not support the claim, do NOT make the claim.
-  Never write "slightly reducing mobility (X vs X)" when X equals X — that is a
-  false claim. Use the exact numeric values to verify before writing any comparison.
-  QUALITY RULES — each reasoning sentence must be specific and grounded:
-  - Do NOT use generic phrases like "stable position", "no threats", "solid move",
-    "no advantage", "safe choice", "good position", or "maintains balance".
-    These reveal nothing about the position and are forbidden.
-  - Every sentence before the final minimax confirmation MUST contain at least
-    one concrete fact with its actual value, e.g.: opponent_can_recapture=false,
-    our_pieces_threatened_after=0, captures_count=1, center_control=true.
-  - Sentence structure (enforce in order):
-      S1–S2: concrete safety or tactical facts with actual values.
-      S3:    positional or opponent impact — use center_control,
-             blocks_opponent_landing, opponent_mobility_after, leaves_piece_isolated,
-             shot_sequence_available, or near_promotion with actual values.
-      S4 (optional, omit if only 1 candidate): comparison using a concrete
-             numeric or boolean difference — name the specific fact that differs.
-             Example: "Move [1] leaves 2 pieces threatened (our_pieces_threatened_after=2)
-             vs 0 here." NOT "Move [1] is worse" or "offers no advantage".
-      Final: minimax_score as confirmation only.
-  - If no strong advantage exists, explain WHY this is the least harmful option
-    using a concrete fact. Example: "Although captures_count=0, this is the only
-    move with our_pieces_threatened_after=0; all others leave at least 1 piece
-    at risk (opponent_can_recapture=true for all alternatives)."
-
-  - In OPENING, if the chosen move has creates_immediate_threat=false, shot_sequence_available=false, captures_count=0, and blocks_opponent_landing=false, do not justify it mainly using winning_conversion_score, restriction_score, frozen_enemy_pieces, mobility_reduction, or opponent_mobility_after.
-  - In that quiet OPENING case, explain the move using minimax_score, development, center_control, back-row discipline, or structure only.
-  - In OPENING, if the chosen move has our_pieces_threatened_after <= 1, opponent_can_recapture=false, and moved_piece_is_threatened=false, do not describe it as effectively unsafe or tactically inferior just because a different move had threat_after=0.
-  - If a better OPENING-SAFE move existed with minimax_score higher by 2.0 or more, do NOT justify a lower-minimax structural move unless you name the exact structural reason:
-      back-row discipline or isolation.
-  - If a better safe move existed only because of restriction_score, frozen_enemy_pieces, or mobility_reduction, do NOT use those as the reason for choosing it.
-  - Mention only facts explicitly present in the chosen move's facts or strategic_context.
-  - If safety drove the choice: mention our_pieces_threatened_after value.
-  - If danger severity drove the choice: mention moved_piece_is_threatened,
-    forced_opponent_jump_reply, max_opponent_jump_captures, or opponent_jump_count.
-    - If conversion drove the choice for a quiet move in MIDGAME/ENDGAME:
-    mention minimax_score first, then winning_conversion_score,
-    mobility_reduction, or opponent_mobility_after as supporting signals.
-  - If conversion drove the choice for an active move:
-    mention winning_conversion_score, mobility_reduction,
-    opponent_mobility_after, or the tactical action that made the move active.
-  - If pressure drove the choice: mention creates_immediate_threat=true.
-  - If blocking drove the choice: mention blocks_opponent_landing=true.
-  - If captures drove the choice: mention captures_count and net_gain.
-  - Do not infer hidden ideas like "defends the flank" unless that is directly supported
-    by a named priority or fact.
-  - Do not say alternatives were weaker unless you name the exact compared fact.
-  - Never say "no other moves existed" unless exactly one candidate was provided.
-  - Never mention promotion unless results_in_king=true or near_promotion=true.
-  - Never mention a priority unless it appears in strategic_priorities.
-  - If you cannot justify a comparison exactly, omit it.
-  - Do NOT justify a move mainly by restriction_score or frozen_enemy_pieces
-    unless the move also creates immediate tactical pressure or mobility collapse.
-  - In CLEARLY_LOSING or SLIGHTLY_LOSING positions, if minimax_score was the decisive
-    reason, say so explicitly before mentioning any structural or mobility signal.
-  - In losing positions, do not explain a lower-minimax move as better unless you name
-    the exact immediate danger fact that forced the choice:
-    moved_piece_is_threatened, forced_opponent_jump_reply, or max_opponent_jump_captures.
-  - If you claim a move creates pressure, trap, or counterplay, mention creates_real_trap
-    or opponent_safe_reply_count when available.
-  - Do NOT describe a move as a trap mainly because of blocks_opponent_landing,
-    restriction_score, or frozen_enemy_pieces if opponent_safe_reply_count remains high."""
-
-# LEGACY — single-candidate decision prompt, unused in simplified proposal-authoritative pipeline.
-RANKER_SYSTEM_PROMPT_SINGLE = """\
-You are the move ranker for American Checkers (8×8).
-Exactly ONE legal candidate is available — list index 0. Output chosen_index: 0.
-
-Analyse the move using these facts (in order of importance):
-  1. our_pieces_threatened_after — how many of our pieces remain at risk (lower is better)
-  2. moved_piece_is_threatened   — whether the moved piece itself walks into direct danger
-  3. forced_opponent_jump_reply  — whether opponent is tactically forced to capture
-  4. max_opponent_jump_captures  — severity of the opponent's best immediate jump reply
-  5. blocks_opponent_landing     — does this move physically block an opponent capture?
-  6. captures_count / net_gain   — material gained
-  7. results_in_king             — promotion achieved
-  8. mobility_reduction          — whether the move reduces opponent options
-  9. creates_immediate_threat    — whether the move creates pressure next turn
-  10. center_control             — positional value
-
-  
-STRICT OPENING RULE (MANDATORY)
-
-If a move has:
-  creates_immediate_threat = false
-  AND shot_sequence_available = false
-  AND captures_count = 0
-  AND blocks_opponent_landing = false
-
-Then:
-
-- This is a quiet non-tactical move.
-
-- The following signals MUST NOT be used as justification:
-    restriction_score
-    frozen_enemy_pieces
-    winning_conversion_score
-    mobility_reduction
-    opponent_mobility_after
-
-- These signals MUST NOT appear in the reasoning as a reason to choose the move.
-
-- If such signals are mentioned, they must be ignored in the decision.
-
-Instead, the move can ONLY be justified by:
-  - development (DEVELOP_PIECES)
-  - center_control
-  - structural integrity (no isolation)
-  - back-row safety
-  - overall safety
-
-If none of these structural reasons are clearly better than alternatives,
-then prefer the move with better minimax_score.
-
-OUTPUT FORMAT — reply with ONLY this JSON object, no markdown, no extra text:
-{
-  "chosen_index": 0,
-  "reasoning": "<A single coherent paragraph of 3–5 sentences. Do NOT use labeled section headers. Rules: (A) minimax_score must appear ONLY in the final sentence as confirmation — never in an earlier sentence. (B) The final sentence must be phrased as confirmation: e.g., 'The minimax score of X confirms the position is sound'. (C) Sentences 1–2 explain using safety, tactical, and strategic facts only. (E) QUALITY RULES: NEVER use generic phrases like 'stable position', 'no threats', 'solid move', 'no advantage', 'safe choice', or 'good position'. Every sentence before the final confirmation MUST contain at least one concrete fact with its actual value (e.g., our_pieces_threatened_after=0, center_control=true, opponent_can_recapture=false). Sentence structure: S1–S2 = concrete safety/tactical facts with values. S3 = positional or opponent impact with actual values. Final = minimax confirmation. If no strong advantage exists, explain why this is the least harmful option using a concrete fact (e.g., 'Although captures_count=0, this is the only candidate and our_pieces_threatened_after=0'). No alternative comparison needed (only one candidate). Example: 'This is the only legal move. It keeps all pieces safe (our_pieces_threatened_after=0) and lands on a central square (center_control=true), with no recapture risk (opponent_can_recapture=false). The minimax score of X confirms the position remains stable.'>"
-}
-"""
-
-
-# ── Prompt builders ───────────────────────────────────────────────────────────
-# LEGACY — decision-mode prompt builders, unused in simplified proposal-authoritative pipeline.
-# Retained for rollback compatibility with the legacy decision-making path.
-
-def build_ranker_user_prompt(
-    state: CheckersState,
-    filtered: list[dict[str, Any]],
-    index_map: list[int],
-) -> str:
-    lines: list[str] = [
-        f"current_player: {_current_player_label(state.current_player)}",
-        f"turn_number: {state.turn_number}",
-        "",
-        f"Choose exactly one index from 0 to {len(filtered) - 1} inclusive.",
-        "",
-        "legal_moves:",
-        "Safety note: clearly unsafe moves may be removed before ranking,",
-        "but if all legal moves are unsafe then the candidate list may still",
-        "contain recapturable moves. Use the facts fields to judge safety.",]
-    phase = (state.strategic_context or {}).get("game_phase", "MIDGAME")
-
-    for i, move in enumerate(filtered):
-        facts = dict(move.get("facts", {}) or {})
-
-        is_quiet_opening_move = (
-            phase == "OPENING"
-            and facts.get("captures_count", 0) == 0
-            and not facts.get("creates_immediate_threat", False)
-            and not facts.get("shot_sequence_available", False)
-            and not facts.get("blocks_opponent_landing", False)
-        )
-
-        if is_quiet_opening_move:
-            for key in (
-                "restriction_score",
-                "frozen_enemy_pieces",
-                "winning_conversion_score",
-                "mobility_reduction",
-                "opponent_mobility_after",
-            ):
-                facts.pop(key, None)
-
-        # Phase 5.2 fairness: hide symbolic_rank from the LLM prompt only.
-        # symbolic_rank=1 is a direct answer label; minimax_score remains
-        # visible. The underlying move object is NOT mutated — `facts` here
-        # is the local copy built two statements above.
-        facts.pop("symbolic_rank", None)
-
-        payload = {
-            "type": move.get("type"),
-            "path": move.get("path"),
-            "captured": move.get("captured", []),
-            "facts": facts,
-        }
-        lines.append(f"  [{i}] {json.dumps(payload, ensure_ascii=False)}")
-
-    if RANKER_INCLUDE_STRATEGIC_CONTEXT:
-        lines.extend([
-            "",
-            "strategic_context:",
-            _format_ranker_context(state.strategic_context),
-        ])
-    else:
-        lines.append("")
-        lines.append("(strategic_context omitted — rely on per-move facts only.)")
-
-
-
-    return "\n".join(lines)
-
-
-# LEGACY — single-candidate prompt builder, unused in simplified proposal-authoritative pipeline.
-def build_ranker_user_prompt_single(
-    state: CheckersState,
-    move: dict[str, Any],
-) -> str:
-    # Phase 5.2 fairness: copy facts and hide symbolic_rank from the LLM
-    # prompt only. Underlying move object is not mutated. minimax_score is
-    # preserved.
-    _facts_for_prompt = dict(move.get("facts", {}) or {})
-    _facts_for_prompt.pop("symbolic_rank", None)
-    payload = {
-        "type": move.get("type"),
-        "path": move.get("path"),
-        "captured": move.get("captured", []),
-        "facts": _facts_for_prompt,
-    }
-    recapture = move.get("facts", {}).get("opponent_can_recapture", False)
-    safety_note = (
-        "Note: this is a forced move — opponent can recapture, "
-        "but it is the only legal option."
-        if recapture else
-        "This move is safe — no immediate recapture threat."
-    )
-    lines: list[str] = [
-        f"current_player: {_current_player_label(state.current_player)}",
-        f"turn_number: {state.turn_number}",
-        "",
-        "Exactly ONE legal candidate — index 0. Output chosen_index: 0.",
-        safety_note,
-        "",
-        "legal_move [0]:",
-        f"  {json.dumps(payload, ensure_ascii=False)}",
-    ]
-    if RANKER_INCLUDE_STRATEGIC_CONTEXT:
-        lines.extend([
-            "",
-            "strategic_context:",
-            _format_ranker_context(state.strategic_context),
-        ])
-    else:
-        lines.append("")
-        lines.append("(strategic_context omitted — rely on per-move facts only.)")
-
-    return "\n".join(lines)
-# ── Mistral API call ──────────────────────────────────────────────────────────
-
 def call_mistral_ranker(system: str, user: str) -> str:
     """
-    Calls mistral-small-latest via the Mistral REST API.
-    Uses response_format: json_object for guaranteed JSON output —
-    no regex fallback needed for the outer structure.
+    Calls the Mistral API via the provider layer (Step 8).
+
+    Delegates the HTTP call to llm_provider.call_mistral_once so the chosen-
+    reasoning path and the comparative-reasoning path share one HTTP primitive
+    while remaining independently configured (provider-split boundary).
+
+    HTTP 429 adds a 15 s sleep before re-raising so the retry loops in
+    _generate_seeded_reasoning and _refine_reasoning get the scheduled delay.
+    All HTTP errors are converted to ValueError for backward compatibility.
 
     Raises:
-        ValueError  — API key missing, non-200 response, or missing content
-        OSError     — network-level failure
+        ValueError  — API key missing, HTTP error, or unexpected response shape.
+        OSError     — network-level failure propagated from call_mistral_once.
     """
     if not MISTRAL_API_KEY:
         raise ValueError(
             "MISTRAL_API_KEY is not set. "
             "Run: export MISTRAL_API_KEY='your_key_from_console.mistral.ai'"
         )
-
-    payload: dict[str, Any] = {
-        "model": MISTRAL_RANKER_MODEL,
-        "temperature": RANKER_TEMPERATURE,
-        "max_tokens": 512,
-        "response_format": {"type": "json_object"},   # native JSON mode
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user",   "content": user},
-        ],
-    }
-
-    body = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        MISTRAL_API_URL,
-        data=body,
-        headers={
-            "Content-Type":  "application/json",
-            "Authorization": f"Bearer {MISTRAL_API_KEY}",
-            "Accept":        "application/json",
-        },
-        method="POST",
-    )
-
+    import time as _t
     try:
-        with urllib.request.urlopen(req, timeout=60.0) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body_text = e.read().decode("utf-8", errors="replace")
+        return call_mistral_once(
+            [
+                {"role": "system", "content": system},
+                {"role": "user",   "content": user},
+            ],
+            api_key=MISTRAL_API_KEY,
+            model=MISTRAL_RANKER_MODEL,
+            temperature=RANKER_TEMPERATURE,
+            max_tokens=512,
+        )
+    except ProviderHTTPError as e:
         if e.code == 429:
-            import time
-            time.sleep(15)   # wait before retry
-        raise ValueError(
-            f"Mistral API HTTP {e.code}: {body_text[:300]}"
-        ) from e
-
-    # Mistral response shape:
-    # {"choices": [{"message": {"content": "..."}}], ...}
-    try:
-        content = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError) as e:
-        raise ValueError(
-            f"Unexpected Mistral response structure: {str(data)[:300]}"
-        ) from e
-
-    if not isinstance(content, str):
-        raise ValueError(f"Mistral content is not a string: {type(content)}")
-
-    return content
-
+            _t.sleep(15)
+        raise ValueError(f"Mistral API HTTP {e.code}: {e.body}") from e
 
 
 # ── Unified call dispatcher ───────────────────────────────────────────────────
 
 def call_ranker(system: str, user: str) -> str:
     return call_mistral_ranker(system, user)
-
-
-# ── Response interpretation ───────────────────────────────────────────────────
-
-# LEGACY — LLM response parser (decision extraction), unused in simplified proposal-authoritative pipeline.
-def _interpret_ranker_response(raw: str, n: int) -> tuple[Optional[int], str]:
-    parsed = _parse_ranker_json(raw)
-    raw_idx: Optional[int] = None
-    reasoning = ""
-
-    if parsed:
-        raw_idx = _extract_chosen_index(parsed)
-        r = parsed.get("reasoning")
-        if isinstance(r, str):
-            reasoning = r.strip()
-        elif r is not None:
-            reasoning = str(r).strip()
-
-    if raw_idx is None:
-        raw_idx = _regex_extract_chosen_index(raw)
-    if not reasoning:
-        reasoning = _regex_extract_reasoning(raw) or ""
-
-    idx = _resolve_ranker_index(raw_idx, n)
-    return idx, reasoning
-
-
-def _failure_patch(state: CheckersState) -> dict[str, Any]:
-    return {
-        "chosen_move": None,
-        "last_move_reasoning": None,
-        "ranker_retry_count": state.ranker_retry_count + 1,
-        "ranker_failure_count": state.ranker_failure_count + 1,
-        "last_completed_node": "ranker_agent",
-    }
-
-
-# ── Failure diagnostics / fallback helpers ───────────────────────────────────
-# LEGACY — diagnostics and fallback selectors, unused in simplified proposal-authoritative pipeline.
-# Retained for rollback compatibility with the legacy decision-making path.
-
-def _candidate_signal_snapshot(m: dict[str, Any]) -> dict[str, Any]:
-    facts = m.get("facts", {}) or {}
-    return {
-        "path": m.get("path"),
-        "type": m.get("type"),
-        "minimax_score": _get_minimax_score(m),
-        "creates_immediate_threat": facts.get("creates_immediate_threat"),
-        "shot_sequence_available": facts.get("shot_sequence_available"),
-        "quiet_move_role": facts.get("quiet_move_role"),
-        "counterplay_score": facts.get("counterplay_score"),
-        "winning_conversion_score": facts.get("winning_conversion_score"),
-    }
 
 
 def _canonical_coord_list(value: Any) -> list[list[int]]:
@@ -2245,377 +165,11 @@ def _build_ranker_filtered_menu_snapshot(filtered: list[dict[str, Any]]) -> list
     ]
 
 
-def _parse_diagnostics(raw: Optional[str], n_filtered: int) -> dict[str, Any]:
-    if raw is None:
-        return {
-            "raw_llm_output_present": False,
-            "raw_llm_output_excerpt": None,
-            "parsed_chosen_index_raw": None,
-            "parsed_chosen_index_resolved": None,
-        }
-    parsed = _parse_ranker_json(raw)
-    raw_idx: Optional[int] = _extract_chosen_index(parsed) if parsed else None
-    if raw_idx is None:
-        raw_idx = _regex_extract_chosen_index(raw)
-    return {
-        "raw_llm_output_present": True,
-        "raw_llm_output_excerpt": raw[:1200],
-        "parsed_chosen_index_raw": raw_idx,
-        "parsed_chosen_index_resolved": _resolve_ranker_index(raw_idx, n_filtered),
-    }
-
-
-# LEGACY — fallback selector, unused in simplified proposal-authoritative pipeline.
-def _choose_best_minimax_with_origin(
-    legal: list[dict[str, Any]],
-    filtered: list[dict[str, Any]],
-    index_map: list[int],
-) -> tuple[dict[str, Any], int, str]:
-    """
-    Deterministic fallback:
-    1) best minimax in filtered candidates, if available
-    2) else best minimax in legal list
-    """
-    if filtered:
-        best_idx, _, _ = _best_and_second_best_minimax(filtered)
-        if best_idx is not None and 0 <= best_idx < len(filtered):
-            original_idx = index_map[best_idx] if 0 <= best_idx < len(index_map) else best_idx
-            original_idx = max(0, min(original_idx, len(legal) - 1))
-            return legal[original_idx], original_idx, "filtered_best_minimax"
-    best_legal_idx, _, _ = _best_and_second_best_minimax(legal)
-    if best_legal_idx is None:
-        # legal is guaranteed non-empty at call sites, but keep safe fallback.
-        return legal[0], 0, "legal_index_0_fallback"
-    return legal[best_legal_idx], best_legal_idx, "legal_best_minimax"
-
-
-# LEGACY — failure logging for decision path, unused in simplified proposal-authoritative pipeline.
-def _log_no_chosen_move_failure(
-    *,
-    state: CheckersState,
-    legal: list[dict[str, Any]],
-    filtered: list[dict[str, Any]],
-    raw: Optional[str],
-    reason: str,
-    fallback_path: str,
-    fallback_original_idx: Optional[int] = None,
-    override_path: Optional[str] = None,
-) -> None:
-    parse = _parse_diagnostics(raw, len(filtered))
-    payload: dict[str, Any] = {
-        "event": "ranker_no_chosen_move_hardened",
-        "reason": reason,
-        "turn_number": state.turn_number,
-        "current_player": _current_player_label(state.current_player),
-        "legal_move_count": len(legal),
-        "filtered_candidate_count": len(filtered),
-        "fallback_path": fallback_path,
-        "fallback_original_idx": fallback_original_idx,
-        "override_path": override_path,
-        "filtered_candidate_signals": [
-            _candidate_signal_snapshot(m) for m in filtered[:5]
-        ],
-    }
-    payload.update(parse)
-    print(f"[RANKER_FAILURE_DEBUG] {json.dumps(payload, ensure_ascii=False)}")
-
-
-# ── Override audit helpers ───────────────────────────────────────────────────
-# LEGACY — override/retry system, unused in simplified proposal-authoritative pipeline.
-# Retained for rollback compatibility with the legacy decision-making path.
-
-OVERRIDE_MAX_RETRIES = int(os.environ.get("OVERRIDE_MAX_RETRIES", "3"))  # LEGACY
-
-
-def _audit_override(
-    candidate_moves: list[dict[str, Any]],
-    idx_in_candidates: int,
-    game_phase: str,
-    score_state: str,
-    priorities: list[str],
-    comparison_moves: list[dict[str, Any]],
-) -> tuple[bool, Optional[str], Optional[dict[str, Any]], Optional[str], dict[str, Any]]:
-    """
-    Thin wrapper around _override_if_llm_chose_much_worse_minimax.
-    Returns (triggered, branch_name, best_move, override_reason, override_debug).
-    Does NOT apply the override — caller decides what to do.
-    """
-    result_move, override_reason, override_debug = _override_if_llm_chose_much_worse_minimax(
-        candidate_moves,
-        idx_in_candidates,
-        game_phase,
-        score_state,
-        priorities,
-        comparison_moves=comparison_moves,
-    )
-    triggered: bool = bool(override_debug.get("override_branch_triggered", False))
-    branch_name: Optional[str] = override_debug.get("override_branch_name")
-    # best_move: the move the override would choose (from comparison_moves)
-    best_idx, _, _ = _best_and_second_best_minimax(comparison_moves)
-    best_move = comparison_moves[best_idx] if best_idx is not None else None
-    return triggered, branch_name, best_move, override_reason, override_debug
-
-
-# LEGACY — override feedback builder, unused in simplified proposal-authoritative pipeline.
-def _build_override_feedback_str(
-    override_debug: dict[str, Any],
-    branch_name: Optional[str],
-    chosen_score: Optional[float] = None,
-    best_score: Optional[float] = None,
-    rejected_paths: Optional[list] = None,
-) -> str:
-    """
-    Builds a branch-aware OVERRIDE_FEEDBACK block injected BEFORE the move list.
-    Each branch explains specifically why the previous LLM reasoning failed.
-    Does NOT reveal the exact index to choose.
-
-    rejected_paths: paths chosen by earlier retry LLM calls in this same turn
-        that were also rejected.  When non-empty, a PREVIOUSLY_REJECTED_PATHS
-        note is appended after the diagnosis — informational only, not a hard
-        exclusion.  Capped at 3 paths to avoid prompt bloat.
-        Only passed by the retry loop; never present on the first retry attempt.
-    """
-    gap = override_debug.get("best_vs_chosen_minimax_gap")
-    gap_str = f"{gap:.1f}" if isinstance(gap, (int, float)) else "unknown"
-    threat_delta = override_debug.get("best_vs_chosen_threat_delta")
-    threat_str = f"{threat_delta:+d}" if isinstance(threat_delta, int) else "n/a"
-    c_str = f"{chosen_score:.1f}" if isinstance(chosen_score, (int, float)) else "n/a"
-    b_str = f"{best_score:.1f}" if isinstance(best_score, (int, float)) else "n/a"
-    bn = branch_name or "unknown"
-
-    if bn == "safe_vs_unsafe_large_gap":
-        body = (
-            f"  branch_triggered    : {bn}\n"
-            f"  your_choice_score   : {c_str}\n"
-            f"  best_available_score: {b_str}\n"
-            f"  minimax_gap         : {gap_str}  (threshold={SAFE_VS_UNSAFE_OVERRIDE_GAP:.1f})\n"
-            f"  threat_delta        : {threat_str}  (best.threat_after - your_choice.threat_after)\n"
-            "\n"
-            "DIAGNOSIS: You chose a lower-threat move, but the minimax engine evaluated\n"
-            "all opponent replies and found the higher-scoring move is tactically dominant.\n"
-            f"A {gap_str}-point minimax gap means the engine already priced in the\n"
-            "opponent recapture risk. opponent_can_recapture=True does not mean the\n"
-            "position becomes losing — minimax proves the best move recovers well after.\n"
-            "Choosing the safe-but-weaker move permanently loses that positional value.\n"
-            "\n"
-            "ACTION: Re-rank all candidates by minimax_score. A move with threat_after=1\n"
-            "or opponent_can_recapture=True is still correct when its minimax_score is\n"
-            "significantly higher than the safe alternative."
-        )
-    elif bn == "low_danger_minimax_dominance":
-        body = (
-            f"  branch_triggered    : {bn}\n"
-            f"  your_choice_score   : {c_str}\n"
-            f"  best_available_score: {b_str}\n"
-            f"  minimax_gap         : {gap_str}  (threshold={LOW_DANGER_MINIMAX_GAP:.1f})\n"
-            f"  threat_delta        : {threat_str}\n"
-            "\n"
-            "DIAGNOSIS: Both your choice and the best move are low-danger. You likely\n"
-            "over-weighted counterplay_score, creates_immediate_threat, or\n"
-            "shot_sequence_available. These fields describe the current move only —\n"
-            "they do NOT guarantee a better position after the opponent's best reply.\n"
-            "A high counterplay_score with a lower minimax_score means the tactical\n"
-            "pressure evaporates once the opponent responds optimally.\n"
-            "\n"
-            "ACTION: Among low-danger moves, treat minimax_score as the dominant\n"
-            "criterion. Counterplay and threat signals are valid tiebreakers only when\n"
-            f"minimax scores are within {LOW_DANGER_MINIMAX_GAP:.1f} points of each other."
-        )
-    elif bn and bn.startswith("unsafe_vs_unsafe"):
-        body = (
-            f"  branch_triggered    : {bn}\n"
-            f"  your_choice_score   : {c_str}\n"
-            f"  best_available_score: {b_str}\n"
-            f"  minimax_gap         : {gap_str}\n"
-            f"  threat_delta        : {threat_str}\n"
-            "\n"
-            "DIAGNOSIS: All available moves expose pieces. In this situation\n"
-            "our_pieces_threatened_after and opponent_can_recapture are not useful\n"
-            "discriminators — both moves carry similar immediate risk. The minimax\n"
-            "engine evaluated the full sequence and found one move recovers\n"
-            "significantly better after the opponent's optimal reply.\n"
-            "\n"
-            "ACTION: When all moves are risky, rank by minimax_score alone. Do not\n"
-            "use threat_after or opponent_can_recapture to prefer one unsafe move."
-        )
-    else:
-        body = (
-            f"  branch_triggered    : {bn}\n"
-            f"  your_choice_score   : {c_str}\n"
-            f"  best_available_score: {b_str}\n"
-            f"  minimax_gap         : {gap_str}\n"
-            f"  threat_delta        : {threat_str}\n"
-            "\n"
-            "DIAGNOSIS: The minimax engine found a significantly better move. Minimax\n"
-            "evaluates all opponent replies to depth and is more reliable than\n"
-            "single-move heuristics (counterplay, safety, threat creation alone).\n"
-            "\n"
-            "ACTION: Re-examine the candidate list. Prefer the move with the highest\n"
-            "minimax_score that does not introduce unacceptable immediate danger."
-        )
-
-    # Phase 2.3b: previously-rejected-paths block (informational, never a hard filter).
-    # Only appended when prior retry LLM calls in this same turn were also rejected.
-    # Capped at 3 paths; normalised to list-of-lists for readability.
-    rejected_block: list = []
-    if rejected_paths:
-        display: list = []
-        for p in rejected_paths[:3]:
-            try:
-                display.append([list(sq) for sq in (p or [])])
-            except (TypeError, ValueError):
-                display.append(p)
-        paths_str = ", ".join(str(dp) for dp in display)
-        rejected_block = [
-            "",
-            f"Previously rejected retry paths in this turn: [{paths_str}].",
-            "Avoid repeating these paths unless you can explain why the audit would now pass.",
-        ]
-
-    lines = [
-        "OVERRIDE_FEEDBACK:",
-        "Your previous selection was rejected by the tactical override guardrail.",
-        "",
-        body,
-    ] + rejected_block + [
-        "",
-        "The candidate list below is the FULL proposal shortlist (no safety filter applied).",
-        "END_OVERRIDE_FEEDBACK",
-    ]
-    return "\n".join(lines)
-
-
-# LEGACY — retry prompt builder, unused in simplified proposal-authoritative pipeline.
-def _build_retry_user_prompt(
-    state: "CheckersState",
-    move_list: list[dict[str, Any]],
-    index_map: list[int],
-    feedback_str: str,
-    system_prompt: str,
-) -> str:
-    """
-    Builds a retry user prompt that places feedback_str BEFORE the move list.
-    move_list is the full proposal shortlist (legal[]); index_map is identity.
-    The structure mirrors build_ranker_user_prompt but inserts the feedback
-    block between the header and the 'legal_moves:' section.
-    """
-    phase = (state.strategic_context or {}).get("game_phase", "MIDGAME")
-    header_lines = [
-        f"current_player: {_current_player_label(state.current_player)}",
-        f"turn_number: {state.turn_number}",
-        "",
-        feedback_str,
-        "",
-        f"Choose exactly one index from 0 to {len(move_list) - 1} inclusive.",
-        "",
-        "legal_moves:",
-        "Safety note: clearly unsafe moves may be removed before ranking,",
-        "but if all legal moves are unsafe then the candidate list may still",
-        "contain recapturable moves. Use the facts fields to judge safety.",
-    ]
-    move_lines: list[str] = []
-    for i, move in enumerate(move_list):
-        facts = dict(move.get("facts", {}) or {})
-        is_quiet_opening_move = (
-            phase == "OPENING"
-            and facts.get("captures_count", 0) == 0
-            and not facts.get("creates_immediate_threat", False)
-            and not facts.get("shot_sequence_available", False)
-            and not facts.get("blocks_opponent_landing", False)
-        )
-        if is_quiet_opening_move:
-            for key in (
-                "restriction_score",
-                "frozen_enemy_pieces",
-                "winning_conversion_score",
-                "mobility_reduction",
-                "opponent_mobility_after",
-            ):
-                facts.pop(key, None)
-        # Phase 5.2 fairness: hide symbolic_rank from the retry LLM prompt
-        # only. minimax_score is preserved. Underlying move object is not
-        # mutated — `facts` is the local copy built earlier in this loop.
-        facts.pop("symbolic_rank", None)
-        payload = {
-            "type": move.get("type"),
-            "path": move.get("path"),
-            "captured": move.get("captured", []),
-            "facts": facts,
-        }
-        move_lines.append(f"  [{i}] {json.dumps(payload, ensure_ascii=False)}")
-    ctx_lines: list[str] = []
-    if RANKER_INCLUDE_STRATEGIC_CONTEXT:
-        ctx_lines = [
-            "",
-            "strategic_context:",
-            _format_ranker_context(state.strategic_context),
-        ]
-    else:
-        ctx_lines = ["", "(strategic_context omitted — rely on per-move facts only.)"]
-    return "\n".join(header_lines + move_lines + ctx_lines)
-
-
-# ── Reasoning truthfulness checker ───────────────────────────────────────────
-
-# ── Forbidden vocabulary: terms never allowed unless explicitly seeded ────────
-# Each entry is a substring to look for (case-insensitive) in reasoning text.
-#
-# Source-of-truth note
-# --------------------
-# Generic-filler phrases and forbidden geometric/tactical conflation phrases are
-# imported below from the NEUTRAL ontology package and merged into the two
-# vocabulary lists.  Editing the ontology updates both the runtime checker and
-# the evaluator without duplicating phrase definitions.
-#
-# Layering: checkers.ontology has no project-internal dependencies, so runtime
-# importing it does not create a cycle and does not introduce a runtime →
-# evaluation dependency (forbidden direction).
-from checkers.ontology.semantic_ontology import (
-    FORBIDDEN_CONFLATION_PHRASES as _ONTOLOGY_FORBIDDEN_CONFLATION,
-    GENERIC_FILLER_PHRASES as _ONTOLOGY_GENERIC_FILLER,
-)
-
-# Forbidden-vocab lists are sourced from the shared evaluator module
-# `checkers.evaluation.forbidden_vocab` so the unified verifier and this
-# runtime checker consult the SAME list object.  The ontology-merge function
-# below extends them in place; both consumers see the merged list.
-from checkers.evaluation.forbidden_vocab import (
-    ABSOLUTE_FORBIDDEN_VOCAB as _FORBIDDEN_VOCAB,
-)
-
-# Context-forbidden lists are sourced from the shared evaluator module so
-# the unified verifier and this runtime checker consult the SAME list.  The
-# ontology-merge function below extends this list in place.
-from checkers.evaluation.forbidden_vocab import (
-    CONTEXT_FORBIDDEN_VOCAB as _CONTEXT_FORBIDDEN_VOCAB,
-)
-
-# (legacy commentary on retired entries — preserved for the historical
-# rationale; the current list is canonical in
-# `checkers.evaluation.forbidden_vocab.CONTEXT_FORBIDDEN_VOCAB`.)
 _LEGACY_CONTEXT_FORBIDDEN_NOTES: list[str] = [
-    # "escape" removed — too short; fires on valid tactical phrasing such as
-    # "The opponent cannot escape the capture".
-    # "diagonal" removed — bare "diagonal" is valid checkers vocabulary.
-    # Ontology conflation — geometric ∩ tactical center.  No seed emits this
-    # phrase; any occurrence in LLM output is an unsupported semantic conflation.
-    # The full set is unioned from semantic_ontology.FORBIDDEN_CONFLATION_PHRASES
-    # immediately below this list.
     "central board presence",
-    # Unsupported safety assertion (positive form).  "no new vulnerabilities"
-    # is allowed (negation-aware check in _check_reasoning_truthfulness skips
-    # the match when the phrase is immediately preceded by "no ").
     "new vulnerabilities",
 ]
 
-
-# ── Ontology-driven merge (single source of truth) ───────────────────────────
-# Generic-filler phrases come from semantic_ontology.GENERIC_FILLER_PHRASES.
-# Forbidden geometric/tactical conflation phrases come from
-# semantic_ontology.FORBIDDEN_CONFLATION_PHRASES.
-#
-# We extend the existing in-file lists (preserving order for any callers that
-# iterate them), deduplicating on lowercase identity.  No phrase is removed.
 
 def _merge_ontology_phrases() -> None:
     """Append any ontology phrases not already present in the runtime lists."""
@@ -2631,8 +185,40 @@ def _merge_ontology_phrases() -> None:
             _CONTEXT_FORBIDDEN_VOCAB.append(phrase)
             existing_ctx.add(phrase.lower())
 
+    for phrase in _LEGACY_CONTEXT_FORBIDDEN_NOTES:
+        if phrase.lower() not in existing_ctx:
+            _CONTEXT_FORBIDDEN_VOCAB.append(phrase)
+            existing_ctx.add(phrase.lower())
+
 
 _merge_ontology_phrases()
+
+
+def _ctx_phrase_negated(text: str, phrase: str) -> bool:
+    """Return True if every occurrence of *phrase* in *text* is preceded by a
+    negation marker within a 35-char window.  Returns False if any occurrence
+    lacks a negation marker (warning should fire) or phrase not found.
+
+    Recognised markers: 'no ', 'without ', 'not ', 'avoids ', 'avoid ',
+    'prevents ', 'never '.  Covers forms like 'without creating new
+    vulnerabilities' and 'avoids introducing new vulnerabilities' in addition
+    to the original 'no new vulnerabilities' pattern.
+
+    35 chars is enough for the longest expected negation phrase
+    ('without introducing ' = 20 chars) while avoiding cross-sentence bleed.
+    """
+    _NEGATION_MARKERS = (
+        "no ", "without ", "not ", "avoids ", "avoid ", "prevents ", "never ",
+    )
+    idx = text.find(phrase)
+    if idx == -1:
+        return False
+    while idx != -1:
+        window = text[max(0, idx - 35): idx]
+        if not any(m in window for m in _NEGATION_MARKERS):
+            return False
+        idx = text.find(phrase, idx + 1)
+    return True
 
 
 def _check_reasoning_truthfulness(
@@ -2664,8 +250,9 @@ def _check_reasoning_truthfulness(
         The exact seed strings that were fed to the LLM.  If provided, the
         checker verifies that forbidden concepts are absent unless seeded.
     """
-    if not reasoning or not facts:
+    if not reasoning:
         return []
+    facts = facts or {}  # normalise; legacy guards use .get() which handle absent keys
 
     warnings: list[str] = []
     text = reasoning.lower()
@@ -2681,12 +268,41 @@ def _check_reasoning_truthfulness(
             "limits mobility", "limiting mobility", "limiting opponent",
             "restricts mobility", "restricts opponent",
             "fewer moves for", "cuts opponent moves",
+            "narrows their options", "tightening their options",
+            "constrains their options",
         ])
         if mobility_improvement_claimed and mob_after >= mob_before:
             warnings.append(
                 f"REASONING_CONTRADICTION: claims mobility reduction but "
                 f"opponent_mobility_after={mob_after} >= opponent_mobility_before={mob_before}"
             )
+
+    # ── BUG-6: Mobility-disadvantage overclaim ────────────────────────────────
+    # When opponent_mobility_after > our_mobility_after, the mobility
+    # disadvantage persists.  Phrases that claim it is fully resolved are
+    # factual contradictions.  "narrows the gap" is the correct alternative.
+    _our_mob_after = facts.get("our_mobility_after")
+    if (mob_after is not None and _our_mob_after is not None
+            and mob_after > _our_mob_after):
+        _mob_overclaim_phrases = [
+            "solves the disadvantage",
+            "addresses the disadvantage",
+            "fixes the disadvantage",
+            "eliminates the disadvantage",
+            "solves the mobility disadvantage",
+            "addresses the mobility disadvantage",
+            "eliminates the mobility gap",
+            "closes the gap entirely",
+            "erases the mobility gap",
+        ]
+        for _mob_phrase in _mob_overclaim_phrases:
+            if _mob_phrase in text:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: '{_mob_phrase}' overclaims mobility "
+                    f"resolution but opponent_mobility_after={mob_after} > "
+                    f"our_mobility_after={_our_mob_after} "
+                    f"(mobility disadvantage persists)"
+                )
 
     # ── Recapture ─────────────────────────────────────────────────────────────
     recapture = facts.get("opponent_can_recapture")
@@ -2732,6 +348,17 @@ def _check_reasoning_truthfulness(
                 "creates_immediate_threat=false"
             )
 
+    # ── BUG-3: Single-legal-move superlative ─────────────────────────────────
+    if any("only legal move" in s.lower() for s in (seeds or [])):
+        _slm_superlatives = ["strongest choice", "best move", "highest-ranked option"]
+        for _slm_phrase in _slm_superlatives:
+            if _slm_phrase in text:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: '{_slm_phrase}' used but this is "
+                    f"the only legal move (single_legal_move_context)"
+                )
+                break
+
     # ── Center control ────────────────────────────────────────────────────────
     center = facts.get("center_control")
     if center is False:
@@ -2747,6 +374,23 @@ def _check_reasoning_truthfulness(
                 "REASONING_CONTRADICTION: claims center_control but "
                 "center_control=false"
             )
+        # BUG-4: "center of the board" as a strategic claim (seed-exempt).
+        # The geometric seed "The destination is in the center of the board
+        # (column X)" exempts the phrase when destination is in center columns.
+        # The pure-geometry form "center of the board (column N)" is also
+        # allowed even without seeds — the "(column" qualifier makes it
+        # unambiguously geometric.  Only the bare strategic form is flagged.
+        if "center of the board" in text and "center of the board" not in seeds_text:
+            import re as _re_ctr
+            _is_geometric = bool(
+                _re_ctr.search(r"center of the board\s*\(\s*column", text)
+            )
+            if not _is_geometric:
+                warnings.append(
+                    "REASONING_CONTRADICTION: 'center of the board' used as strategic "
+                    "claim but center_control=false and phrase not in seeds "
+                    "(factual_contradiction)"
+                )
 
     # ── Capture / material gain ───────────────────────────────────────────────
     captures_count = facts.get("captures_count", 0)
@@ -2767,6 +411,26 @@ def _check_reasoning_truthfulness(
     # "does not result in a net material gain", breaking the E.1 invariant.
     # The unified-verifier merge below re-emits the equivalent warning string
     # whenever a contradiction is detected.
+
+    # ── Opponent jump count ───────────────────────────────────────────────────
+    # BUG-2 (semantic audit): reasoning can claim "single jump" even when the
+    # opponent has multiple jump options.  forced_opponent_jump_reply=True only
+    # means a jump is mandatory — it says nothing about how many distinct jump
+    # moves exist.  Flag the claim when opponent_jump_count > 1.
+    opp_jc = facts.get("opponent_jump_count")
+    if isinstance(opp_jc, int) and opp_jc > 1:
+        _single_jump_phrases = [
+            "single jump",
+            "one jump option",
+            "only one jump",
+            "limited to a single jump",
+            "limited to one jump",
+        ]
+        if any(p in text for p in _single_jump_phrases):
+            warnings.append(
+                f"REASONING_CONTRADICTION: claims single opponent jump but "
+                f"opponent_jump_count={opp_jc} (factual_contradiction)"
+            )
 
     # ── Promotion ─────────────────────────────────────────────────────────────
     results_in_king = facts.get("results_in_king", False)
@@ -2790,6 +454,193 @@ def _check_reasoning_truthfulness(
                 "blocks_opponent_landing=false"
             )
 
+    # ── Reverse recapture: opponent_can_recapture=False but claims recapture ──
+    # The forward direction (recapture=True, claims safe) is handled above.
+    # This check covers the reverse: recapture=False but reasoning invents it.
+    # Fact-based (not seed-based) so it fires in seed_off ablation too.
+    # Bypass: when the phrase is qualified "but not here" / "but not in this case",
+    # the author is contrasting the alternative move — do NOT flag.
+    if recapture is False:
+        _false_recap_phrases = [
+            "opponent can recapture",
+            "can be recaptured next",
+            "vulnerable to recapture",
+            "allows the opponent to recapture",
+            "opponent may recapture",
+            # Hedged surface forms — same factual claim, softer wording.
+            "exposed to recapture",
+            "exposed to potential recapture",
+            "potential recapture",
+            "could be recaptured",
+            "risk of recapture",
+            "recapture risk",
+            "recapture risks",
+        ]
+        import re as _re_recap
+        _NEG_RECAP = _re_recap.compile(
+            r"\b(no|not|without|cannot|never|nor|none|nothing|neither|"
+            r"avoid(?:s|ing)?|prevent(?:s)?|eliminat(?:e|es|ing)|fails?\s+to)\b"
+        )
+        for _frp in _false_recap_phrases:
+            _idx = text.find(_frp)
+            if _idx < 0:
+                continue
+            _window = text[_idx : _idx + 80]
+            if "but not" in _window or "not here" in _window:
+                continue  # contrast qualifier — describes alternative, not chosen
+            # Sentence-level negation guard — phrases like "exposed to recapture"
+            # legitimately appear in "without recapture risk" / "not exposed to
+            # recapture next turn" prose.  Skip when a negation marker precedes
+            # the phrase inside the same sentence.
+            _sent_start = max(text.rfind(".", 0, _idx),
+                              text.rfind("!", 0, _idx),
+                              text.rfind("?", 0, _idx))
+            _sent_start = 0 if _sent_start < 0 else _sent_start + 1
+            if _NEG_RECAP.search(text[_sent_start:_idx]):
+                continue
+            warnings.append(
+                "REASONING_CONTRADICTION: claims opponent can recapture but "
+                "opponent_can_recapture=false"
+            )
+            break
+
+    # ── False forced-opponent-reply ────────────────────────────────────────────
+    # When forced_opponent_jump_reply=False, prose phrases asserting the
+    # opponent is forced to respond / has no choice are fabricated.  Mirrors
+    # unified_verifier._check_false_forced_opp_reply for E.1 invariant.
+    # Sentence-level negation filter: skip when a negation marker precedes
+    # the phrase in the same sentence ("does not force the opponent",
+    # "without forcing the opponent", etc.).
+    _fjr = facts.get("forced_opponent_jump_reply")
+    if _fjr is False:
+        _false_force_phrases = [
+            "forces the opponent",
+            "forcing the opponent",
+            "forcing them to respond",
+            "force the opponent into",
+            "opponent must respond",
+            "opponent must reply",
+            "opponent is forced",
+            "forced reply",
+            "forced response",
+            "compelled to respond",
+            "opponent compelled",
+            "no choice but to respond",
+            "opponent has no choice",
+        ]
+        import re as _re_fjr
+        _NEG_RE = _re_fjr.compile(
+            r"\b(no|not|without|cannot|never|nor|none|nothing|neither|"
+            r"avoid(?:s|ing)?|prevent(?:s)?|eliminat(?:e|es|ing)|fails?\s+to)\b"
+        )
+        for _ffp in _false_force_phrases:
+            _idx = text.find(_ffp)
+            if _idx < 0:
+                continue
+            # Sentence-level negation: skip when preceded by a negation marker
+            # within the same sentence.
+            _sent_start = max(text.rfind(".", 0, _idx),
+                              text.rfind("!", 0, _idx),
+                              text.rfind("?", 0, _idx))
+            _sent_start = 0 if _sent_start < 0 else _sent_start + 1
+            if _NEG_RE.search(text[_sent_start:_idx]):
+                continue
+            warnings.append(
+                "REASONING_CONTRADICTION: claims forced opponent reply but "
+                "forced_opponent_jump_reply=false"
+            )
+            break
+
+    # ── Near-promotion false claim ─────────────────────────────────────────────
+    near_promo = facts.get("near_promotion")
+    _results_in_king = facts.get("results_in_king")
+    if near_promo is False and not _results_in_king:
+        _near_promo_phrases = [
+            "near promotion",
+            "one step from promotion",
+            "one square from promotion",
+            "approaching promotion",
+            "toward promotion",
+            "closing in on promotion",
+        ]
+        for _npp in _near_promo_phrases:
+            _npp_idx = text.find(_npp)
+            if _npp_idx < 0:
+                continue
+            # Bypass if "opponent" appears within 30 chars before the phrase
+            # (e.g. "the opponent remains one step from promotion" is correct
+            # when opponent_near_promotion=true — it's not about OUR piece).
+            _look_back = text[max(0, _npp_idx - 30) : _npp_idx]
+            if "opponent" in _look_back:
+                continue
+            warnings.append(
+                "REASONING_CONTRADICTION: claims near promotion but near_promotion=false"
+            )
+            break
+
+    # ── Wrong capture count ────────────────────────────────────────────────────
+    # The zero-capture check above catches false captures; this catches wrong counts
+    # when captures_count > 0 (e.g., reasoning says "captures 1" but count is 2).
+    if isinstance(captures_count, int) and captures_count > 0:
+        import re as _re_cap
+        for _cap_m in _re_cap.finditer(
+            r'captures?\s+(?:only\s+)?(\d+)\s+piece'
+            r'|(\d+)\s+piece[s]?\s+(?:are\s+)?captured'
+            r'|capturing\s+(\d+)\s+piece',
+            text,
+        ):
+            _claimed_cap = next(int(g) for g in _cap_m.groups() if g is not None)
+            if _claimed_cap != captures_count:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: claims {_claimed_cap} capture(s) but "
+                    f"captures_count={captures_count}"
+                )
+                break
+
+    # ── False 'only legal move' / forced-move claim ────────────────────────────
+    # When seeds say "Multiple legal moves were available", the reasoning must
+    # not claim the move was forced, the only option, or the only legal move.
+    # Complements BUG-3 (which catches wrong superlatives on single-legal moves).
+    if seeds is not None and any(
+        "multiple legal moves were available" in s.lower() for s in seeds
+    ):
+        _false_forced = [
+            "only legal move",
+            "only available move",
+            "only option available",
+            "only viable option",
+            "the only move",
+            "no alternative",
+            "forced move",
+            "was forced",
+        ]
+        for _ffp in _false_forced:
+            if _ffp in text:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: '{_ffp}' claimed but multiple "
+                    "legal moves were available (forced_move_for_us=false)"
+                )
+                break
+
+    # ── Fabricated comparison values ───────────────────────────────────────────
+    # Pattern: "N points better/stronger/over/above/ahead of" — requires the
+    # exact number to appear in seeds.  Fires when the LLM invents comparison
+    # magnitudes not backed by any seed.  The comparator group covers the
+    # synonyms the audit found the LLM substituting ("over", "above",
+    # "ahead of") to dodge the bare "better" form.
+    import re as _re_cmp
+    for _cmp_m in _re_cmp.finditer(
+        r'(\d+\.?\d*)\s+points?\s+(?:better|stronger|over|above|ahead\s+of)', text
+    ):
+        _cmp_number = _cmp_m.group(1)
+        if seeds is None or _cmp_number not in seeds_text:
+            warnings.append(
+                f"REASONING_CONTRADICTION: fabricated comparison value "
+                f"'{_cmp_m.group(0).strip()}' — "
+                "no matching comparison seed found"
+            )
+            break
+
     # ── Forbidden vocabulary (always prohibited) ───────────────────────────────
     # These phrases are invented concepts that never appear in any seed.
     for phrase in _FORBIDDEN_VOCAB:
@@ -2801,11 +652,12 @@ def _check_reasoning_truthfulness(
 
     # ── Context-forbidden vocabulary (prohibited unless explicitly seeded) ─────
     # These are allowed only if the seed list introduced them first.
-    # Negation-aware: skip if the phrase is immediately preceded by "no "
-    # (e.g. "no new vulnerabilities" is a valid safety negation, not a claim).
+    # Negation-aware: skip when every occurrence is preceded by a negation
+    # marker within 60 chars (e.g. "no new vulnerabilities", "without creating
+    # new vulnerabilities", "avoids introducing new vulnerabilities").
     for phrase in _CONTEXT_FORBIDDEN_VOCAB:
         if phrase in text and phrase not in seeds_text:
-            if ("no " + phrase) in text:
+            if _ctx_phrase_negated(text, phrase):
                 continue
             warnings.append(
                 f"REASONING_CONTRADICTION: term '{phrase}' used but not in seeds"
@@ -2950,38 +802,42 @@ def _check_reasoning_truthfulness(
         # and fires when the reasoning correctly says "stays connected" about the
         # chosen move (which has isolated=false).
         # Fix: for the inversion check only, exclude seeds that start with "Move [N]".
+        # Exclude comparison seeds that describe the alternative move, not the chosen move.
+        # Old format started with "move [N]"; new format starts with "unlike move [N]".
         _chosen_only_seeds_text = " ".join(
             s.lower() for s in seeds
-            if not s.lower().strip().startswith("move [")
+            if not (s.lower().strip().startswith("move [")
+                    or s.lower().strip().startswith("unlike move ["))
         )
         _INVERSION_PAIRS: list[tuple[str, str, str]] = [
-            # (seed substring for TRUE, reasoning phrase implying FALSE, label)
-            ("opponent_can_recapture=true",  "no recapture",           "opponent_can_recapture"),
-            ("opponent_can_recapture=true",  "avoids recapture",       "opponent_can_recapture"),
-            ("opponent_can_recapture=true",  "safe from recapture",    "opponent_can_recapture"),
-            ("opponent_can_recapture=false", "opponent can recapture", "opponent_can_recapture"),
-            ("leaves_piece_isolated=true",   "no isolation",           "leaves_piece_isolated"),
-            ("leaves_piece_isolated=true",   "stays connected",        "leaves_piece_isolated"),
-            ("leaves_piece_isolated=true",   "maintains connectivity", "leaves_piece_isolated"),
-            ("leaves_piece_isolated=true",   "does not isolate",       "leaves_piece_isolated"),
-            ("leaves_piece_isolated=true",   "avoids isolation",       "leaves_piece_isolated"),
-            ("leaves_piece_isolated=true",   "remains connected",      "leaves_piece_isolated"),
-            ("leaves_piece_isolated=true",   "maintains structure",    "leaves_piece_isolated"),
-            ("leaves_piece_isolated=true",   "keeping connectivity",   "leaves_piece_isolated"),
-            ("leaves_piece_isolated=false",  "isolates the piece",     "leaves_piece_isolated"),
-            ("leaves_piece_isolated=false",  "piece is isolated",      "leaves_piece_isolated"),
-            ("creates_immediate_threat=true",  "no immediate threat",  "creates_immediate_threat"),
-            ("creates_immediate_threat=false", "creates a threat",          "creates_immediate_threat"),
-            ("creates_immediate_threat=false", "creates an immediate threat", "creates_immediate_threat"),
-            # "immediate threat" (bare) removed from inversion pairs — fires on
-            # negation context: "does not create an immediate threat" is correct
-            # reasoning when creates_immediate_threat=False.
-            ("moved_piece_is_threatened=true",  "piece is safe",       "moved_piece_is_threatened"),
-            ("moved_piece_is_threatened=false", "piece is threatened", "moved_piece_is_threatened"),
-            ("weakens_king_row=true",  "back-row discipline maintained", "weakens_king_row"),
-            ("weakens_king_row=true",  "preserves back row",             "weakens_king_row"),
-            ("weakens_king_row=false", "weakens the back row",           "weakens_king_row"),
-            ("weakens_king_row=false", "back-row weakened",              "weakens_king_row"),
+            # (seed phrase indicating TRUE/FALSE state, reasoning phrase implying opposite, label)
+            # Recapture
+            ("opponent can recapture the moved piece",  "no recapture",           "opponent_can_recapture"),
+            ("opponent can recapture the moved piece",  "avoids recapture",       "opponent_can_recapture"),
+            ("opponent can recapture the moved piece",  "safe from recapture",    "opponent_can_recapture"),
+            ("cannot be immediately recaptured",         "opponent can recapture", "opponent_can_recapture"),
+            # Isolation
+            ("left without adjacent support",    "no isolation",           "leaves_piece_isolated"),
+            ("left without adjacent support",    "stays connected",        "leaves_piece_isolated"),
+            ("left without adjacent support",    "maintains connectivity", "leaves_piece_isolated"),
+            ("left without adjacent support",    "does not isolate",       "leaves_piece_isolated"),
+            ("left without adjacent support",    "avoids isolation",       "leaves_piece_isolated"),
+            ("left without adjacent support",    "remains connected",      "leaves_piece_isolated"),
+            ("left without adjacent support",    "maintains structure",    "leaves_piece_isolated"),
+            ("left without adjacent support",    "keeping connectivity",   "leaves_piece_isolated"),
+            ("is not left isolated",  "isolates the piece",  "leaves_piece_isolated"),
+            ("is not left isolated",  "piece is isolated",   "leaves_piece_isolated"),
+            # Immediate threat (True only — False is caught by factual checker; no False seed emitted)
+            ("forces the opponent to respond to an immediate threat",  "no immediate threat", "creates_immediate_threat"),
+            # Moved piece threatened (True only — no False seed emitted)
+            ("remains under immediate threat",  "piece is safe",  "moved_piece_is_threatened"),
+            # King row weakening
+            ("weakening the defensive structure",         "back-row discipline maintained", "weakens_king_row"),
+            ("weakening the defensive structure",         "preserves back row",             "weakens_king_row"),
+            ("weakens the back-row defensive structure",  "back-row discipline maintained", "weakens_king_row"),
+            ("weakens the back-row defensive structure",  "preserves back row",             "weakens_king_row"),
+            ("defensive structure remains intact",  "weakens the back row",  "weakens_king_row"),
+            ("defensive structure remains intact",  "back-row weakened",     "weakens_king_row"),
         ]
         for seed_marker, contradiction_phrase, label in _INVERSION_PAIRS:
             seed_says_it = seed_marker in _chosen_only_seeds_text
@@ -3162,6 +1018,260 @@ def _check_reasoning_truthfulness(
             f"REASONING_CONTRADICTION: {_label} — not found in seeds"
         )
 
+    # ── Fix A2: Must-mention check for our-mobility decrease ─────────────────
+    # If any seed explicitly states that our mobility decreases, the reasoning
+    # must acknowledge it.  Omitting a seeded negative fact is misleading.
+    _mob_decrease_seed = next(
+        (s for s in (seeds or []) if "decreases our mobility by" in s.lower()),
+        None,
+    )
+    if _mob_decrease_seed is not None:
+        _mob_mention_phrases = [
+            "decreases", "decrease", "our mobility drops", "our mobility falls",
+            "reduces our mobility", "reducing our mobility",
+            "our mobility decreases",
+            "our mobility narrows", "our mobility shrinks",
+            "our mobility contracts",
+            "our mobility goes down", "losing mobility",
+        ]
+        if not any(p in text for p in _mob_mention_phrases):
+            warnings.append(
+                "REASONING_CONTRADICTION: our-mobility decrease seeded but "
+                "omitted from reasoning (negative_fact_omission)"
+            )
+
+    # ── Fix A3: any_piece_isolated contradicts "no vulnerabilities" ──────────
+    # any_piece_isolated=True means some ally piece is isolated after the move.
+    # Claiming "no tactical vulnerabilities" when any piece is isolated is false.
+    _any_iso = facts.get("any_piece_isolated")
+    if _any_iso is True:
+        _iso_vuln_phrases = [
+            "no tactical vulnerabilities",
+            "ensuring no tactical",
+            "no vulnerabilities are created",
+            "no tactical vulnerabilities are created",
+        ]
+        for _ivp in _iso_vuln_phrases:
+            if _ivp in text:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: 'any_piece_isolated=true' contradicts "
+                    f"'{_ivp}' claim (factual_contradiction)"
+                )
+                break
+
+    # ── Fix A4: "narrowing the gap" when our mobility >= opponent mobility ────
+    # "Narrowing the gap" implies the opponent still leads.  When
+    # our_mobility_after >= opponent_mobility_after the gap was matched or
+    # reversed — "narrowing" is factually wrong.
+    _our_mob_af  = facts.get("our_mobility_after")
+    _opp_mob_af  = facts.get("opponent_mobility_after")
+    if (
+        isinstance(_our_mob_af, (int, float))
+        and isinstance(_opp_mob_af, (int, float))
+        and _our_mob_af >= _opp_mob_af
+        and "narrowing the gap" in text
+    ):
+        warnings.append(
+            f"REASONING_CONTRADICTION: 'narrowing the gap' is wrong when "
+            f"our_mobility_after={int(_our_mob_af)} >= "
+            f"opponent_mobility_after={int(_opp_mob_af)} "
+            f"(gap was matched or reversed, not narrowed)"
+        )
+
+    # ── Phase G, Step 3: mobility-direction phrase verifier (mirror) ────────
+    # Three exact phrases checked against engine mobility deltas.  Complementary
+    # to the A4 'narrowing the gap' check above — different verb forms, no
+    # overlap.  Maintains E.1 parity with unified_verifier.
+    _ub = facts.get("our_mobility_before"); _ua = facts.get("our_mobility_after")
+    _ob = facts.get("opponent_mobility_before"); _oa = facts.get("opponent_mobility_after")
+    if all(isinstance(_x, (int, float)) for _x in (_ub, _ua, _ob, _oa)):
+        import re as _re_mob
+        _UNCHANGED_RE = _re_mob.compile(
+            # Two syntactic forms; side-qualified phrases excluded on each arm.
+            r"(?:"
+            # (1) Noun-first: "mobility (verb) (complement)"
+            r"(?<!our\s)(?<!opponent\s)"
+            r"\bmobility\s+(?:remained?|stays?|is|does\s+not\s+(?:alter|change))\s+"
+            r"(?:unchanged|the\s+same|intact|for\s+both\s+sides)"
+            r"|"
+            # (2) Verb-first: "(does/did not | doesn't/didn't) (alter|change|
+            #     affect|modify) mobility"  — excludes 'our mobility' /
+            #     'opponent mobility' via negative lookahead.
+            r"\b(?:does\s+not|did\s+not|doesn't|didn't)\s+"
+            r"(?:alter|change|affect|modify)\s+"
+            r"(?!our\b)(?!opponent\b)(?:the\s+)?(?:overall\s+)?mobility"
+            r")",
+            _re_mob.IGNORECASE,
+        )
+        # Matches both verb orders:
+        #   "gap narrows / narrowed / narrowing"       (noun → verb)
+        #   "narrows / narrowed / narrowing the gap"   (verb → noun)
+        _NARROW_RE = _re_mob.compile(
+            r"\b(?:"
+            r"(?:mobility\s+)?gap\s+narrow(?:s|ed|ing)"
+            r"|narrow(?:s|ed|ing)\s+(?:the\s+)?(?:mobility\s+)?gap"
+            r")\b",
+            _re_mob.IGNORECASE,
+        )
+        _WIDEN_RE = _re_mob.compile(
+            r"\b(?:"
+            r"(?:mobility\s+)?gap\s+widen(?:s|ed|ing)"
+            r"|widen(?:s|ed|ing)\s+(?:the\s+)?(?:mobility\s+)?gap"
+            r")\b",
+            _re_mob.IGNORECASE,
+        )
+        if _UNCHANGED_RE.search(reasoning):
+            if int(_ub) != int(_ua) or int(_ob) != int(_oa):
+                warnings.append(
+                    f"REASONING_CONTRADICTION: claims mobility unchanged but "
+                    f"our_mobility={int(_ub)}->{int(_ua)} and "
+                    f"opponent_mobility={int(_ob)}->{int(_oa)} "
+                    f"(mobility_unchanged_misclaim)"
+                )
+        _gap_b = abs(int(_ub) - int(_ob))
+        _gap_a = abs(int(_ua) - int(_oa))
+        if _NARROW_RE.search(reasoning) and not (_gap_a < _gap_b):
+            warnings.append(
+                f"REASONING_CONTRADICTION: claims 'gap narrowed' but "
+                f"|gap_before|={_gap_b} and |gap_after|={_gap_a} "
+                f"(gap_did_not_narrow)"
+            )
+        if _WIDEN_RE.search(reasoning) and not (_gap_a > _gap_b):
+            warnings.append(
+                f"REASONING_CONTRADICTION: claims 'gap widened' but "
+                f"|gap_before|={_gap_b} and |gap_after|={_gap_a} "
+                f"(gap_did_not_widen)"
+            )
+
+    # ── B1.1: Comparative recapture fabrication ──────────────────────────────
+    # When the chosen move can be recaptured (opponent_can_recapture=True),
+    # comparative-context phrases that claim recapture safety are fabricated.
+    _b11_phrases = (
+        "recapture safety", "avoiding recapture", "avoid recapture risk",
+        "recapture-safe", "recapture safety edge",
+    )
+    if recapture is True:
+        for _b11p in _b11_phrases:
+            if _b11p in text:
+                warnings.append(
+                    f"COMPARATIVE_CONTRADICTION: '{_b11p}' claimed but "
+                    f"opponent_can_recapture=true (fabricated_claim)"
+                )
+                break
+
+    # ── B1.2: Tradeoff language requires numeric grounding ────────────────────
+    # "outweighs", "compensates for", "offsets the" imply a quantitative trade.
+    # If no explicit number appears in the same sentence the claim is unverifiable.
+    import re as _re_b12
+    _b12_tradeoff = ("outweighs", "compensates for", "offsets the")
+    _b12_has_num = _re_b12.compile(
+        r'\b\d+(?:\.\d+)?|\b(?:one|two|three|four|five|six|seven|eight|nine|ten)\b',
+        _re_b12.IGNORECASE,
+    )
+    for _b12_sent in _re_b12.split(r'(?<=[.!?])\s+', text):
+        _b12_has_tradeoff = any(p in _b12_sent for p in _b12_tradeoff)
+        if _b12_has_tradeoff and not _b12_has_num.search(_b12_sent):
+            _b12_which = next(p for p in _b12_tradeoff if p in _b12_sent)
+            warnings.append(
+                f"COMPARATIVE_CONTRADICTION: '{_b12_which}' used without numeric "
+                f"grounding in same sentence (tradeoff_without_evidence)"
+            )
+            break
+
+    # ── B1.3: Negative-score absolute advantage protection ────────────────────
+    # When minimax_score < 0, absolute advantage phrases ("positional advantage",
+    # "strongest option", etc.) are misleading unless paired with relative framing
+    # ("best available", "least unfavorable", …).
+    _b13_mm = facts.get("minimax_score")
+    if isinstance(_b13_mm, (int, float)) and _b13_mm < 0:
+        _b13_forbidden = (
+            "positional advantage", "advantage gained",
+            "strongest option", "decisive advantage",
+        )
+        _b13_relative = (
+            "best available", "least unfavorable", "least harmful",
+            "highest-evaluated", "relative to", "best of the",
+            "only option", "best option available",
+        )
+        _b13_has_relative = any(rp in text for rp in _b13_relative)
+        if not _b13_has_relative:
+            for _b13p in _b13_forbidden:
+                if _b13p in text:
+                    warnings.append(
+                        f"COMPARATIVE_CONTRADICTION: '{_b13p}' used when "
+                        f"minimax_score={float(_b13_mm):.1f} < 0 without relative "
+                        f"framing (misleading_advantage_claim)"
+                    )
+                    break
+
+    # ── B2.1b: Deliberate-choice framing in forced-move context ──────────────
+    # "drives the decision", "chosen for its", etc. imply voluntary selection
+    # but the context is a forced move — these phrases are contradictory.
+    _forced_move_seed = any("only legal move" in s.lower() for s in (seeds or []))
+    if _forced_move_seed:
+        _deliberate_phrases = (
+            "drives the decision", "chosen for its", "was chosen for",
+            "selected for its", "was preferred because",
+        )
+        for _dcp in _deliberate_phrases:
+            if _dcp in text:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: '{_dcp}' deliberate-choice framing "
+                    f"in forced-move context (forced_move_deliberate_framing)"
+                )
+                break
+
+    # ── B2.3: Geometric impossibility ────────────────────────────────────────
+    # A legal move always moves a piece; these phrases are geometrically false.
+    _geo_impossible_phrases = (
+        "piece remains stationary",
+        "no piece movement occurred",
+        "piece did not move",
+    )
+    for _gip in _geo_impossible_phrases:
+        if _gip in text:
+            warnings.append(
+                f"REASONING_CONTRADICTION: '{_gip}' is geometrically impossible "
+                f"for a legal move (geometric_impossibility)"
+            )
+            break
+
+    # ── B2.5: Our-mobility directional consistency ────────────────────────────
+    # When our_mobility_after <= our_mobility_before, claiming an increase is false.
+    _our_mb_b25 = facts.get("our_mobility_before")
+    _our_ma_b25 = facts.get("our_mobility_after")
+    if (isinstance(_our_mb_b25, (int, float)) and isinstance(_our_ma_b25, (int, float))
+            and _our_ma_b25 <= _our_mb_b25):
+        _our_mob_increase_phrases = (
+            "increases our mobility", "improves our mobility",
+            "our mobility increases", "our mobility improves",
+            "our mobility grows", "expands our mobility",
+        )
+        for _omip in _our_mob_increase_phrases:
+            if _omip in text:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: claims our-mobility increase but "
+                    f"our_mobility_after={int(_our_ma_b25)} <= "
+                    f"our_mobility_before={int(_our_mb_b25)} (our_mobility_direction)"
+                )
+                break
+
+    # ── B2.6: Tactical move defensive framing ─────────────────────────────────
+    # When creates_immediate_threat=True, claiming "no pressure" is a contradiction.
+    _creates_threat_b26 = facts.get("creates_immediate_threat")
+    if _creates_threat_b26 is True:
+        _no_pressure_phrases = (
+            "no tactical pressure", "applies no pressure",
+            "creates no pressure", "no immediate pressure",
+        )
+        for _npp in _no_pressure_phrases:
+            if _npp in text:
+                warnings.append(
+                    f"REASONING_CONTRADICTION: '{_npp}' framing contradicts "
+                    f"creates_immediate_threat=true (tactical_move_defensive_framing)"
+                )
+                break
+
     # ── E.1 unification: merge unified-verifier findings ─────────────────────
     # The unified verifier runs extract_claims + verify_claims (with the
     # clause-level negation pre-pass), the numeric verifier (E.3), and the
@@ -3208,6 +1318,17 @@ Rules:
   - Only state a claim if the facts explicitly support it.
   - minimax_score may appear ONLY in the final sentence as confirmation.
 
+NATURALNESS AND CLARITY — improve quality while correcting errors:
+  - Preserve and strengthen causal connections: explain WHY the move is preferred,
+    not just WHAT it does.
+  - Vary sentence openers — do NOT start consecutive sentences with the same word
+    or phrase.
+  - Do NOT open with "Despite", "Additionally", "Furthermore" more than once.
+  - Do NOT close with filler ("This makes it the best choice.", "Overall, ...",
+    "In summary, ...", "Therefore, this is the optimal move.").
+  - Replace mechanical corrections ("The move does not capture") with natural
+    explanations of the actual situation.
+
 FORBIDDEN VOCABULARY — never use any of the following terms or phrases:
   conversion potential, winning conversion, trade conversion, conversion score,
   quiet_move_role, winning_conversion_score, king_activity_score,
@@ -3233,6 +1354,46 @@ OUTPUT FORMAT — reply with ONLY this JSON object, no markdown:
 """
 
 
+def _relevant_facts_summary(facts: dict) -> list[str]:
+    """Return human-readable lines for the most decision-relevant move facts."""
+    lines: list[str] = []
+    cap = facts.get("captures_count", 0)
+    net = facts.get("net_gain", 0)
+    if cap > 0:
+        lines.append(f"  captures {cap} piece(s), net gain {net}")
+    else:
+        lines.append("  no captures (positional move)")
+    recap = facts.get("opponent_can_recapture")
+    if recap is True:
+        lines.append("  opponent CAN recapture next turn")
+    elif recap is False:
+        lines.append("  opponent cannot recapture next turn")
+    pta = facts.get("our_pieces_threatened_after")
+    if pta is not None:
+        lines.append(f"  {pta} allied piece(s) threatened after the move")
+    threat = facts.get("creates_immediate_threat")
+    if threat is True:
+        lines.append("  creates an immediate threat")
+    elif threat is False:
+        lines.append("  does not create an immediate threat")
+    isolated = facts.get("leaves_piece_isolated")
+    if isolated is True:
+        lines.append("  moved piece is left unsupported")
+    elif isolated is False:
+        lines.append("  moved piece remains supported by adjacent allies")
+    mob_b = facts.get("opponent_mobility_before")
+    mob_a = facts.get("opponent_mobility_after")
+    if mob_b is not None and mob_a is not None:
+        if mob_a != mob_b:
+            lines.append(f"  opponent mobility: {mob_b} → {mob_a}")
+        else:
+            lines.append(f"  opponent mobility unchanged ({mob_b})")
+    mm = facts.get("minimax_score")
+    if mm is not None:
+        lines.append(f"  engine score: {mm:.1f}")
+    return lines
+
+
 def _build_refinement_prompt(
     chosen_move: dict,
     contradictions: list[str],
@@ -3249,10 +1410,9 @@ def _build_refinement_prompt(
     lines: list[str] = [
         f"Chosen move: type={mtype}  path={path}",
         "",
-        "Selected move facts (use these exact values — do not invent others):",
+        "Key facts about the chosen move (use these — do not invent other values):",
     ]
-    for k, v in sorted(facts.items()):
-        lines.append(f"  {k}: {v}")
+    lines.extend(_relevant_facts_summary(facts))
 
     lines += [
         "",
@@ -3262,6 +1422,31 @@ def _build_refinement_prompt(
         claim = c.replace("REASONING_CONTRADICTION: ", "")
         lines.append(f"  - {claim}")
 
+    # When any contradiction is a minimax mismatch, prepend an explicit
+    # correction block before the generic instructions.  The LLM otherwise
+    # tends to repeat the previously-written wrong number because the
+    # contradiction message says "fact disagrees" without citing the right
+    # value, and the facts summary labels the value as "engine score" while
+    # the prose uses "minimax_score" — a vocabulary disconnect that this
+    # block resolves explicitly.
+    _mm_fact = facts.get("minimax_score")
+    _has_minimax_mismatch = any(
+        "minimax_score" in c.lower() and "mismatch" in c.lower()
+        for c in contradictions
+    )
+    if _has_minimax_mismatch and isinstance(_mm_fact, (int, float)):
+        lines += [
+            "",
+            "MINIMAX CORRECTION (mandatory):",
+            f"  The ONLY correct value is minimax_score = {_mm_fact:.1f}.",
+            "  In the rewrite, if you mention the engine's evaluation:",
+            "    - Use exactly this value, written either as a bare number "
+            f"({_mm_fact:.1f}) or as the phrase 'minimax score of {_mm_fact:.1f}'.",
+            "    - Do NOT cite any other number for minimax_score.  Any other",
+            "      value (including 0, 0.0, 0.1, 0.12, 0.45, etc.) is forbidden.",
+            "    - Do NOT copy the wrong number from the previous reasoning.",
+        ]
+
     lines += [
         "",
         "Instructions:",
@@ -3269,7 +1454,56 @@ def _build_refinement_prompt(
         "  2. Keep the same chosen move — do NOT suggest a different move.",
         "  3. Do not mention any claim not supported by the facts listed above.",
         "  4. Minimax_score may appear ONLY in the final sentence as confirmation.",
-        "  5. Write a single coherent paragraph of 3-5 sentences.",
+        "     Do NOT write numeric score-gap claims (e.g., 'X points better than",
+        "     alternatives' or 'by a margin of X') — cite only the engine score above.",
+        "  5. Do NOT add new recapture claims, opponent-mobility claims, or numeric",
+        "     score-comparison claims unless the corresponding fact is explicitly",
+        "     listed in Key Facts above.",
+        "  6. Prefer fixing only the specific false claim; do not rewrite surrounding",
+        "     sentences unnecessarily.",
+        "  7. Preserve all grounded seed-backed factual claims unless the fact",
+        "     itself is the flagged contradiction. In particular, never remove",
+        "     or omit:",
+        "       - only-legal-move / forced-move disclosures",
+        "       - must-capture disclosures",
+        "       - explicit mobility transitions ('from N to M')",
+        "       - immediate king-promotion facts",
+        "       - grounded comparative anchors tied to specific alternatives",
+        "     You may paraphrase these facts, but you may not silently drop them.",
+        "  8. Forced-move framing rule (strict): IF AND ONLY IF the original",
+        "     reasoning already contained a forced-move disclosure grounded in a",
+        "     seed that explicitly states the move is the only legal move available",
+        "     (e.g., 'only legal move', 'mandatory jump', 'must capture', or",
+        "     equivalent forced-move wording), you must preserve that disclosure",
+        "     in the rewrite. Otherwise, do NOT introduce or invent any claim that",
+        "     the move is forced, only-legal, mandatory, or has no alternative. A",
+        "     seed saying 'the opponent is forced to respond' describes the",
+        "     OPPONENT's reply, not our choice, and does NOT make our move forced.",
+        "  9. Write a single coherent paragraph of 3-5 sentences.",
+        " 10. Do not use vague positional descriptors — 'board control', 'piece"
+        "     coordination', 'board cohesion', 'connectivity' — that are not"
+        "     directly supported by a fact listed above.",
+        " 11. AUDIT-DRIVEN ANTI-HALLUCINATION RULES (must not appear in the rewrite",
+        "     unless the corresponding fact in Key Facts above is True):",
+        "       - 'creates an immediate threat' / 'forces the opponent' /",
+        "         'creates pressure' — requires creates_immediate_threat=true",
+        "         OR forced_opponent_jump_reply=true.",
+        "       - 'only legal move' / 'forced move' / 'no alternative' /",
+        "         'must play' — requires an explicit only-legal-move disclosure",
+        "         in the original reasoning grounded in a seed.",
+        "       - 'controls the center' / 'central control' / 'central board",
+        "         presence' / 'centralizes' — requires center_control=true.",
+        "       - 'reduces opponent mobility' / 'restricts opponent mobility' /",
+        "         'narrows opponent options' — requires",
+        "         opponent_mobility_after < opponent_mobility_before.",
+        "       - 'N points better' / 'best by N' — requires an explicit",
+        "         comparison number grounded in the seed list.",
+        "       - 'near promotion' / 'one step from promotion' / 'toward",
+        "         promotion' — requires near_promotion=true or results_in_king=true.",
+        "     Replace any such phrase with the corresponding factual statement",
+        "     (e.g., 'does not create an immediate threat',",
+        "     'opponent mobility is unchanged at N'). Preserve the move's actual",
+        "     factual rationale; do not introduce new strategic interpretation.",
         "",
         'Reply with ONLY: {"reasoning": "<your rewritten paragraph>"}',
     ]
@@ -3311,9 +1545,35 @@ def _extract_detecting_phrases(contradiction: str) -> list[str]:
     """
     Given a contradiction warning string, return the concrete phrases that
     caused it.  Used to identify which sentence(s) in the paragraph are bad.
+
+    Extraction order:
+      1. Universal patterns covering the verifier output formats
+         (phrase='X' and "reasoning says 'X'").  These are tried first so
+         every verifier-format contradiction routes through targeted
+         sentence repair instead of full-paragraph fallback.
+      2. Legacy runtime-format patterns (forbidden term, claims X, etc.)
+         for older contradiction strings.
     """
     import re as _re
     text = contradiction
+
+    # ── Universal verifier-format extractors (added to eliminate
+    #    fallback-to-full-paragraph on ~90% of contradictions) ──────────────
+    #
+    # (A) Unified-verifier emits "(phrase='X', ...)" for every
+    #     ClaimRecord-derived contradiction.  When present this is the
+    #     canonical bad phrase — use it directly.
+    m = _re.search(r"\(phrase='([^']+)'", text)
+    if m:
+        return [m.group(1).lower()]
+    #
+    # (B) The minimax-mismatch and other numeric checks emit
+    #     "reasoning says 'X' but fact disagrees".  The legacy pattern
+    #     below only matches "but reasoning says 'X'" (different word
+    #     order), so add the forward form here.
+    m = _re.search(r"reasoning says '([^']+)'", text, _re.IGNORECASE)
+    if m:
+        return [m.group(1).lower()]
 
     # forbidden term 'X'
     m = _re.search(r"forbidden term '([^']+)'", text, _re.IGNORECASE)
@@ -3393,6 +1653,20 @@ def _extract_detecting_phrases(contradiction: str) -> list[str]:
             "blocks opponent landing",
             "blocks the opponent from landing",
         ]
+
+    # ── Last-resort generic single-quote catch-all.  Any contradiction
+    #    string that wraps its bad phrase in single quotes — e.g.
+    #    "unsupported 'mobility unchanged' claim — not found in seeds" —
+    #    falls through to here.  Extracts the first single-quoted span.
+    #    Skipped if the captured token looks like a schema literal
+    #    (contains '=' or a bare digit) so we never target a sentence by
+    #    matching "0" or "captures_count=0" as a phrase.
+    m = _re.search(r"'([^']+)'", text)
+    if m:
+        token = m.group(1).strip()
+        if token and "=" not in token and not token.isdigit():
+            return [token.lower()]
+
     return []
 
 
@@ -3435,10 +1709,9 @@ def _build_targeted_refinement_prompt(
     lines: list[str] = [
         f"Chosen move: type={mtype}  path={path}",
         "",
-        "Move facts (use these exact values — do not invent others):",
+        "Key facts about the chosen move (use these — do not invent other values):",
     ]
-    for k, v in sorted(facts.items()):
-        lines.append(f"  {k}: {v}")
+    lines.extend(_relevant_facts_summary(facts))
 
     lines += [
         "",
@@ -3452,6 +1725,26 @@ def _build_targeted_refinement_prompt(
     for c in contradictions:
         lines.append(f"  - {c.replace('REASONING_CONTRADICTION: ', '')}")
 
+    # When any contradiction is a minimax mismatch, prepend an explicit
+    # correction block.  Mirrors _build_refinement_prompt; the same vocabulary
+    # disconnect ("engine score" vs "minimax_score") causes the LLM to repeat
+    # the previously-written wrong number unless given the right value directly.
+    _mm_fact = facts.get("minimax_score")
+    _has_minimax_mismatch = any(
+        "minimax_score" in c.lower() and "mismatch" in c.lower()
+        for c in contradictions
+    )
+    if _has_minimax_mismatch and isinstance(_mm_fact, (int, float)):
+        lines += [
+            "",
+            "MINIMAX CORRECTION (mandatory):",
+            f"  The ONLY correct value is minimax_score = {_mm_fact:.1f}.",
+            "  Any replacement sentence that cites the minimax score MUST use",
+            f"  exactly this value ({_mm_fact:.1f}).  Do NOT copy the wrong number",
+            "  from the original sentence.  Do NOT cite 0, 0.0, 0.1, 0.12, 0.45,",
+            "  or any other value as the minimax score.",
+        ]
+
     lines += [
         "",
         "Instructions:",
@@ -3460,6 +1753,47 @@ def _build_targeted_refinement_prompt(
         "  3. Do not reference any fact not listed above.",
         "  4. Do not use forbidden vocabulary.",
         "  5. Keep each replacement concise (one sentence).",
+        "  6. Do NOT add new recapture claims, opponent-mobility claims, or numeric",
+        "     score-comparison claims (e.g., 'X points better') in your replacements",
+        "     unless those facts are explicitly listed in Key Facts above.",
+        "  7. Preserve all grounded seed-backed factual claims unless the fact",
+        "     itself is the flagged contradiction. In particular, never remove",
+        "     or omit:",
+        "       - only-legal-move / forced-move disclosures",
+        "       - must-capture disclosures",
+        "       - explicit mobility transitions ('from N to M')",
+        "       - immediate king-promotion facts",
+        "       - grounded comparative anchors tied to specific alternatives",
+        "     You may paraphrase these facts, but you may not silently drop them.",
+        "  8. Forced-move framing rule (strict): IF AND ONLY IF the original",
+        "     reasoning already contained a forced-move disclosure grounded in a",
+        "     seed that explicitly states the move is the only legal move available",
+        "     (e.g., 'only legal move', 'mandatory jump', 'must capture', or",
+        "     equivalent forced-move wording), you must preserve that disclosure",
+        "     in your replacements. Otherwise, do NOT introduce or invent any",
+        "     claim that the move is forced, only-legal, mandatory, or has no",
+        "     alternative. A seed saying 'the opponent is forced to respond'",
+        "     describes the OPPONENT's reply, not our choice, and does NOT make",
+        "     our move forced.",
+        "  9. Do not use vague positional descriptors — 'board control', 'piece"
+        "     coordination', 'board cohesion', 'connectivity' — that are not"
+        "     directly supported by a fact listed above.",
+        " 10. AUDIT-DRIVEN ANTI-HALLUCINATION RULES — each replacement sentence",
+        "     must NOT contain any of the following unless the supporting fact",
+        "     in Key Facts above is True:",
+        "       - 'creates an immediate threat' / 'forces the opponent' →",
+        "         requires creates_immediate_threat=true OR",
+        "         forced_opponent_jump_reply=true.",
+        "       - 'only legal move' / 'forced move' / 'no alternative' →",
+        "         requires an only-legal-move disclosure grounded in a seed.",
+        "       - 'controls the center' / 'central control' / 'centralizes' →",
+        "         requires center_control=true.",
+        "       - 'reduces opponent mobility' / 'restricts opponent mobility' →",
+        "         requires opponent_mobility_after < opponent_mobility_before.",
+        "       - 'N points better' / 'best by N' → requires an explicit",
+        "         comparison number from the seed list.",
+        "       - 'near promotion' / 'one step from promotion' → requires",
+        "         near_promotion=true or results_in_king=true.",
         "",
         f'Reply with ONLY this JSON (exactly {n} replacement(s)):',
         '{"replacements": ["<sentence 0>", "<sentence 1>", ...]}',
@@ -3494,116 +1828,74 @@ def _extract_targeted_repair_response(
     return None
 
 
-def _sanitize_seed_explanation(text: str) -> str:
-    """
-    DEPRECATED — NOT CALLED BY THE LIVE RUNTIME PIPELINE.
+_FORCED_FRAMING_RE = re.compile(
+    r"\b(only legal move|only legal positional option|only available choice"
+    r"|no alternative|no other option|no other choice|no choice but"
+    r"|forced jump|forced capture|forced move|forced sequence"
+    r"|must capture|must jump|must take|mandatory|compulsory"
+    r"|rules require|cannot avoid|position cannot avoid)\b",
+    re.IGNORECASE,
+)
 
-    Retired after the contamination audit: this helper, together with
-    `_build_deterministic_seed_summary`, used to rewrite raw `field=value`
-    patterns into natural language and produce Python-authored sentences that
-    replaced LLM reasoning when the refinement loop failed.  That path is now
-    permanently disabled — the final logged reasoning must be entirely
-    LLM-authored.
+_PROMOTION_RE = re.compile(
+    r"\b(promot\w+|king\b|crowns?)\b",
+    re.IGNORECASE,
+)
 
-    The function is preserved at module scope ONLY because legacy unit tests
-    in `checkers/tests/test_reasoning_truthfulness.py` import it.  It must
-    not be invoked from any code path that writes `state.last_move_reasoning`.
-
-    Historical behaviour (kept for reference):
-      1. Strip leading jargon prefixes
-         ("immediate tactical safety:", "tactical drawback:", "positional drawback:").
-      2. Substitute `field=value` patterns with natural-language phrases
-         (e.g. "leaves_piece_isolated=true vs false here").
-    """
-    import re as _re
-
-    # ── 1. Strip leading jargon prefixes ──────────────────────────────────────
-    text = _re.sub(
-        r'^(immediate tactical safety|tactical drawback|positional drawback)\s*:\s*',
-        '',
-        text,
-        flags=_re.IGNORECASE,
-    )
-
-    # ── 2. Replace field=value patterns with natural language ─────────────────
-    _FIELD_TO_NATURAL: list[tuple[str, str]] = [
-        ("opponent_can_recapture=false",     "the opponent cannot recapture"),
-        ("opponent_can_recapture=true",      "the opponent can recapture"),
-        ("leaves_piece_isolated=true",       "the moved piece is isolated"),
-        ("leaves_piece_isolated=false",      "the moved piece stays connected"),
-        ("moved_piece_is_threatened=true",   "the moved piece is threatened"),
-        ("moved_piece_is_threatened=false",  "the moved piece is safe"),
-        ("creates_immediate_threat=true",    "creating an immediate threat"),
-        ("creates_immediate_threat=false",   "no immediate threat created"),
-        ("center_control=true",              "gaining center control"),
-        ("weakens_king_row=true",            "weakening the back row"),
-        ("results_in_king=true",             "promoting to king"),
-        # Numeric variants: our_pieces_threatened_after=0 or =N
-        ("our_pieces_threatened_after=0",    "no allied pieces remain under threat"),
-    ]
-    for field_pat, natural in _FIELD_TO_NATURAL:
-        text = text.replace(field_pat, natural)
-
-    # Replace remaining "field_name=N" patterns (integer values) not covered above
-    text = _re.sub(r'\b\w+=\d+\b', '', text)
-
-    # ── 3. Clean up parenthetical residue from comparison seeds ───────────────
-    # e.g. "(the opponent can recapture vs false here)" — the parens may contain
-    # already-substituted text so the pattern must match any content before "vs".
-    text = _re.sub(r'\([^)]*\bvs\b[^)]*\bhere\b[^)]*\)', '', text)
-    # Lone field names with no value that slipped through
-    text = _re.sub(r'\bcaptures_count difference\b', 'capturing more pieces', text, flags=_re.IGNORECASE)
-
-    # ── 4. Normalise whitespace and punctuation ───────────────────────────────
-    text = _re.sub(r'\s{2,}', ' ', text)
-    text = _re.sub(r'\(\s*\)', '', text)   # empty parens
-    text = text.strip(' ,;')
-
-    return text
+_FORCED_SEED_MARKERS = ("only legal move", "mandatory jump", "must capture")
 
 
-def _build_deterministic_seed_summary(
-    seeds: list[str],
-    chosen_move: dict,
-) -> str:
-    """
-    DEPRECATED — NOT CALLED BY THE LIVE RUNTIME PIPELINE.
-
-    Previously this function produced an entire reasoning paragraph from the
-    symbolic seed list (Python-authored, no LLM call), and was used as a hard
-    fallback when the refinement loop could not resolve every contradiction.
-
-    The contamination audit showed that this fallback artificially erased
-    LLM-generated contradictions on `seed_on` turns (the asymmetric Python
-    rewrite never fired on `seed_off`), biasing the per-condition contradiction
-    rates.  The fallback has therefore been permanently removed from
-    `_explain_chosen_move`: when refinement cannot resolve every contradiction,
-    the unrefined LLM text is now kept as-is.
-
-    The definition is preserved at module scope ONLY because legacy unit tests
-    in `checkers/tests/test_reasoning_truthfulness.py` import it.  It must
-    not be invoked from any code path that writes `state.last_move_reasoning`.
-    """
+def _has_forced_seed(seeds: Optional[list[str]]) -> bool:
     if not seeds:
-        path = chosen_move.get("path", [])
-        dest = path[-1] if path else "unknown"
-        return f"Engine evaluation: move to {dest} selected by minimax."
+        return False
+    for s in seeds:
+        sl = s.lower()
+        for m in _FORCED_SEED_MARKERS:
+            if m in sl:
+                return True
+    return False
 
-    parts: list[str] = []
-    for seed in seeds:
-        if " — " in seed:
-            explanation = seed.split(" — ", 1)[1].strip()
-        else:
-            explanation = seed.strip()
-        explanation = _sanitize_seed_explanation(explanation)
-        if not explanation:
-            continue
-        s = explanation[0].upper() + explanation[1:]
-        if not s.endswith("."):
-            s += "."
-        parts.append(s)
 
-    return " ".join(parts) if parts else "Move selected by engine evaluation."
+def _validate_and_select(
+    prior_text: str,
+    prior_count: int,
+    repair_text: Optional[str],
+    repair_count: int,
+    seeds: Optional[list[str]],
+    facts: Optional[dict],
+) -> tuple[str, int, str]:
+    """
+    Pre-commit gate for a repair attempt.
+
+    Returns (selected_text, selected_count, decision_tag) where decision_tag is
+    one of: 'accepted', 'rejected_parse', 'rejected_no_improvement',
+    'rejected_forced_fabricated', 'rejected_forced_dropped',
+    'rejected_promotion_dropped'.
+
+    On any rejection the prior (best-so-far) text and count are returned
+    unchanged, so the caller can simply assign back unconditionally.
+    """
+    if not repair_text:
+        return prior_text, prior_count, "rejected_parse"
+
+    # (1) Monotonicity — never accept equal-or-worse contradiction counts.
+    if repair_count >= prior_count:
+        return prior_text, prior_count, "rejected_no_improvement"
+
+    # (2) Forced-framing symmetry.
+    has_forced_output = bool(_FORCED_FRAMING_RE.search(repair_text))
+    forced_seed_present = _has_forced_seed(seeds)
+    if has_forced_output and not forced_seed_present:
+        return prior_text, prior_count, "rejected_forced_fabricated"
+    if forced_seed_present and not has_forced_output:
+        return prior_text, prior_count, "rejected_forced_dropped"
+
+    # (3) King-promotion preservation.
+    if facts and facts.get("results_in_king") is True:
+        if not _PROMOTION_RE.search(repair_text):
+            return prior_text, prior_count, "rejected_promotion_dropped"
+
+    return repair_text, repair_count, "accepted"
 
 
 # ── Reasoning-only refinement loop ────────────────────────────────────────────
@@ -3631,21 +1923,28 @@ def _refine_reasoning(
     """
     import time as _time
 
-    facts             = chosen_move.get("facts") or {}
-    current_reasoning = reasoning
-    retry_count       = 0
-    contradictions    = list(initial_contradictions)
+    facts        = chosen_move.get("facts") or {}
+    retry_count  = 0
+
+    # Track best-so-far across attempts.  Repair candidates are committed only
+    # when _validate_and_select accepts them (strict-improvement monotonicity
+    # plus forced-framing symmetry plus king-promotion preservation).  Each
+    # next attempt re-bases on the current best, so a rejected candidate is
+    # discarded entirely rather than corrupting the baseline.
+    best_text          = reasoning
+    best_count         = len(initial_contradictions)
+    best_contradictions = list(initial_contradictions)
 
     for attempt in range(1, max_attempts + 1):
         print(
             f"[RANKER_REASONING_RETRY] attempt={attempt} "
-            f"contradictions={contradictions}"
+            f"contradictions={best_contradictions}"
         )
         retry_count += 1
 
-        sentences   = _split_reasoning_sentences(current_reasoning)
+        sentences   = _split_reasoning_sentences(best_text)
         bad_indices, good_indices = _partition_sentences_by_contradiction(
-            sentences, contradictions
+            sentences, best_contradictions
         )
 
         use_targeted = bool(bad_indices)
@@ -3659,28 +1958,30 @@ def _refine_reasoning(
                 f"bad_sentences={bad_sentences}"
             )
             user_prompt = _build_targeted_refinement_prompt(
-                chosen_move, bad_sentences, contradictions
+                chosen_move, bad_sentences, best_contradictions
             )
         else:
             print(
                 f"[RANKER_REASONING_RETRY] cannot isolate bad sentences; "
                 "falling back to full-paragraph refinement"
             )
-            user_prompt = _build_refinement_prompt(chosen_move, contradictions)
+            user_prompt = _build_refinement_prompt(chosen_move, best_contradictions)
 
         raw: Optional[str] = None
-        for api_try in range(2):
+        _refine_waits = (20, 30, 40, 20, 30)
+        for api_try in range(6):
             try:
                 raw = call_ranker(RANKER_REASONING_REFINEMENT_SYSTEM, user_prompt)
                 break
             except Exception as e:
-                wait = 5 * (2 ** api_try)
-                print(
-                    f"[RANKER_REASONING_RETRY] api error "
-                    f"(attempt={attempt}, api_try={api_try + 1}): {e} "
-                    f"— waiting {wait}s"
-                )
-                _time.sleep(wait)
+                if api_try < len(_refine_waits):
+                    wait = _refine_waits[api_try]
+                    print(
+                        f"[RANKER_REASONING_RETRY] api error "
+                        f"(attempt={attempt}, api_try={api_try + 1}): {e} "
+                        f"— waiting {wait}s"
+                    )
+                    _time.sleep(wait)
 
         if raw is None:
             print(
@@ -3689,46 +1990,59 @@ def _refine_reasoning(
             )
             break
 
+        # Build candidate paragraph from the LLM response.
+        candidate: Optional[str] = None
         if use_targeted:
             replacements = _extract_targeted_repair_response(raw, len(bad_sentences))
             if replacements:
                 repaired = list(sentences)
                 for idx, new_sent in zip(bad_indices, replacements):
                     repaired[idx] = new_sent
-                current_reasoning = " ".join(repaired)
+                candidate = " ".join(repaired)
             else:
                 # Targeted parse failed; try extracting a full paragraph instead.
-                fallback = _extract_refinement_reasoning(raw)
-                if fallback:
-                    current_reasoning = fallback
-                else:
-                    print(
-                        f"[RANKER_REASONING_RETRY] targeted parse and fallback both "
-                        f"failed on attempt {attempt}; keeping previous reasoning"
-                    )
-                    break
+                candidate = _extract_refinement_reasoning(raw)
         else:
-            new_reasoning = _extract_refinement_reasoning(raw)
-            if not new_reasoning:
-                print(
-                    f"[RANKER_REASONING_RETRY] could not parse refinement response "
-                    f"on attempt {attempt}; keeping previous reasoning"
-                )
-                break
-            current_reasoning = new_reasoning
+            candidate = _extract_refinement_reasoning(raw)
 
-        if attempt < max_attempts:
-            contradictions = _check_reasoning_truthfulness(
-                current_reasoning, facts, seeds=seeds
+        if not candidate:
+            print(
+                f"[RANKER_REASONING_RETRY] could not parse refinement response "
+                f"on attempt {attempt}; keeping previous reasoning"
             )
-            if not contradictions:
+            break
+
+        # Score candidate and route through the deterministic pre-commit gate.
+        cand_contradictions = _check_reasoning_truthfulness(
+            candidate, facts, seeds=seeds
+        )
+        cand_count = len(cand_contradictions)
+
+        new_text, new_count, decision = _validate_and_select(
+            best_text, best_count,
+            candidate, cand_count,
+            seeds, facts,
+        )
+        print(
+            f"[RANKER_TRUTHFULNESS] gate_decision={decision} "
+            f"prior_count={best_count} candidate_count={cand_count}"
+        )
+
+        if decision == "accepted":
+            best_text          = new_text
+            best_count         = new_count
+            best_contradictions = cand_contradictions
+            if best_count == 0:
                 print("[RANKER_TRUTHFULNESS] intermediate_check_clean: breaking early")
-                break  # paragraph is already clean — fall through to final check
+                break
+        # On any rejection the best-so-far is retained; the next attempt
+        # re-runs from the same baseline so a bad candidate cannot poison
+        # subsequent attempts.
 
     # Final full-paragraph validation always runs, regardless of how the loop ended.
     # This is the single authoritative validation point for the returned reasoning.
     final_contradictions = _check_reasoning_truthfulness(
-        current_reasoning, facts, seeds=seeds
+        best_text, facts, seeds=seeds
     )
     resolved = len(final_contradictions) == 0
     print(f"[RANKER_TRUTHFULNESS] reasoning_refinement_resolved={resolved}")
@@ -3737,7 +2051,7 @@ def _refine_reasoning(
             f"[RANKER_TRUTHFULNESS] reasoning_still_contradicts_after_"
             f"{retry_count}_attempt(s)={final_contradictions}"
         )
-    return current_reasoning, retry_count, resolved
+    return best_text, retry_count, resolved
 
 
 # ── Grounded reasoning seeds ───────────────────────────────────────────────────
@@ -3746,31 +2060,38 @@ RANKER_SEED_REASONING_SYSTEM: str = """\
 You are a checkers move coach. You have been given a verified list of engine-computed
 factual claims about the chosen move ("reasoning seeds").
 
-Your task: rewrite these seeds into a single fluent paragraph of 3-5 sentences.
+Your task: write a single paragraph (3-5 sentences) that explains WHY this move was
+chosen. Use ONLY the provided reasoning seeds as evidence. Each sentence must convey
+a reason or consequence grounded in the seeds — do NOT paraphrase or mechanically
+list them; synthesize them into a causal explanation.
 
 STRICT RULES:
   - Use ONLY the provided reasoning seeds. Do NOT introduce any new strategic claims,
     positional assessments, or concepts not present in the seed list.
   - NEVER add phrases like: "structural pressure", "stable position", "limits options",
     "good position", "no advantage", "better structure", or any vague evaluation.
-  - You may rephrase, connect, and shorten the seeds into natural English prose.
-  - Every sentence except the final minimax confirmation MUST reference a concrete
-    fact from the seed list (e.g., opponent_can_recapture=false, captures_count=1).
+  - NEVER use variable names, schema keys, or key=value notation (e.g., do NOT write
+    "opponent_can_recapture=false" — write it as a natural English statement instead).
+  - Every sentence except the final minimax confirmation MUST be grounded in a concrete
+    fact from the seed list.
   - minimax_score may appear ONLY in the final sentence as confirmation.
   - Do NOT use labeled section headers.
   - Write a single coherent paragraph only.
-  - DRAWBACKS: If the seeds contain any drawback (e.g., opponent_can_recapture=true,
-    our_pieces_threatened_after>0, moved_piece_is_threatened=true,
-    leaves_piece_isolated=true, weakens_king_row=true), you MUST acknowledge that
-    drawback explicitly in the paragraph. Do NOT hide, omit, or downplay negative seeds.
-  - PRIORITY: When safety/tactical seeds (opponent_can_recapture, our_pieces_threatened_after,
-    captures_count, creates_immediate_threat) and strategic interpretation seeds
-    (develops a piece forward, positional move, geometric center position, back-row piece)
-    both exist, address safety/tactical seeds in the first 1–2 sentences. Strategic seeds
-    may only appear as supporting context, never as the primary justification.
-    Use "geometric center position" only as a positional descriptor; it does NOT
-    imply tactical center control. Tactical center control may be claimed ONLY
-    when an explicit seed states center_control=true.
+  - DRAWBACKS: If the seeds contain any drawback (e.g., the opponent can recapture,
+    allied pieces remain under threat, the moved piece is isolated or threatened), you
+    MUST acknowledge that drawback explicitly. Do NOT hide, omit, or downplay it.
+  - PRIORITY: When safety/tactical seeds (recapture, threats, captures, immediate threat)
+    and structural/positional seeds both exist, address safety/tactical seeds in the
+    first 1–2 sentences. Structural seeds may appear only as supporting context.
+
+  ANTI-TEMPLATE RULES — vary your language and structure:
+    - Do NOT open more than one sentence with "Despite", "Additionally", "Furthermore",
+      "Moreover", or "Also".
+    - Do NOT close the paragraph with filler such as "This makes it the best choice.",
+      "Overall, ...", "In summary, ...", or "Therefore, this is the optimal move."
+    - Do NOT produce sentences with identical grammatical structure back-to-back.
+    - The opening sentence must introduce the primary reason for the move — not restate
+      the move path or announce a positional theme without evidence.
 
   DECISION-RELEVANT FACTS — keep the paragraph faithful to the seeds it ranks on.
     Use only the grounded facts that were provided. Within the 3–5 sentences,
@@ -3799,19 +2120,79 @@ STRICT RULES:
       "regulars_captured",
       "central board presence", "central influence",
       "improves activity", "piece activity", "more active position",
-      "maintains pressure".
+      "maintains pressure",
+      "tangible positional advantage", "improved position", "strong positional edge".
     Do NOT state any number ("from X to Y", "remains at N", "unchanged at N")
     unless that exact number appears verbatim in the seed list.
     Do NOT claim "no kings lost", "piece count unchanged", or "no vulnerabilities"
     unless an explicit seed states it.
 
+  SINGLE-LEGAL-MOVE CONTEXT (BUG-3):
+    If a seed states "This is the only legal move available", do NOT use
+    "strongest choice", "best move", or "highest-ranked option". The move is
+    not chosen for superiority — it is the only option. Use the factual
+    wording from the seed instead.
+
+  MULTIPLE-MOVES CONTEXT:
+    If a seed states "Multiple legal moves were available", do NOT use phrases
+    like "only legal move", "only available option", "only viable option",
+    "forced move", "no alternative", or "no other option". Multiple options
+    existed; the move was chosen by the engine, not forced.
+
+  IMMEDIATE THREAT (audit-driven):
+    Do NOT write "creates an immediate threat", "creates immediate pressure",
+    "creates a threat", "threatens the opponent", or "forces the opponent"
+    UNLESS a seed explicitly states "forces the opponent to respond to an
+    immediate threat" or "The opponent is forced to respond with a jump".
+    If a seed says "This move does not create an immediate threat", you MUST
+    use that wording rather than the opposite.
+
+  MOBILITY REDUCTION (audit-driven):
+    Do NOT write "reduces opponent mobility", "restricts opponent mobility",
+    "narrows opponent options", "cuts opponent moves", or "limits opponent
+    replies" UNLESS a seed explicitly contains the phrase "reduces opponent
+    mobility by N".  If a mobility seed says "remains at N" or "no change in
+    opponent mobility" or "Opponent mobility is unchanged", the mobility did
+    not change — do not assert any reduction.
+
+  COMPARISON VALUES (anti-hallucination):
+    NEVER write "N points better", "N points stronger", or similar numeric
+    comparison phrases unless a seed explicitly provides the exact number in
+    the form "The chosen move scores N.N points better than the next-best
+    option". If no such seed exists, use qualitative language only (e.g.,
+    "the engine evaluated this path more highly"). Inventing comparison
+    magnitudes is a factual error.
+
+  CENTER GEOMETRY vs TACTICAL CONTROL (BUG-4):
+    A seed stating "The destination is in the center of the board (column X)"
+    is a GEOMETRIC fact only — it does NOT imply tactical center control. Only
+    write "controls the center" or "central control" if a seed explicitly states
+    "The move gains central board control" or "The move claims central control".
+    Do NOT draw strategic center-control conclusions from a geometry-only seed.
+
+  TRADEOFF LANGUAGE (BUG-5):
+    NEVER say "outweighs", "compensates for", "justifies the risk", or
+    "balances out" unless a seed explicitly provides numeric evidence for both
+    sides of the comparison (e.g., capture count AND recapture risk together).
+
+  MOBILITY DISADVANTAGE (BUG-6):
+    If opponent mobility is still higher than ours after the move, use
+    "narrows the gap" rather than "solves", "addresses", "fixes", or
+    "eliminates" the disadvantage. Do not overclaim resolution of a
+    disadvantage that persists.
+
+  COORDINATE REFERENCE (BUG-10):
+    Every explanation paragraph must reference the move path coordinates at
+    least once. Use the path from the "Chosen move:" line above.
+
   TACTICAL EXPOSURE CONTEXT:
-    When a seed states opponent_can_recapture=true, our_pieces_threatened_after>0,
-    or moved_piece_is_threatened=true, acknowledge that drawback honestly.
+    When a seed states that the opponent can recapture, allied pieces remain under
+    threat, or the moved piece is threatened, acknowledge that drawback honestly.
     Then explain WHY the move is still chosen: e.g., material gain, threat creation,
     minimax advantage, or constrained opponent reply.
-    Do NOT invert the seed: if a seed says threat_after=1, do NOT write "no threats remain".
-    If a seed says opponent_can_recapture=true, do NOT write "avoids recapture".
+    Do NOT invert the seed: if a seed mentions pieces under threat, do NOT write
+    "no threats remain". If a seed says the opponent can recapture, do NOT write
+    "avoids recapture".
 
 OUTPUT FORMAT — reply with ONLY this JSON, no markdown:
 {"reasoning": "<your paragraph>"}
@@ -3832,54 +2213,42 @@ def _find_comparison_seed(
     # 1. Recapture safety
     if chosen_facts.get("opponent_can_recapture") is False \
             and alt_facts.get("opponent_can_recapture") is True:
-        return (
-            f"Move [{alt_index}] allows recapture (opponent_can_recapture=true) "
-            "vs false here — chosen move is safer."
-        )
+        return f"Unlike move [{alt_index}], the chosen piece cannot be immediately recaptured."
     # 2. Moved piece threatened
     if chosen_facts.get("moved_piece_is_threatened") is False \
             and alt_facts.get("moved_piece_is_threatened") is True:
         return (
-            f"Move [{alt_index}] leaves the moved piece threatened "
-            "(moved_piece_is_threatened=true vs false here)."
+            f"Unlike move [{alt_index}], the moved piece is not left under immediate threat."
         )
     # 3. Pieces at risk count
     c_pta = chosen_facts.get("our_pieces_threatened_after")
     a_pta = alt_facts.get("our_pieces_threatened_after")
     if c_pta is not None and a_pta is not None and c_pta < a_pta:
         return (
-            f"Move [{alt_index}] leaves {a_pta} piece(s) threatened "
-            f"(our_pieces_threatened_after={a_pta} vs {c_pta} here)."
+            f"Unlike move [{alt_index}], fewer allied pieces are left under threat "
+            f"({c_pta} vs {a_pta})."
         )
     # 4. Captures
     c_cap = chosen_facts.get("captures_count", 0)
     a_cap = alt_facts.get("captures_count", 0)
     if c_cap > a_cap:
         return (
-            f"Chosen move captures {c_cap} piece(s) while move [{alt_index}] "
-            f"captures only {a_cap} (captures_count difference)."
+            f"The chosen move captures {c_cap} piece(s); move [{alt_index}] captures only {a_cap}."
         )
     # 5. Isolation
     if chosen_facts.get("leaves_piece_isolated") is False \
             and alt_facts.get("leaves_piece_isolated") is True:
         return (
-            f"Move [{alt_index}] isolates the moved piece "
-            "(leaves_piece_isolated=true vs false here)."
+            f"Unlike move [{alt_index}], the moved piece remains supported by adjacent allies."
         )
     # 6. Immediate threat
     if chosen_facts.get("creates_immediate_threat") is True \
             and alt_facts.get("creates_immediate_threat") is False:
-        return (
-            f"Chosen move creates an immediate threat (creates_immediate_threat=true) "
-            f"while move [{alt_index}] does not."
-        )
+        return f"The chosen move creates an immediate threat; move [{alt_index}] does not."
     # 7. Center control
     if chosen_facts.get("center_control") is True \
             and alt_facts.get("center_control") is False:
-        return (
-            f"Chosen move gains center control (center_control=true) "
-            f"while move [{alt_index}] does not."
-        )
+        return f"The chosen move gains central board control; move [{alt_index}] does not."
     return None
 
 
@@ -3931,9 +2300,9 @@ def _build_adversity_context_seeds(
                 gap = chosen_mm - alt_mm
                 if gap > 20.0:
                     seeds.append(
-                        f"chosen move scores {gap:.1f} points better than "
-                        f"next-best option [{best_alt_idx}] "
-                        f"(minimax: {chosen_mm:.1f} vs {alt_mm:.1f})"
+                        f"The chosen move scores {gap:.1f} points better than "
+                        f"the next-best option [move {best_alt_idx}] "
+                        f"(engine scores: {chosen_mm:.1f} vs {alt_mm:.1f})."
                     )
 
     # ── B. Material deficit ───────────────────────────────────────────────────
@@ -3941,7 +2310,7 @@ def _build_adversity_context_seeds(
     if mat_adv is not None and mat_adv < 0:
         deficit = -mat_adv
         seeds.append(
-            f"material_advantage={mat_adv} — behind by {deficit} piece(s)"
+            f"The position is behind by {deficit} piece(s) in material."
         )
 
     # ── C. Threat reduction ───────────────────────────────────────────────────
@@ -3954,16 +2323,15 @@ def _build_adversity_context_seeds(
         and pta_after < pta_before
     ):
         seeds.append(
-            f"reduces threatened pieces from {pta_before} to {pta_after} "
-            "— move improves immediate safety"
+            f"This move reduces threatened allied pieces from {pta_before} to {pta_after}, "
+            "improving immediate safety."
         )
 
     # ── D. Opponent near promotion ────────────────────────────────────────────
     # Board-state fact only — does NOT claim the chosen move blocks it.
     if facts.get("opponent_near_promotion") is True:
         seeds.append(
-            "opponent_near_promotion=true — at least one opponent piece "
-            "is one step from promotion"
+            "At least one opponent piece is one step from promotion."
         )
 
     # ── E. Mobility asymmetry ─────────────────────────────────────────────────
@@ -3971,9 +2339,8 @@ def _build_adversity_context_seeds(
     our_mob = facts.get("our_mobility_before")
     if opp_mob is not None and our_mob is not None and (opp_mob - our_mob) >= 3:
         seeds.append(
-            f"opponent_mobility_before={opp_mob} vs "
-            f"our_mobility_before={our_mob} — "
-            "structural disadvantage in available options"
+            f"The opponent has {opp_mob} available moves against our {our_mob} — "
+            "a mobility disadvantage going into this turn."
         )
 
     return seeds
@@ -3993,9 +2360,9 @@ def _minimax_wording_label(mm: float) -> str:
 
 
 def _is_losing_score_state(score_state: Optional[str]) -> bool:
-    """Return True iff strategic_context.score_state indicates the current
-    mover is materially behind.  Conservative: an unknown / missing value
-    returns False (callers fall back to the raw-minimax gate).
+    """Return True iff state.score_state indicates the current mover is
+    materially behind.  Conservative: an unknown / missing value returns
+    False (callers fall back to the raw-minimax gate).
     """
     return isinstance(score_state, str) and score_state in (
         "CLEARLY_LOSING",
@@ -4005,28 +2372,189 @@ def _is_losing_score_state(score_state: Optional[str]) -> bool:
 
 def _resolve_score_state_for_seeds(state: CheckersState) -> str:
     """
-    Return a safe score_state string for use as the adversity-seed gate.
+    Return score_state for the adversity-seed gate.
 
-    Behaviour:
-      - If state.strategic_context["score_state"] is a non-empty string,
-        return it verbatim.
-      - Otherwise (None state, missing key, empty/non-string value), return
-        the conservative default "EQUAL".
-
-    Rationale
-    ---------
-    On the very first ply, inter_turn_memory has not yet produced a real
-    strategic_context.  scorer_node injects a neutral _FIRST_TURN_CONTEXT
-    that already sets score_state="EQUAL", but this helper guarantees the
-    same default even in unit tests or partial-state harnesses that bypass
-    scorer_node.  Returning "EQUAL" ensures adversity seeds remain OFF when
-    the position is unknown — never falsely declaring a losing position.
+    Reads state.score_state, which scorer_node writes on every ply from
+    compute_score_state(board, player).  Falls back to "EQUAL" for unit
+    tests or harnesses that construct a CheckersState without running
+    scorer_node (the Pydantic default is "EQUAL").
     """
-    ctx = state.strategic_context or {}
-    val = ctx.get("score_state") if isinstance(ctx, dict) else None
+    val = state.score_state
     if isinstance(val, str) and val.strip():
         return val
     return "EQUAL"
+
+
+# ── Move-class routing for semantic grounding (Phase G, Step 1) ──────────────
+#
+# Audit finding: the existing seed-reasoning prompt asks the LLM to write a
+# 3–5-sentence "causal explanation" for EVERY move.  On quiet positional moves
+# (no captures, no immediate threat, no forced opponent reply, no king
+# promotion, small mobility delta) the symbolic facts do not supply enough
+# narrative volume to fill that prompt, so the LLM confabulates strategic
+# content ("creates pressure", "restricts N pieces", "narrows the gap", etc.).
+#
+# This helper classifies a move as "tactical" or "quiet" so the prompt builder
+# can route to a shorter, more factual variant for quiet moves.  Deterministic,
+# reads only the move's `facts` dict.
+
+_QUIET_MOBILITY_DELTA_THRESHOLD = 1   # |Δmob| <= 1 on each side qualifies as small
+
+
+def _classify_move_intent(facts: Optional[dict]) -> str:
+    """Return 'tactical' or 'quiet' based on grounded engine facts.
+
+    A move is QUIET iff ALL of the following hold:
+      - captures_count == 0
+      - creates_immediate_threat is not True
+      - forced_opponent_jump_reply is not True
+      - results_in_king is not True
+      - |our_mobility_after - our_mobility_before| <= 1
+      - |opponent_mobility_after - opponent_mobility_before| <= 1
+
+    Any other case is TACTICAL.  Missing fields are treated conservatively
+    (absent fields do not trigger tactical classification on their own).
+    """
+    f = facts or {}
+    if (f.get("captures_count") or 0) > 0:
+        return "tactical"
+    if f.get("creates_immediate_threat") is True:
+        return "tactical"
+    if f.get("forced_opponent_jump_reply") is True:
+        return "tactical"
+    if f.get("results_in_king") is True:
+        return "tactical"
+    ub = f.get("our_mobility_before")
+    ua = f.get("our_mobility_after")
+    if isinstance(ub, int) and isinstance(ua, int) and abs(ua - ub) > _QUIET_MOBILITY_DELTA_THRESHOLD:
+        return "tactical"
+    ob = f.get("opponent_mobility_before")
+    oa = f.get("opponent_mobility_after")
+    if isinstance(ob, int) and isinstance(oa, int) and abs(oa - ob) > _QUIET_MOBILITY_DELTA_THRESHOLD:
+        return "tactical"
+    return "quiet"
+
+
+def _negative_grounding_seeds(
+    facts: Optional[dict],
+    n_candidates: int,
+    existing_seeds: list[str],
+) -> list[str]:
+    """Emit explicit negative-fact seeds for the four predicates the human
+    audit identified as the most commonly *fabricated* positives.
+
+    Negatives are short, atomic, and never duplicate an existing seed.  When a
+    fact is True (the positive direction) the corresponding positive seed is
+    already emitted upstream; this helper only fires on the False direction.
+
+    Targets:
+      T2  creates_immediate_threat=False     → "does not create an immediate threat"
+      T3  forced_opponent_jump_reply=False   → "opponent is not forced ... jump"
+      T1  frozen_enemy_pieces == 0           → "does not restrict any opponent piece"
+      forced_move_for_us=False (n>1)         → "multiple legal moves were available"
+    """
+    f = facts or {}
+    out: list[str] = []
+    haystack = " ".join(s.lower() for s in (existing_seeds or []))
+
+    # T2 — fake immediate threat (cit=False)
+    if f.get("creates_immediate_threat") is False \
+            and "immediate threat" not in haystack \
+            and "immediate pressure" not in haystack:
+        out.append("This move does not create an immediate threat.")
+
+    # T3 — fake forced opponent jump reply
+    if f.get("forced_opponent_jump_reply") is False \
+            and "forced to respond with a jump" not in haystack \
+            and "opponent is forced" not in haystack:
+        out.append("The opponent is not forced to respond with a jump.")
+
+    # T1 — fake restriction effect (frozen_enemy_pieces == 0)
+    fep = f.get("frozen_enemy_pieces")
+    if isinstance(fep, int) and fep == 0 and "restrict" not in haystack:
+        out.append("This move does not restrict any opponent piece's forward movement.")
+
+    # Forced-move-for-us negative (audit's false-forced-only-legal class).
+    # Suppressed when the single-candidate path has already emitted an
+    # "only legal move" seed.
+    if n_candidates > 1 and "only legal move" not in haystack:
+        out.append("Multiple legal moves were available; the engine selected this option.")
+
+    # Near-promotion negative: only when near_promotion is explicitly False.
+    # Prevents the LLM from fabricating "one step from promotion" claims.
+    # Use "promot" prefix to match both "promotion" and "promoted" in haystack.
+    if f.get("near_promotion") is False and "promot" not in haystack:
+        out.append("The piece is not near promotion after this move.")
+
+    # Audit pattern: false center-control claim when center_control=False.
+    # No positive geometric seed is emitted in this case (the geometric seed
+    # is gated on center_control=True), so without this negative the LLM has
+    # nothing pushing back against fabricated "central" / "controls center"
+    # phrasing.  Keep wording aligned with the system-prompt CENTER GEOMETRY
+    # rule so the negative naturally lands in the model's vocabulary.
+    if f.get("center_control") is False \
+            and "central board control" not in haystack \
+            and "claims central control" not in haystack:
+        out.append("The move does not gain central board control.")
+
+    # Audit pattern: false mobility-reduction claim when opponent mobility is
+    # unchanged.  The grounded mobility seed already states "remains at N —
+    # no change in opponent mobility", but a short explicit negative makes the
+    # constraint visible to the LLM without forcing it to parse the numeric
+    # transition seed.  Only emit when before/after are both ints AND equal AND
+    # no positive opponent-mobility-reduction seed is already present.
+    _omb = f.get("opponent_mobility_before")
+    _oma = f.get("opponent_mobility_after")
+    if (
+        isinstance(_omb, int)
+        and isinstance(_oma, int)
+        and _omb == _oma
+        and "reduces opponent mobility" not in haystack
+        and "opponent mobility is unchanged" not in haystack
+    ):
+        out.append("Opponent mobility is unchanged after this move; this move does not reduce opponent mobility.")
+
+    return out
+
+
+# ── Mobility-gap direction seed (Phase G, Step 3) ────────────────────────────
+#
+# Audit T4 finding: the seed list surfaces the raw mobility numbers
+# ("our mobility changes from 8 to 9", "opponent mobility remains at 12") but
+# does NOT emit a derived direction summary of the gap.  The LLM is therefore
+# asked to compute the absolute-distance change itself, and sometimes mislabels
+# the direction (claims "narrows the gap" when |gap| widened, claims "mobility
+# unchanged" when individual mobilities decreased symmetrically, etc.).
+#
+# Step 3 emits a single grounded seed describing the engine's actual gap
+# direction whenever the four mobility values are available.  Deterministic,
+# factual-only, no strategic interpretation.
+
+def _mobility_gap_seed(facts: Optional[dict]) -> Optional[str]:
+    """Return a grounded seed describing the |our − opp| mobility-gap
+    direction, or None when not computable.
+
+      gap_after  <  gap_before  → 'The mobility gap narrowed by N.'
+      gap_after  >  gap_before  → 'The mobility gap widened by N.'
+      gap_after  == gap_before  → 'The mobility gap remained unchanged.'
+
+    Pure function.  Reads only the four mobility fields.  No side effects.
+    """
+    f = facts or {}
+    ub = f.get("our_mobility_before")
+    ua = f.get("our_mobility_after")
+    ob = f.get("opponent_mobility_before")
+    oa = f.get("opponent_mobility_after")
+    if not all(isinstance(x, int) for x in (ub, ua, ob, oa)):
+        return None
+    gap_before = abs(ub - ob)
+    gap_after  = abs(ua - oa)
+    if gap_after == gap_before:
+        return "The mobility gap remained unchanged."
+    delta = abs(gap_after - gap_before)
+    if gap_after < gap_before:
+        return f"The mobility gap narrowed by {delta}."
+    return f"The mobility gap widened by {delta}."
 
 
 def _build_grounded_reasoning_seeds(
@@ -4044,10 +2572,10 @@ def _build_grounded_reasoning_seeds(
     player  INT constant (RED or BLACK from checkers.engine.board).
             When 0 (unknown), direction-sensitive seeds fall back to safe defaults.
 
-    score_state  Optional strategic_context["score_state"] value.  When provided
-                 and equal to "CLEARLY_LOSING"/"SLIGHTLY_LOSING", adversity seeds
-                 fire regardless of minimax_score.  When None or missing, the
-                 legacy raw-minimax threshold (_MINIMAX_SLIGHTLY_LOSING) is used.
+    score_state  Optional state.score_state value (written by scorer_node).
+                 When equal to "CLEARLY_LOSING"/"SLIGHTLY_LOSING", adversity
+                 seeds fire regardless of minimax_score.  When None or missing,
+                 the raw-minimax threshold (_MINIMAX_SLIGHTLY_LOSING) is used.
                  This avoids emitting losing-position language during forced-but-
                  winning lines where a single move has mm<-20 but the player is
                  actually ahead overall.
@@ -4057,8 +2585,8 @@ def _build_grounded_reasoning_seeds(
     chosen_path = chosen_move.get("path")
 
     # ── Adversity context gate ────────────────────────────────────────────────
-    # Preferred gate: strategic_context.score_state, which reflects whole-position
-    # material/king balance from the current mover's perspective.
+    # Preferred gate: state.score_state (written by scorer_node), which reflects
+    # whole-position material/king balance from the current mover's perspective.
     # Fallback gate: raw minimax_score < _MINIMAX_SLIGHTLY_LOSING, used only when
     # score_state is not provided (back-compat for unit tests and isolated calls).
     _mm = facts.get("minimax_score")
@@ -4075,99 +2603,114 @@ def _build_grounded_reasoning_seeds(
     # ── Safety ──────────────────────────────────────────────────────────────
     recapture = facts.get("opponent_can_recapture")
     if recapture is False:
-        seeds.append(
-            "opponent_can_recapture=false — immediate tactical safety: "
-            "opponent cannot recapture this piece next turn"
-        )
+        seeds.append("The moved piece cannot be immediately recaptured.")
     elif recapture is True:
-        seeds.append(
-            "opponent_can_recapture=true — tactical drawback: "
-            "opponent can recapture this piece next turn"
-        )
+        seeds.append("The opponent can recapture the moved piece next turn.")
 
     pta = facts.get("our_pieces_threatened_after")
     if pta is not None:
         if pta == 0:
-            seeds.append(
-                "our_pieces_threatened_after=0 — no defensive burden remains after the move"
-            )
+            seeds.append("No allied pieces remain under attack after this move.")
         else:
-            seeds.append(
-                f"our_pieces_threatened_after={pta} — tactical drawback: "
-                f"{pta} allied piece(s) remain under attack after the move"
-            )
+            seeds.append(f"{pta} allied piece(s) remain under threat after the move.")
 
     mpt = facts.get("moved_piece_is_threatened")
     if mpt is True:
-        seeds.append(
-            "moved_piece_is_threatened=true — moved piece remains tactically exposed"
-        )
+        seeds.append("The moved piece remains under immediate threat.")
 
     # ── Tactical ───────────────────────────────────────────────────────────
     cap = facts.get("captures_count", 0)
     net = facts.get("net_gain", 0)
     if cap > 0:
-        seeds.append(
-            f"captures_count={cap}, net_gain={net} — "
-            f"wins material while advancing the position"
-        )
+        seeds.append(f"The move captures {cap} piece(s), gaining a net advantage of {net}.")
 
     if facts.get("creates_immediate_threat") is True:
-        seeds.append(
-            "creates_immediate_threat=true — puts opponent on the defensive next turn"
-        )
+        seeds.append("This move forces the opponent to respond to an immediate threat.")
 
     if facts.get("shot_sequence_available") is True:
-        seeds.append(
-            "shot_sequence_available=true — a multi-jump sequence is available to extend the attack"
-        )
+        seeds.append("A multi-jump sequence is available to continue the attack.")
 
     if facts.get("blocks_opponent_landing") is True:
+        seeds.append("The move denies the opponent a key landing square.")
+
+    # ── Restriction-count grounding (Phase G, Step 2) ──────────────────────
+    # Audit T1 finding: when the engine knows a non-zero number of opponent
+    # pieces become immobile after the move (`frozen_enemy_pieces > 0`) but
+    # the seed list does not surface that count, the LLM tends to invent a
+    # plausible-sounding integer ("restricts N opponent pieces from
+    # advancing").  Emit the real count as a grounded positive seed, with
+    # singular/plural grammar.  The Step 1 negative seed
+    # ("does not restrict any opponent piece's forward movement") fires only
+    # when the count is zero, so this positive and the Step 1 negative are
+    # mutually exclusive by construction.
+    fep = facts.get("frozen_enemy_pieces")
+    if isinstance(fep, int) and fep > 0:
+        _noun = "piece has" if fep == 1 else "pieces have"
         seeds.append(
-            "blocks_opponent_landing=true — denies the opponent a key landing square"
+            f"{fep} opponent {_noun} restricted forward movement after this move."
         )
 
     fjr = facts.get("forced_opponent_jump_reply")
     mjc = facts.get("max_opponent_jump_captures")
     if fjr is True and mjc is not None:
-        seeds.append(
-            f"forced_opponent_jump_reply=true, max_opponent_jump_captures={mjc} — "
-            "opponent response is constrained to a jump"
-        )
+        jc = facts.get("opponent_jump_count")
+        if isinstance(jc, int) and jc > 1:
+            # Explicitly state the jump count so the LLM cannot claim "single jump"
+            # when multiple jump options exist.  Conflating forced-jump mode with
+            # a single legal jump option was the root cause of BUG-2 (audit).
+            seeds.append(
+                f"The opponent is forced to respond with a jump; "
+                f"{jc} jump options are available "
+                f"(each captures at most {mjc} piece(s))."
+            )
+        else:
+            seeds.append(
+                f"The opponent is forced to respond with a jump "
+                f"(at most {mjc} piece(s) captured)."
+            )
 
     # ── Structure ───────────────────────────────────────────────────────────
     isolated = facts.get("leaves_piece_isolated")
     if isolated is True:
-        seeds.append(
-            "leaves_piece_isolated=true — positional drawback: "
-            "moved piece is not supported by adjacent allies"
-        )
+        seeds.append("The moved piece is left without adjacent support.")
     elif isolated is False:
-        seeds.append(
-            "leaves_piece_isolated=false — preserves piece coordination "
-            "by keeping the moved piece connected"
-        )
+        seeds.append("The moved piece is not left isolated.")
 
     if facts.get("weakens_king_row") is True:
-        seeds.append(
-            "weakens_king_row=true — back-row defense is weakened"
-        )
+        seeds.append("The move weakens the back-row defensive structure.")
 
-    # center_control ONLY if True (never claim it when False)
+    # center_control ONLY if True (never claim it when False).
+    # BUG-7: when frozen_enemy_pieces > 0, inject a causal seed tying
+    # central control to the restriction count so the LLM explains WHY
+    # the square matters instead of repeating the label.
     if facts.get("center_control") is True:
-        seeds.append(
-            "center_control=true — improves influence over central lanes"
-        )
+        _frozen_for_center = facts.get("frozen_enemy_pieces")
+        if isinstance(_frozen_for_center, int) and _frozen_for_center > 0:
+            seeds.append(
+                f"The move claims central control; "
+                f"this positioning restricts {_frozen_for_center} opponent "
+                f"piece(s) from advancing."
+            )
+        else:
+            seeds.append("The move gains central board control.")
+
+    # ── Restriction / structural pressure ────────────────────────────────────
+    restriction = facts.get("restriction_score")
+    frozen = facts.get("frozen_enemy_pieces")
+    role = facts.get("quiet_move_role") or ""
+    if role == "STRUCTURAL_RESTRICTION" or (restriction and restriction > 0):
+        if frozen and frozen > 0:
+            seeds.append(
+                f"After this move, {frozen} opponent piece(s) have restricted forward movement."
+            )
+        elif restriction and restriction > 0:
+            seeds.append("The move constrains the opponent's available options.")
 
     # ── Promotion ───────────────────────────────────────────────────────────
     if facts.get("results_in_king") is True:
-        seeds.append(
-            "results_in_king=true — immediately converts the piece into a king"
-        )
+        seeds.append("The piece is immediately promoted to king.")
     elif facts.get("near_promotion") is True:
-        seeds.append(
-            "near_promotion=true — creates a future promotion threat"
-        )
+        seeds.append("The piece is now one step from promotion.")
 
     # ── Mobility — emit ONE natural-language seed per before/after pair ───────
     # Earlier versions emitted both a structured "key=value" seed and a
@@ -4217,6 +2760,15 @@ def _build_grounded_reasoning_seeds(
                 "no change in our mobility"
             )
 
+    # ── Mobility-gap direction (Phase G, Step 3) ─────────────────────────
+    # Emit a single grounded direction summary so the LLM does not have to
+    # compute the absolute-distance change itself.  Addresses T4 audit
+    # residuals (gap-direction misclaims, false 'unchanged' on symmetric
+    # decreases, restriction-implication when opp mobility increased).
+    _gap_seed = _mobility_gap_seed(facts)
+    if _gap_seed is not None:
+        seeds.append(_gap_seed)
+
     # ── Strategic interpretation (LOW-STRENGTH, supporting context only) ────────────
     # Derived purely from path geometry and fact values. No risky assumptions.
     # These seeds must NEVER be the primary justification in the paragraph.
@@ -4237,9 +2789,7 @@ def _build_grounded_reasoning_seeds(
         else:
             _is_forward = False
         if _is_forward:
-            seeds.append(
-                "develops a piece forward (simple move, no capture)"
-            )
+            seeds.append("The piece advances forward without capturing.")
 
     # (B) Back-row origin: color-aware back row detection.
     # RED back row = row 7; BLACK back row = row 0.
@@ -4253,32 +2803,49 @@ def _build_grounded_reasoning_seeds(
             # UNSUPPORTED verdict whenever weakens_king_row=False.
             _actually_weakens = bool(facts.get("weakens_king_row", False))
             if _actually_weakens:
-                seeds.append(
-                    "moves a back-row piece — "
-                    "weakens back-row defensive structure (weakens_king_row=true)"
-                )
+                seeds.append("A back-row piece is moved, weakening the defensive structure.")
             else:
-                seeds.append(
-                    "moves a back-row piece — "
-                    "back-row structure remains intact (weakens_king_row=false)"
-                )
+                seeds.append("A back-row piece is moved; the defensive structure remains intact.")
 
 
     # (C) Positional (quiet) move: no captures
     if cap == 0:
+        seeds.append("The move improves piece placement without capturing.")
+
+    # (D) Center direction: emit geometric column seed ONLY when the engine
+    # confirms center_control=True.  Without this gate the seed was injected for
+    # every move to columns 2-5 regardless of center_control, causing 19.9% of
+    # turns to carry a false "center of the board" claim that also bypassed the
+    # verifier's seed-exempt check.
+    if facts.get("center_control") and _dst_col is not None:
+        seeds.append(f"The destination is in the center of the board (column {_dst_col}).")
+
+    # (E) Edge-awareness: destination on board edge limits diagonal flexibility.
+    # Columns 0 and 7 are the board edges; only one diagonal direction is available.
+    if _dst_col in {0, 7}:
         seeds.append(
-            "captures_count=0 — positional move focused on improving piece placement"
+            f"The destination is on the board edge (column {_dst_col}), "
+            f"which limits diagonal flexibility to one direction only."
         )
 
-    # (D) Center direction: destination column in center range {2,3,4,5}.
-    # This is a GEOMETRIC fact only.  Do not conflate with tactical center_control
-    # (engine-computed).  "central board presence" is intentionally absent here
-    # to prevent ontology mismatch; center_control=True is already seeded above.
-    if _dst_col is not None and _dst_col in {2, 3, 4, 5}:
-        seeds.append(
-            f"destination column in center range (col={_dst_col}) — "
-            "geometric center position"
-        )
+    # ── BUG-3: Single-legal-move context ─────────────────────────────────
+    # When there is only one legal move the chosen move is not "best" or
+    # "strongest" — it is the only option.  Replace the comparison and
+    # minimax confirmation seeds with a single explicit statement so the
+    # LLM cannot use superlatives that imply a comparison set.
+    if len(all_candidates) <= 1:
+        # Insert negative-grounding seeds before the closing forced-move seed
+        # so the LLM sees them in the body of the seed list.
+        seeds.extend(_negative_grounding_seeds(facts, len(all_candidates), seeds))
+        mm = _get_minimax_score(chosen_move)
+        if mm is not None:
+            seeds.append(
+                f"This is the only legal move available; "
+                f"the engine assigns it a minimax score of {mm:.1f}."
+            )
+        else:
+            seeds.append("This is the only legal move available.")
+        return seeds
 
     # ── Comparison vs next-best alternative ──────────────────────────────
     alternatives = [
@@ -4298,31 +2865,131 @@ def _build_grounded_reasoning_seeds(
         if cmp:
             seeds.append(cmp)
 
+    # ── Negative-grounding seeds (Phase G, Step 1) ──────────────────────
+    # Emit explicit negatives for the predicates the human audit showed are
+    # most commonly fabricated as positives.  Placed before the minimax
+    # confirmation so the minimax line remains the final seed.
+    seeds.extend(_negative_grounding_seeds(facts, len(all_candidates), seeds))
+
     # ── Minimax confirmation (always last) ──────────────────────────────
     mm = _get_minimax_score(chosen_move)
     if mm is not None:
-        seeds.append(f"minimax_score={mm:.2f} — {_minimax_wording_label(mm)}")
+        seeds.append(f"The engine scores this move {mm:.1f} — {_minimax_wording_label(mm)}.")
 
     return seeds
 
 
 def _build_seed_reasoning_prompt(chosen_move: dict, seeds: list[str]) -> str:
-    """Build the user prompt for a seed-based reasoning call."""
+    """Build the user prompt for a seed-based reasoning call.
+
+    Routes by move class:
+      - 'tactical' moves use the existing causal-explanation prompt (3-5 sentences).
+      - 'quiet'    moves use a shorter factual prompt (2-3 sentences) that
+                   suppresses strategic embellishment.  See _classify_move_intent.
+    """
     path  = chosen_move.get("path", [])
     mtype = chosen_move.get("type", "simple")
+    facts = chosen_move.get("facts") or {}
+    move_class = _classify_move_intent(facts)
+
     lines = [
         f"Chosen move: type={mtype}  path={path}",
+        f"Move class: {move_class}",
         "",
         "Verified reasoning seeds (use ONLY these — do not add unsupported claims):",
     ]
     for i, s in enumerate(seeds, 1):
         lines.append(f"  {i}. {s}")
-    lines += [
-        "",
-        "Rewrite these seeds into a single fluent paragraph of 3-5 sentences.",
-        "minimax_score must appear only in the final sentence as confirmation.",
-        'Reply with ONLY: {"reasoning": "<your paragraph>"}',
-    ]
+    _coord_hint = f"REQUIRED: reference the move path {path} at least once in your paragraph."
+
+    # Common forced-move framing rule used by both variants.
+    _forced_rule = (
+        "Forced-move framing rule (strict): IF AND ONLY IF one of the seeds above "
+        "explicitly states the move is the only legal move available (e.g., "
+        "'only legal move', 'mandatory jump', 'must capture', or equivalent "
+        "forced-move wording), then the reasoning paragraph MUST open with that "
+        "fact and not bury it in the closing sentence. "
+        "Otherwise, do NOT assert that the move is forced, only-legal, mandatory, "
+        "or has no alternative. A seed saying 'the opponent is forced to respond' "
+        "describes the OPPONENT's reply, not our choice, and does NOT make our "
+        "move forced."
+    )
+
+    if move_class == "quiet":
+        # Quiet positional move: short, factual, no strategic storytelling.
+        lines += [
+            "",
+            "This is a QUIET positional move (no captures, no immediate threat,",
+            "no forced opponent jump, no promotion, and no large mobility shift).",
+            "Write a SHORT factual paragraph of 2 OR 3 sentences ONLY.  Describe",
+            "what the move literally does: starting and destination squares, any",
+            "change in mobility, safety relative to recapture, and the engine score.",
+            "Do NOT use the words: 'pressure', 'forces', 'forcing', 'control',",
+            "'controls', 'controlling', 'influence', 'initiative', 'long-term',",
+            "'structural', 'positional pressure', 'tactical pressure', 'dominance',",
+            "'restricts', 'restricting', 'restriction', 'narrows the gap',",
+            "'maintains initiative', 'creates an immediate threat', 'creates a threat',",
+            "'central control', 'central board presence', 'centralizes', 'centralized',",
+            "'only legal move', 'only viable option', 'no alternative', 'forced move',",
+            "'reduces opponent mobility', 'restricts opponent mobility', 'N points better'.",
+            "Do NOT invent strategic causality and do NOT claim consequences not",
+            "present in the seed list.  If a seed states a negative fact (e.g.,",
+            "'does not create an immediate threat'), use that wording rather than",
+            "asserting the opposite.",
+            "minimax_score must appear only in the final sentence as confirmation.",
+            _forced_rule,
+            _coord_hint,
+            'Reply with ONLY: {"reasoning": "<your paragraph>"}',
+        ]
+    else:
+        # Tactical move: 3-5 sentence causal explanation with anti-hallucination guards.
+        lines += [
+            "",
+            "Write a single paragraph (3-5 sentences) that explains WHY this move was chosen.",
+            "Use the facts above as evidence — each sentence should convey a reason or consequence.",
+            "Do not mechanically list the seeds; synthesize them into a causal explanation.",
+            "minimax_score must appear only in the final sentence as confirmation.",
+            "ANTI-HALLUCINATION HARD RULES (audit-driven — read carefully):",
+            "  IMMEDIATE THREAT:",
+            "    - Do NOT write 'creates an immediate threat', 'creates immediate pressure',",
+            "      'creates a threat', 'threatens the opponent', 'pressures the opponent',",
+            "      or 'forces the opponent' UNLESS a seed explicitly states 'forces the",
+            "      opponent to respond to an immediate threat'. If a seed states the move",
+            "      'does not create an immediate threat', acknowledge that wording instead.",
+            "  FORCED MOVE (our move):",
+            "    - Do NOT write 'only legal move', 'only viable option', 'forced move',",
+            "      'no alternative', 'no other option', or 'must play' UNLESS a seed",
+            "      explicitly states 'This is the only legal move available'. A seed saying",
+            "      'the opponent is forced to respond' is about the OPPONENT'S reply and",
+            "      does NOT make our move forced.",
+            "  COMPARISON NUMBERS:",
+            "    - Do NOT write 'N points better', 'N points stronger', 'best by N', or",
+            "      similar numeric magnitudes UNLESS a seed explicitly contains the exact",
+            "      number in a 'points better' phrase. Use qualitative language otherwise.",
+            "  CENTER CONTROL:",
+            "    - Do NOT write 'controls the center', 'central control', 'central board",
+            "      presence', 'centralizes', 'centralized', 'central influence', or any",
+            "      strategic-center phrasing UNLESS a seed says 'The move gains central",
+            "      board control' or 'The move claims central control'. A geometric column",
+            "      number is NOT center control.",
+            "  MOBILITY REDUCTION:",
+            "    - Do NOT write 'reduces opponent mobility', 'restricts opponent mobility',",
+            "      'narrows opponent options', 'cuts opponent moves', 'limits opponent",
+            "      replies', or 'opponent mobility decreases' UNLESS a seed explicitly",
+            "      states 'reduces opponent mobility by N'. If a mobility seed says",
+            "      'remains at N' or 'no change in opponent mobility', the mobility is",
+            "      unchanged — do not assert any reduction.",
+            "  NEAR PROMOTION:",
+            "    - Do NOT claim 'near promotion', 'one step from promotion', 'toward",
+            "      promotion' UNLESS a seed states 'one step from promotion'.",
+            "  VAGUE STRATEGIC FILLER (always forbidden):",
+            "    - 'creates pressure', 'maintains pressure', 'improves control',",
+            "      'forces defense', 'strong positional move', 'tactical pressure',",
+            "      'strategic edge', 'dominates the position'.",
+            _forced_rule,
+            _coord_hint,
+            'Reply with ONLY: {"reasoning": "<your paragraph>"}',
+        ]
     return "\n".join(lines)
 
 
@@ -4338,7 +3005,7 @@ def _generate_seeded_reasoning(
     NEVER modifies chosen_move or any candidate.
     NEVER calls safety_filter, override, or scoring.
     player  INT constant (RED or BLACK); 0 = unknown (safe fallback).
-    score_state  Optional strategic_context["score_state"].  Forwarded to
+    score_state  Optional state.score_state value.  Forwarded to
                  _build_grounded_reasoning_seeds so adversity seeds activate
                  by position state rather than the per-move minimax_score.
     Returns (reasoning_string_or_None, seeds_list).
@@ -4367,14 +3034,16 @@ def _generate_seeded_reasoning(
     print(f"[RANKER_SEED_REASONING] seeds={seeds}")
 
     raw: Optional[str] = None
-    for api_try in range(2):
+    _seed_waits = (20, 30, 40, 20, 30)
+    for api_try in range(6):
         try:
             raw = call_ranker(RANKER_SEED_REASONING_SYSTEM, user_prompt)
             break
         except Exception as e:
-            wait = 5 * (2 ** api_try)
-            print(f"[RANKER_SEED_REASONING] api error (try={api_try + 1}): {e} — waiting {wait}s")
-            _time.sleep(wait)
+            if api_try < len(_seed_waits):
+                wait = _seed_waits[api_try]
+                print(f"[RANKER_SEED_REASONING] api error (try={api_try + 1}): {e} — waiting {wait}s")
+                _time.sleep(wait)
 
     if raw is None:
         print("[RANKER_SEED_REASONING] api call failed; keeping previous reasoning")
@@ -4386,6 +3055,98 @@ def _generate_seeded_reasoning(
         return None, seeds
 
     return result, seeds
+
+
+# ── Binary comparative fast-path (2 legal moves) ─────────────────────────────
+# Called only when len(candidates) == 2 (one chosen move + one alternative).
+# Builds a deterministic 1-2 sentence comparison without any LLM call and
+# without the category-grouping template used by generate_comparative_reasoning.
+# Never raises; returns None on any error so the chosen-move paragraph stands.
+
+def _generate_binary_comparative(
+    chosen: dict,
+    candidates: list,
+    chosen_facts: dict,
+) -> Optional[str]:
+    """Deterministic 2-candidate binary comparison (no LLM, no grouping)."""
+    chosen_path = (chosen or {}).get("path")
+    alt: Optional[dict] = None
+    for c in (candidates or []):
+        if c.get("path") != chosen_path:
+            alt = c
+            break
+    if alt is None:
+        return None
+
+    alt_facts = alt.get("facts") or {}
+    cf = chosen_facts or {}
+
+    def _notation(path: Any) -> str:
+        try:
+            s, e = path[0], path[-1]
+            return f"{int(s[0])},{int(s[1])}→{int(e[0])},{int(e[1])}"
+        except Exception:
+            return "?"
+
+    chosen_score = cf.get("minimax_score")
+    alt_score    = alt_facts.get("minimax_score")
+    alt_notation = _notation(alt.get("path") or [])
+
+    # Sentence 1: score margin (always present).
+    if chosen_score is not None and alt_score is not None:
+        gap = chosen_score - alt_score
+        s1 = (
+            f"The only alternative [1] ({alt_notation}) evaluates at "
+            f"{alt_score:.1f} against the chosen move's {chosen_score:.1f} — "
+            f"a margin of {gap:.1f} points in favour of the chosen move."
+        )
+    else:
+        s1 = (
+            f"The only alternative [1] ({alt_notation}) is rated lower by "
+            f"the engine than the chosen move."
+        )
+
+    # Sentence 2: first salient factual difference between the two candidates.
+    chosen_caps     = int(cf.get("captures_count", 0) or 0)
+    alt_caps        = int(alt_facts.get("captures_count", 0) or 0)
+    chosen_threatened = bool(cf.get("moved_piece_is_threatened", False))
+    alt_threatened    = bool(alt_facts.get("moved_piece_is_threatened", False))
+    chosen_recap    = bool(cf.get("opponent_can_recapture", False))
+    alt_recap       = bool(alt_facts.get("opponent_can_recapture", False))
+    chosen_isolated = bool(cf.get("leaves_piece_isolated", False))
+    alt_isolated    = bool(alt_facts.get("leaves_piece_isolated", False))
+
+    s2: Optional[str] = None
+    if chosen_caps != alt_caps:
+        if chosen_caps > alt_caps:
+            s2 = (
+                f"The chosen move captures {chosen_caps} piece(s) while [1] "
+                f"captures only {alt_caps}, providing greater immediate material "
+                f"gain despite the shared recapture risk."
+            )
+        else:
+            s2 = (
+                f"Move [1] captures {alt_caps} piece(s) against the chosen "
+                f"move's {chosen_caps}, but the engine still favours the chosen "
+                f"move based on downstream evaluation."
+            )
+    elif not chosen_threatened and alt_threatened:
+        s2 = (
+            "The chosen move does not leave the moved piece under immediate "
+            "threat; [1] does, making the chosen path safer despite no captures."
+        )
+    elif not chosen_recap and alt_recap:
+        s2 = (
+            "The chosen move avoids immediate recapture while [1] allows it, "
+            "giving the chosen move a clear safety edge."
+        )
+    elif not chosen_isolated and alt_isolated:
+        s2 = (
+            "Move [1] would leave the moved piece without adjacent support; "
+            "the chosen move maintains connectivity."
+        )
+
+    return (s1 + " " + s2) if s2 else s1
 
 
 # ── Proposal-authoritative explanation path ──────────────────────────────────
@@ -4403,7 +3164,7 @@ def _explain_chosen_move(state: CheckersState) -> dict:
       - state.chosen_move_score    (proposal's minimax score for that move)
       - state.legal_moves          (full menu, for seeded comparative context)
       - state.unchosen_moves       (alternatives, for comparative seeds only)
-      - state.strategic_context    (for adversity / score-state seeds)
+      - state.score_state          (for adversity / score-state seeds)
       - state.symbolic_best_move   (for the LLM-vs-symbolic agreement metric)
 
     Outputs returned (LangGraph state delta):
@@ -4413,7 +3174,7 @@ def _explain_chosen_move(state: CheckersState) -> dict:
       - chosen_move_facts          (read-only mirror of chosen_move["facts"])
       - ranker_filtered_menu       (candidate-menu snapshot, evaluation only)
       - llm_agreed_with_symbolic_best (Boolean metric)
-      - ranker_retry_count = 0     (always 0 — no decision-time retries here)
+
 
     Guarantees:
       - chosen_move is NEVER mutated, re-selected, or overridden.
@@ -4514,35 +3275,81 @@ def _explain_chosen_move(state: CheckersState) -> dict:
     )
     _reasoning_has_unresolved = bool(_reasoning_final_contradictions)
 
-    # ── 5. Build ranker_diagnostics (backward-compatible keys) ────────────────
-    # All override/retry keys are set to neutral values since this path
-    # never performs any decision-making. Evaluator scripts that read
-    # these keys will see clean no-op values.
+    # ── 5. Comparative stage (env-gated, default OFF) ─────────────────────────
+    # The chosen-move pipeline above is byte-identical regardless of this flag.
+    # A comparative failure must never block the chosen output: the try/except
+    # ensures any unexpected exception from generate_comparative_reasoning is
+    # swallowed and reasoning falls back to the chosen-move paragraph only.
+    _comparative_diag: dict = {}
+    _comparative_text: Optional[str] = None
+
+    if _comparative_stage_enabled():
+        if len(legal) >= 3:
+            try:
+                _comparative_text = generate_comparative_reasoning(
+                    chosen,
+                    legal,
+                    _chosen_facts,
+                    diagnostics_out=_comparative_diag,
+                )
+            except Exception:
+                pass  # comparative failure must never block chosen output
+        elif len(legal) == 2:
+            # Exactly 2 legal moves: deterministic binary comparison.
+            # Bypasses the LLM + category-grouping template; never blocks output.
+            try:
+                _binary_text = _generate_binary_comparative(chosen, legal, _chosen_facts)
+            except Exception:
+                _binary_text = None
+            if _binary_text:
+                _comparative_text = _binary_text
+                _comparative_diag.update({
+                    "comparative_was_skipped":                False,
+                    "comparative_skip_reason":                None,
+                    "comparative_paragraph_text":             _binary_text,
+                    "comparative_seeds":                      [],
+                    "comparative_groups":                     {},
+                    "comparative_generation_samples_used":    0,
+                    "comparative_sample_contradiction_counts": [],
+                    "comparative_generation_short_circuited": False,
+                    "comparative_initial_contradictions":     0,
+                    "comparative_final_contradictions":       0,
+                    "comparative_refinement_attempts":        0,
+                    "comparative_provider":                   "deterministic_binary",
+                })
+            else:
+                _comparative_diag["comparative_was_skipped"] = True
+                _comparative_diag["comparative_skip_reason"] = "binary_comparative_failed"
+        else:
+            # Single legal move — nothing to compare against.
+            _comparative_diag["comparative_was_skipped"] = True
+            _comparative_diag["comparative_skip_reason"] = "single_legal_move"
+
+    # Snapshot the chosen-only reasoning BEFORE appending the comparative
+    # paragraph.  Evaluation-only: the pre_post_repair evaluator uses this
+    # field as its "post" baseline so comparative-paragraph claims are never
+    # scored against chosen_move_facts (Fix 1 — evaluator contamination).
+    _chosen_reasoning: str = reasoning
+
+    if _comparative_text:
+        reasoning = reasoning + "\n\n" + _comparative_text
+
+    # ── 6. Build ranker_diagnostics ───────────────────────────────────────────
     _ranker_diagnostics: dict[str, Any] = {
-        # ── Override/retry state (always neutral — no decision authority) ─────
+        # ── Override/retry state (always neutral — proposal_authoritative) ────
         "override_retry_attempts":      0,
         "override_retry_resolved":      False,
         "override_fallback_applied":    False,
         "override_branch_name":         None,
-        "retry_used_full_proposal":     False,
         # ── Attribution ──────────────────────────────────────────────────────
-        "raw_llm_idx":                  None,
         "raw_llm_choice_path":          None,
-        "retry_llm_idx":                None,
-        "retry_llm_choice_path":        None,
         "final_chosen_idx":             next(
             (i for i, m in enumerate(legal) if m.get("path") == chosen.get("path")),
             None,
         ),
         "final_chosen_path":            chosen.get("path"),
         "final_choice_source":          "proposal_authoritative",
-        "final_matches_raw_llm":        False,
-        "final_matches_retry_llm":      False,
-        "promotion_tiebreak_applied":   False,
-        # ── Legacy alias ─────────────────────────────────────────────────────
-        "llm_initial_choice_path":      None,
         # ── Evaluation logging ───────────────────────────────────────────────
-        "ranker_selected_valid_candidate": True,
         "api_call_failure_count":        0,
         "reasoning_seeds":               _active_seeds,
         "reasoning_final_contradictions": _reasoning_final_contradictions,
@@ -4557,7 +3364,6 @@ def _explain_chosen_move(state: CheckersState) -> dict:
             and not _reasoning_is_seed_fallback
             and not _reasoning_final_contradictions
         ),
-        "override_reason_str":           None,
         "final_chosen_path_in_legal_moves": any(
             m.get("path") == chosen.get("path") for m in legal
         ),
@@ -4573,6 +3379,10 @@ def _explain_chosen_move(state: CheckersState) -> dict:
             ) if state.unchosen_moves else None
         ),
         "raw_llm_reasoning_pre_refinement": _raw_reasoning_pre_refinement,
+        # Chosen-only reasoning (no comparative paragraph appended).
+        # The pre_post_repair evaluator uses this as the post-repair baseline
+        # so comparative-paragraph claims are not scored against chosen_move_facts.
+        "chosen_reasoning":              _chosen_reasoning or None,
         # ── Ablation provenance ──────────────────────────────────────────────
         # Evaluation-only fields; never read by any decision logic.
         # run_tag is "seed_on" / "seed_off" by default and may be overridden
@@ -4585,10 +3395,12 @@ def _explain_chosen_move(state: CheckersState) -> dict:
         "tied_candidate_paths":          [],
     }
 
+    if _comparative_stage_enabled():
+        _ranker_diagnostics.update(_comparative_diag)
+
     return {
         "chosen_move": chosen,                    # pass-through UNCHANGED
         "last_move_reasoning": reasoning,
-        "ranker_retry_count": 0,
         "last_completed_node": "ranker_agent",
         "ranker_filtered_menu": _build_ranker_filtered_menu_snapshot(legal),
         "llm_agreed_with_symbolic_best": llm_agreed,

@@ -155,6 +155,7 @@ _NUMERIC_RULES: List[tuple] = [
 def _check_mobility_transition(
     text_lower: str,
     facts: Dict[str, Any],
+    seeds: Optional[List[str]] = None,
 ) -> List[ClaimRecord]:
     """
     Flag 'from N to M' mobility narratives whose (N, M) match no known
@@ -197,6 +198,7 @@ def _check_mobility_transition(
         return out
 
     pc_pairs = _piece_count_pairs()
+    seeds_text = " ".join(s.lower() for s in (seeds or []))
 
     for m in re.finditer(
         r"from\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
@@ -206,6 +208,9 @@ def _check_mobility_transition(
         a = _to_int(m.group(1))
         b = _to_int(m.group(2))
         if a is None or b is None:
+            continue
+        # ── Allow when both numbers appear in the seeds text ──
+        if seeds_text and str(a) in seeds_text and str(b) in seeds_text:
             continue
         # ── Allow when (a, b) matches a known mobility pair ──
         matched_mobility = False
@@ -263,6 +268,8 @@ _MOBILITY_REDUCTION_PHRASES: tuple = (
     "limits mobility", "limiting mobility", "limiting opponent",
     "restricts mobility", "restricts opponent",
     "fewer moves for", "cuts opponent moves",
+    "narrows their options", "tightening their options",
+    "constrains their options",
 )
 
 
@@ -358,6 +365,7 @@ def _check_safe_reply_count(
 def _check_numeric_claims(
     text_lower: str,
     facts: Dict[str, Any],
+    seeds: Optional[List[str]] = None,
 ) -> List[ClaimRecord]:
     """Run E.3 numeric verification.  Returns synthetic ClaimRecords."""
     if not text_lower or not isinstance(facts, dict):
@@ -388,7 +396,7 @@ def _check_numeric_claims(
                 ))
 
     # Cross-field mobility transition narrative.
-    records.extend(_check_mobility_transition(text_lower, facts))
+    records.extend(_check_mobility_transition(text_lower, facts, seeds=seeds))
 
     # Deduplicate by (claim_type, matched_phrase) — defensive, in case the
     # same span fires two rules.
@@ -486,10 +494,12 @@ def _check_schema_leaks(
         else:
             # Either the fact is absent OR the value agrees: either way the
             # raw schema string in prose is an instruction violation.
+            # Mark CONTRADICTED so it flows through contradictions_only() and
+            # contradiction_strings() into the refinement loop.
             records.append(ClaimRecord(
                 claim_type=f"schema_leak_{field}",
-                claim_status=ClaimStatus.UNSUPPORTED,
-                claim_verifiability=ClaimVerifiability.PARTIALLY_VERIFIABLE,
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
                 seed_risk_type=None,
                 hallucination_type=HallucinationType.INSTRUCTION_INCONSISTENCY,
                 matched_phrase=m.group(0),
@@ -525,6 +535,27 @@ def _check_schema_leaks(
 # UNSUPPORTED) is what keeps runtime/evaluator in sync — the runtime
 # refinement loop also treats them as contradictions.
 
+def _ctx_phrase_negated(text: str, phrase: str) -> bool:
+    """Mirror of ranker_agent._ctx_phrase_negated — kept in sync for E.1 parity.
+
+    Return True if every occurrence of *phrase* in *text* is preceded by a
+    negation marker within a 35-char window so the forbidden-vocab check should
+    be suppressed.  Returns False if any occurrence lacks a negation marker.
+    """
+    _NEGATION_MARKERS = (
+        "no ", "without ", "not ", "avoids ", "avoid ", "prevents ", "never ",
+    )
+    idx = text.find(phrase)
+    if idx == -1:
+        return False
+    while idx != -1:
+        window = text[max(0, idx - 35): idx]
+        if not any(m in window for m in _NEGATION_MARKERS):
+            return False
+        idx = text.find(phrase, idx + 1)
+    return True
+
+
 def _check_forbidden_vocab(
     reasoning_text: str,
     text_lower: str,
@@ -555,8 +586,8 @@ def _check_forbidden_vocab(
     for phrase in CONTEXT_FORBIDDEN_VOCAB:
         p_lower = phrase.lower()
         if p_lower in text_lower and p_lower not in seeds_text and ("ctx", p_lower) not in seen:
-            # Negation-aware: the runtime checker skips "no <phrase>" — mirror that.
-            if ("no " + p_lower) in text_lower:
+            # Negation-aware: mirror _ctx_phrase_negated from ranker_agent.
+            if _ctx_phrase_negated(text_lower, p_lower):
                 continue
             seen.add(("ctx", p_lower))
             records.append(ClaimRecord(
@@ -593,6 +624,47 @@ _ABSENCE_CLAIM_PHRASES: tuple = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Opponent single-jump-claim verifier (BUG-2 mirror)
+# ---------------------------------------------------------------------------
+#
+# Mirrors the runtime check added in _check_reasoning_truthfulness().
+# When the reasoning asserts a "single jump" for the opponent but
+# opponent_jump_count > 1, the claim is a direct factual contradiction.
+
+_SINGLE_JUMP_PHRASES: tuple = (
+    "single jump",
+    "one jump option",
+    "only one jump",
+    "limited to a single jump",
+    "limited to one jump",
+)
+
+
+def _check_opponent_jump_count(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    opp_jc = facts.get("opponent_jump_count")
+    if not (isinstance(opp_jc, int) and opp_jc > 1):
+        return []
+    for phrase in _SINGLE_JUMP_PHRASES:
+        if phrase in text_lower:
+            return [ClaimRecord(
+                claim_type="numeric_opponent_jump_count",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="unsupported_phrase",
+            )]
+    return []
+
+
 def _check_absence_claims(
     text_lower: str,
     seeds: List[str],
@@ -614,6 +686,855 @@ def _check_absence_claims(
                 source="unsupported_phrase",
             ))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Fix 4 — Strategic-claim blind-spot guard
+# ---------------------------------------------------------------------------
+#
+# strategic_initiative / positional_pressure / long_term_compensation are in
+# _ALWAYS_VAGUE (claim_verifier.py) and have seed_markers=[] so they can never
+# be seed-grounded.  When seeds exist the LLM uses them as free-form prose
+# decoration that passes the refinement loop undetected.  When seeds IS
+# non-empty these claims are CONTRADICTED (not just VAGUE) because no seed
+# can ever support them — activating the refinement loop to remove them.
+# When seeds IS empty (no-seed baseline) the upgrade is suppressed to avoid
+# false positives in a context where all claims are ungrounded by design.
+
+_STRATEGIC_VAGUE_TYPES: frozenset[str] = frozenset({
+    "strategic_initiative",
+    "positional_pressure",
+    "long_term_compensation",
+})
+
+
+def _upgrade_strategic_vague(
+    records: List[ClaimRecord],
+    seeds_nonempty: bool,
+) -> List[ClaimRecord]:
+    if not seeds_nonempty:
+        return records
+    out: List[ClaimRecord] = []
+    for r in records:
+        if r.claim_type in _STRATEGIC_VAGUE_TYPES and r.claim_status == ClaimStatus.VAGUE:
+            out.append(ClaimRecord(
+                claim_type=r.claim_type,
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=r.claim_verifiability,
+                seed_risk_type=r.seed_risk_type,
+                hallucination_type=HallucinationType.INSTRUCTION_INCONSISTENCY,
+                matched_phrase=r.matched_phrase,
+                matched_seed=r.matched_seed,
+                source=r.source,
+            ))
+        else:
+            out.append(r)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# BUG-3 — Single-legal-move superlative verifier
+# ---------------------------------------------------------------------------
+#
+# When the seed list signals that this is the only legal move ("only legal
+# move" is a substring of one seed), the LLM must not claim it is the
+# "strongest choice", "best move", or "highest-ranked option" — there is
+# no comparison set to draw that conclusion from.
+
+_SINGLE_LEGAL_INDICATOR: str = "only legal move"
+_SINGLE_LEGAL_SUPERLATIVES: tuple = (
+    "strongest choice",
+    "best move",
+    "highest-ranked option",
+)
+
+
+def _check_single_legal_move_superlatives(
+    text_lower: str,
+    seeds: Optional[List[str]],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    seeds_text = " ".join(s.lower() for s in (seeds or []))
+    if _SINGLE_LEGAL_INDICATOR not in seeds_text:
+        return []
+    for phrase in _SINGLE_LEGAL_SUPERLATIVES:
+        if phrase in text_lower:
+            return [ClaimRecord(
+                claim_type="single_legal_move_superlative",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="unsupported_phrase",
+            )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# BUG-4 — "center of the board" strategic-claim verifier
+# ---------------------------------------------------------------------------
+#
+# When center_control=False and "center of the board" appears in reasoning
+# without being introduced by a seed (seed-exempt), the LLM is drawing a
+# strategic conclusion from geometry alone.  The geometric seed
+# "The destination is in the center of the board (column X)" exempts the
+# phrase when the destination column is in the center range — the LLM may
+# reference geometry but must not draw tactical-control conclusions from it.
+
+_CENTER_BOARD_PHRASE: str = "center of the board"
+
+
+def _check_center_of_board_strategic(
+    text_lower: str,
+    facts: Dict[str, Any],
+    seeds: Optional[List[str]],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    if facts.get("center_control") is not False:
+        return []
+    seeds_text = " ".join(s.lower() for s in (seeds or []))
+    if _CENTER_BOARD_PHRASE in text_lower and _CENTER_BOARD_PHRASE not in seeds_text:
+        # Allow pure-geometry form: "center of the board (column N)"
+        if re.search(r"center of the board\s*\(\s*column", text_lower):
+            return []
+        return [ClaimRecord(
+            claim_type="center_of_board_strategic",
+            claim_status=ClaimStatus.CONTRADICTED,
+            claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+            seed_risk_type=None,
+            hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+            matched_phrase=_CENTER_BOARD_PHRASE,
+            matched_seed=None,
+            source="unsupported_phrase",
+        )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# BUG-6 — Mobility-disadvantage overclaim verifier
+# ---------------------------------------------------------------------------
+#
+# When opponent_mobility_after > our_mobility_after (the opponent still has
+# more moves than us after our move), the mobility disadvantage persists.
+# The LLM must use "narrows the gap" rather than claiming the disadvantage
+# is solved, addressed, fixed, or eliminated.
+
+_MOBILITY_DISADVANTAGE_OVERCLAIM_PHRASES: tuple = (
+    "solves the disadvantage",
+    "addresses the disadvantage",
+    "fixes the disadvantage",
+    "eliminates the disadvantage",
+    "solves the mobility disadvantage",
+    "addresses the mobility disadvantage",
+    "eliminates the mobility gap",
+    "closes the gap entirely",
+    "erases the mobility gap",
+)
+
+
+def _check_mobility_disadvantage_overclaim(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    opp_mob_after = facts.get("opponent_mobility_after")
+    our_mob_after = facts.get("our_mobility_after")
+    if not (
+        isinstance(opp_mob_after, (int, float))
+        and isinstance(our_mob_after, (int, float))
+        and opp_mob_after > our_mob_after
+    ):
+        return []
+    out: List[ClaimRecord] = []
+    for phrase in _MOBILITY_DISADVANTAGE_OVERCLAIM_PHRASES:
+        if phrase in text_lower:
+            out.append(ClaimRecord(
+                claim_type="mobility_disadvantage_overclaim",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="unsupported_phrase",
+            ))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Fix A2 — Our-mobility decrease must-mention verifier
+# ---------------------------------------------------------------------------
+#
+# When a seed explicitly states "decreases our mobility by N", the LLM must
+# acknowledge the decrease in its reasoning.  Silently omitting a seeded
+# negative fact produces misleading reasoning that passes all claim-level
+# checks but hides a material downside.
+
+def _check_mobility_decrease_omission(
+    text_lower: str,
+    seeds: Optional[List[str]],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    seeds_lower = [s.lower() for s in (seeds or [])]
+    decrease_seed = next(
+        (s for s in seeds_lower if "decreases our mobility by" in s),
+        None,
+    )
+    if decrease_seed is None:
+        return []
+    mention_phrases = (
+        "decreases", "decrease", "our mobility drops", "our mobility falls",
+        "reduces our mobility", "reducing our mobility",
+        "our mobility decreases",
+        "our mobility narrows", "our mobility shrinks",
+        "our mobility contracts",
+        "our mobility goes down", "losing mobility",
+    )
+    if any(p in text_lower for p in mention_phrases):
+        return []
+    return [ClaimRecord(
+        claim_type="mobility_decrease_omission",
+        claim_status=ClaimStatus.CONTRADICTED,
+        claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+        seed_risk_type=None,
+        hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+        matched_phrase="our-mobility decrease seed",
+        matched_seed=decrease_seed,
+        source="unsupported_phrase",
+    )]
+
+
+# ---------------------------------------------------------------------------
+# Fix A3 — any_piece_isolated vs "no vulnerabilities" verifier
+# ---------------------------------------------------------------------------
+#
+# any_piece_isolated=True means some ally piece is isolated after the move.
+# Claiming "no tactical vulnerabilities" when that flag is set is a factual
+# contradiction: an isolated piece IS a tactical vulnerability.
+
+_ANY_ISO_VULN_PHRASES: tuple = (
+    "no tactical vulnerabilities",
+    "ensuring no tactical",
+    "no vulnerabilities are created",
+    "no tactical vulnerabilities are created",
+)
+
+
+def _check_any_piece_isolated_vulnerability(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    if facts.get("any_piece_isolated") is not True:
+        return []
+    for phrase in _ANY_ISO_VULN_PHRASES:
+        if phrase in text_lower:
+            return [ClaimRecord(
+                claim_type="any_piece_isolated_vulnerability",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="unsupported_phrase",
+            )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# Fix A4 — "narrowing the gap" mobility-direction verifier
+# ---------------------------------------------------------------------------
+#
+# "Narrowing the gap" implies the opponent still leads in mobility.  When
+# our_mobility_after >= opponent_mobility_after, the gap was matched or
+# reversed — not narrowed.  The phrase is a factual misrepresentation.
+
+def _check_narrowing_gap_direction(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    our_mob_af = facts.get("our_mobility_after")
+    opp_mob_af = facts.get("opponent_mobility_after")
+    if not (
+        isinstance(our_mob_af, (int, float))
+        and isinstance(opp_mob_af, (int, float))
+        and our_mob_af >= opp_mob_af
+        and "narrowing the gap" in text_lower
+    ):
+        return []
+    return [ClaimRecord(
+        claim_type="narrowing_gap_direction",
+        claim_status=ClaimStatus.CONTRADICTED,
+        claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+        seed_risk_type=None,
+        hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+        matched_phrase="narrowing the gap",
+        matched_seed=None,
+        source="unsupported_phrase",
+    )]
+
+
+# ---------------------------------------------------------------------------
+# Phase G, Step 3 — Mobility-direction phrase verifier
+# ---------------------------------------------------------------------------
+#
+# Targeted defence-in-depth for three explicit phrasings the audit observed
+# as T4 failures (mobility misinterpretation).  Each phrase is checked against
+# the engine's exact mobility deltas:
+#
+#   "mobility remained unchanged" / "mobility is unchanged"
+#       → both our_mobility_before==our_mobility_after AND
+#                opponent_mobility_before==opponent_mobility_after must hold
+#
+#   "gap narrowed" / "gap narrows" / "gap narrowing"
+#       → |our_after − opp_after| < |our_before − opp_before|
+#
+#   "gap widened" / "gap widens" / "gap widening"
+#       → |our_after − opp_after| > |our_before − opp_before|
+#
+# The existing "narrowing the gap" check (legacy A4) covers a different
+# syntactic form; this verifier is complementary and does not overlap.
+
+import re as _re_dir
+
+_MOB_UNCHANGED_EXACT_RE = _re_dir.compile(
+    # Matches the GENERIC "both sides unchanged" claim in two syntactic forms.
+    # Side-qualified phrases ("our mobility ...", "opponent mobility ...") are
+    # excluded on each arm by negative lookbehind (noun-first) or negative
+    # lookahead (verb-first), so one-sided claims do not trigger this check.
+    r"(?:"
+    # (1) Noun-first form:
+    #     "mobility (remained|remains|stays|is|does not alter|does not change)
+    #      (unchanged|the same|intact|for both sides)"
+    r"(?<!our\s)(?<!opponent\s)"
+    r"\bmobility\s+(?:remained?|stays?|is|does\s+not\s+(?:alter|change))\s+"
+    r"(?:unchanged|the\s+same|intact|for\s+both\s+sides)"
+    r"|"
+    # (2) Verb-first form (Phase G surgical-fix mirror of the G1 gap-direction
+    #     extension):
+    #     "(does/did not | doesn't/didn't) (alter|change|affect|modify) mobility"
+    #     — fires only when 'mobility' is NOT side-qualified (the negative
+    #     lookahead `(?!our\b)(?!opponent\b)` excludes 'our mobility' and
+    #     'opponent mobility').
+    r"\b(?:does\s+not|did\s+not|doesn't|didn't)\s+"
+    r"(?:alter|change|affect|modify)\s+"
+    r"(?!our\b)(?!opponent\b)(?:the\s+)?(?:overall\s+)?mobility"
+    r")",
+    _re_dir.IGNORECASE,
+)
+_GAP_NARROWED_DIR_RE = _re_dir.compile(
+    # Matches both verb orders:
+    #   "gap narrows / narrowed / narrowing"       (noun → verb)
+    #   "narrows / narrowed / narrowing the gap"   (verb → noun)
+    r"\b(?:"
+    r"(?:mobility\s+)?gap\s+narrow(?:s|ed|ing)"
+    r"|narrow(?:s|ed|ing)\s+(?:the\s+)?(?:mobility\s+)?gap"
+    r")\b",
+    _re_dir.IGNORECASE,
+)
+_GAP_WIDENED_DIR_RE = _re_dir.compile(
+    r"\b(?:"
+    r"(?:mobility\s+)?gap\s+widen(?:s|ed|ing)"
+    r"|widen(?:s|ed|ing)\s+(?:the\s+)?(?:mobility\s+)?gap"
+    r")\b",
+    _re_dir.IGNORECASE,
+)
+
+
+def _check_mobility_direction_phrases(
+    text: Optional[str],
+    facts: Optional[Dict[str, Any]],
+) -> List[ClaimRecord]:
+    """Verify three explicit mobility-direction phrases against engine deltas.
+
+    Pure function.  Returns 0–3 ClaimRecord entries.  Never raises.
+    """
+    if not text or not facts:
+        return []
+    ub = facts.get("our_mobility_before")
+    ua = facts.get("our_mobility_after")
+    ob = facts.get("opponent_mobility_before")
+    oa = facts.get("opponent_mobility_after")
+    if not all(isinstance(x, (int, float)) for x in (ub, ua, ob, oa)):
+        return []
+    out: List[ClaimRecord] = []
+
+    # (1) "mobility remained unchanged" — both sides must be unchanged
+    if _MOB_UNCHANGED_EXACT_RE.search(text):
+        if int(ub) != int(ua) or int(ob) != int(oa):
+            out.append(ClaimRecord(
+                claim_type="mobility_unchanged_misclaim",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase="mobility remained/stays unchanged",
+                matched_seed=None,
+                source="unsupported_phrase",
+            ))
+
+    gap_before = abs(int(ub) - int(ob))
+    gap_after  = abs(int(ua) - int(oa))
+
+    # (2) "gap narrowed" — |gap_after| < |gap_before| required
+    if _GAP_NARROWED_DIR_RE.search(text):
+        if not (gap_after < gap_before):
+            out.append(ClaimRecord(
+                claim_type="gap_did_not_narrow",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase="gap narrowed/narrows/narrowing",
+                matched_seed=None,
+                source="unsupported_phrase",
+            ))
+
+    # (3) "gap widened" — |gap_after| > |gap_before| required
+    if _GAP_WIDENED_DIR_RE.search(text):
+        if not (gap_after > gap_before):
+            out.append(ClaimRecord(
+                claim_type="gap_did_not_widen",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase="gap widened/widens/widening",
+                matched_seed=None,
+                source="unsupported_phrase",
+            ))
+
+    return out
+
+
+# ---------------------------------------------------------------------------
+# B1.1 — Comparative recapture fabrication verifier
+# ---------------------------------------------------------------------------
+#
+# When the chosen move can be recaptured (opponent_can_recapture=True),
+# comparative-context phrases that claim recapture safety are fabricated claims.
+
+_B11_RECAPTURE_PHRASES: tuple = (
+    "recapture safety", "avoiding recapture", "avoid recapture risk",
+    "recapture-safe", "recapture safety edge",
+)
+
+
+def _check_comparative_recapture_fabrication(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    if facts.get("opponent_can_recapture") is not True:
+        return []
+    for phrase in _B11_RECAPTURE_PHRASES:
+        if phrase in text_lower:
+            return [ClaimRecord(
+                claim_type="comparative_recapture_fabrication",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FABRICATED_CLAIM,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="unsupported_phrase",
+            )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# Shared helper — sentence-level negation guard
+# ---------------------------------------------------------------------------
+# Used by reverse-recapture and false-forced-opp-reply checks below.  When a
+# negation marker precedes the matched phrase inside the same sentence the
+# prose is correctly asserting the opposite and the match must be skipped.
+
+_NEG_SENTENCE_RE = re.compile(
+    r"\b(no|not|without|cannot|never|nor|none|nothing|neither|"
+    r"avoid(?:s|ing)?|prevent(?:s)?|eliminat(?:e|es|ing)|fails?\s+to)\b",
+    re.IGNORECASE,
+)
+
+
+def _sentence_negated(text_lower: str, phrase: str) -> bool:
+    """True if a negation marker appears in the same sentence, before phrase."""
+    i = text_lower.find(phrase)
+    if i < 0:
+        return False
+    sentence_start = max(
+        text_lower.rfind(".", 0, i),
+        text_lower.rfind("!", 0, i),
+        text_lower.rfind("?", 0, i),
+    )
+    sentence_start = 0 if sentence_start < 0 else sentence_start + 1
+    return bool(_NEG_SENTENCE_RE.search(text_lower[sentence_start:i]))
+
+
+# ---------------------------------------------------------------------------
+# B1.1b — Reverse recapture fabrication
+# ---------------------------------------------------------------------------
+#
+# When opponent_can_recapture=False, reasoning that claims the opponent CAN
+# recapture (or that the piece is vulnerable to recapture) is fabricated.
+# The negation pre-pass in claim_extractor can mis-treat "if we fail to
+# respond" as a polarity flip; this check runs on the raw text so such
+# hallucinations are still caught. Mirrors the runtime check in
+# ranker_agent._check_reasoning_truthfulness so E.1 invariant holds.
+
+_B11B_FALSE_RECAPTURE_PHRASES: tuple = (
+    "opponent can recapture",
+    "can be recaptured next",
+    "vulnerable to recapture",
+    "allows the opponent to recapture",
+    "opponent may recapture",
+    # Hedged surface forms — same factual claim, softer wording.  Audit
+    # showed the LLM falls back to these when forbidden from the direct
+    # form, so they must be covered by the same fact-gated check.
+    "exposed to recapture",
+    "exposed to potential recapture",
+    "potential recapture",
+    "could be recaptured",
+    "risk of recapture",
+    "recapture risk",
+    "recapture risks",
+)
+
+
+def _check_reverse_recapture_fabrication(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    if facts.get("opponent_can_recapture") is not False:
+        return []
+    for phrase in _B11B_FALSE_RECAPTURE_PHRASES:
+        idx = text_lower.find(phrase)
+        if idx < 0:
+            continue
+        window = text_lower[idx : idx + 80]
+        # Contrast qualifier: phrase describes the alternative, not chosen move
+        if "but not" in window or "not here" in window:
+            continue
+        # Sentence-level negation guard — the expanded phrase list contains
+        # forms like "exposed to recapture" / "recapture risk" that legitimately
+        # appear in prose such as "without recapture risk" or "not exposed to
+        # recapture next turn".  Skip when a negation marker precedes the
+        # phrase inside the same sentence.
+        if _sentence_negated(text_lower, phrase):
+            continue
+        return [ClaimRecord(
+            claim_type="reverse_recapture_fabrication",
+            claim_status=ClaimStatus.CONTRADICTED,
+            claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+            seed_risk_type=None,
+            hallucination_type=HallucinationType.FABRICATED_CLAIM,
+            matched_phrase=phrase,
+            matched_seed=None,
+            source="unsupported_phrase",
+        )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# B1.1c — False forced-opponent-reply
+# ---------------------------------------------------------------------------
+#
+# When facts.forced_opponent_jump_reply == False, prose phrases that assert
+# the opponent is forced to respond / has no choice / must reply are
+# fabricated.  Mirrors B1.1b (reverse_recapture_fabrication) in style and
+# sentence-level negation handling.  Same E.1 invariant rationale: the
+# runtime check in ranker_agent._check_reasoning_truthfulness must have
+# an evaluator-side equivalent so refinement-loop diagnostics and metric
+# layer stay in sync.
+
+_B11C_FALSE_FORCED_OPP_REPLY_PHRASES: tuple = (
+    "forces the opponent",
+    "forcing the opponent",
+    "forcing them to respond",
+    "force the opponent into",
+    "opponent must respond",
+    "opponent must reply",
+    "opponent is forced",
+    "forced reply",
+    "forced response",
+    "compelled to respond",
+    "opponent compelled",
+    "no choice but to respond",
+    "opponent has no choice",
+)
+
+def _check_false_forced_opp_reply(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    if facts.get("forced_opponent_jump_reply") is not False:
+        return []
+    for phrase in _B11C_FALSE_FORCED_OPP_REPLY_PHRASES:
+        if phrase not in text_lower:
+            continue
+        if _sentence_negated(text_lower, phrase):
+            continue
+        return [ClaimRecord(
+            claim_type="false_forced_opp_reply",
+            claim_status=ClaimStatus.CONTRADICTED,
+            claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+            seed_risk_type=None,
+            hallucination_type=HallucinationType.FABRICATED_CLAIM,
+            matched_phrase=phrase,
+            matched_seed=None,
+            source="unsupported_phrase",
+        )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# B1.2 — Tradeoff language without numeric grounding
+# ---------------------------------------------------------------------------
+#
+# "outweighs", "compensates for", "offsets the" imply a quantitative trade.
+# If the sentence containing the phrase has no explicit number, the tradeoff
+# is asserted without evidence.
+
+_B12_TRADEOFF_PHRASES: tuple = ("outweighs", "compensates for", "offsets the")
+_B12_NUMBER_RE = re.compile(
+    r'\b\d+(?:\.\d+)?|\b(?:one|two|three|four|five|six|seven|eight|nine|ten)\b',
+    re.IGNORECASE,
+)
+
+
+def _check_outweighs_numeric_grounding(
+    text_lower: str,
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    for sent in re.split(r'(?<=[.!?])\s+', text_lower):
+        has_tradeoff = any(p in sent for p in _B12_TRADEOFF_PHRASES)
+        if has_tradeoff and not _B12_NUMBER_RE.search(sent):
+            which = next(p for p in _B12_TRADEOFF_PHRASES if p in sent)
+            return [ClaimRecord(
+                claim_type="tradeoff_without_numeric_grounding",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.PARTIALLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FABRICATED_CLAIM,
+                matched_phrase=which,
+                matched_seed=None,
+                source="unsupported_phrase",
+            )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# B1.3 — Negative-score absolute advantage protection
+# ---------------------------------------------------------------------------
+#
+# When minimax_score < 0, absolute advantage phrases ("positional advantage",
+# "strongest option", etc.) are misleading unless paired with relative framing
+# ("best available", "least unfavorable", …).
+
+_B13_FORBIDDEN_ADVANTAGE: tuple = (
+    "positional advantage", "advantage gained",
+    "strongest option", "decisive advantage",
+)
+_B13_RELATIVE_FRAMING: tuple = (
+    "best available", "least unfavorable", "least harmful",
+    "highest-evaluated", "relative to", "best of the",
+    "only option", "best option available",
+)
+
+
+def _check_negative_score_advantage(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    mm = facts.get("minimax_score")
+    if not (isinstance(mm, (int, float)) and mm < 0):
+        return []
+    if any(rp in text_lower for rp in _B13_RELATIVE_FRAMING):
+        return []
+    for phrase in _B13_FORBIDDEN_ADVANTAGE:
+        if phrase in text_lower:
+            return [ClaimRecord(
+                claim_type="negative_score_advantage_claim",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="unsupported_phrase",
+            )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# B2.1b — Deliberate-choice framing in forced-move context
+# ---------------------------------------------------------------------------
+#
+# "drives the decision", "chosen for its", etc. imply voluntary selection
+# but the context is a forced move — these phrases are contradictory.
+# B2.1a (first-sentence acknowledgment check) was removed: it produced
+# false positives when single-candidate seed lists were used in other tests.
+
+_FORCED_MOVE_INDICATOR: str = "only legal move"
+
+_DELIBERATE_CHOICE_PHRASES: tuple = (
+    "drives the decision", "chosen for its", "was chosen for",
+    "selected for its", "was preferred because",
+)
+
+
+def _check_forced_move_framing(
+    text_lower: str,
+    seeds: Optional[List[str]],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    seeds_text = " ".join(s.lower() for s in (seeds or []))
+    if _FORCED_MOVE_INDICATOR not in seeds_text:
+        return []
+
+    # B2.1b: deliberate-choice phrases forbidden — report first match only
+    for phrase in _DELIBERATE_CHOICE_PHRASES:
+        if phrase in text_lower:
+            return [ClaimRecord(
+                claim_type="forced_move_deliberate_framing",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="deliberate_framing",
+            )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# B2.3 — Geometric impossibility
+# ---------------------------------------------------------------------------
+#
+# A legal move always moves a piece.  These phrases are geometrically false.
+
+_GEOMETRIC_IMPOSSIBILITY_PHRASES: tuple = (
+    "piece remains stationary",
+    "no piece movement occurred",
+    "piece did not move",
+)
+
+
+def _check_geometric_impossibility(text_lower: str) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    for phrase in _GEOMETRIC_IMPOSSIBILITY_PHRASES:
+        if phrase in text_lower:
+            return [ClaimRecord(
+                claim_type="geometric_impossibility",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="geometric_impossibility",
+            )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# B2.5 — Our-mobility directional consistency
+# ---------------------------------------------------------------------------
+#
+# When our_mobility_after <= our_mobility_before, claiming an increase is false.
+
+_OUR_MOBILITY_INCREASE_PHRASES: tuple = (
+    "increases our mobility",
+    "improves our mobility",
+    "our mobility increases",
+    "our mobility improves",
+    "our mobility grows",
+    "expands our mobility",
+)
+
+
+def _check_our_mobility_direction(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    our_mb = facts.get("our_mobility_before")
+    our_ma = facts.get("our_mobility_after")
+    if not (isinstance(our_mb, (int, float)) and isinstance(our_ma, (int, float))):
+        return []
+    if our_ma > our_mb:
+        return []
+    for phrase in _OUR_MOBILITY_INCREASE_PHRASES:
+        if phrase in text_lower:
+            return [ClaimRecord(
+                claim_type="our_mobility_direction",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="mobility_direction_mismatch",
+            )]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# B2.6 — Tactical move defensive framing
+# ---------------------------------------------------------------------------
+#
+# When creates_immediate_threat=True, "no pressure" framing is contradictory.
+
+_TACTICAL_DEFENSIVE_PHRASES: tuple = (
+    "no tactical pressure",
+    "applies no pressure",
+    "creates no pressure",
+    "no immediate pressure",
+)
+
+
+def _check_tactical_move_framing(
+    text_lower: str,
+    facts: Dict[str, Any],
+) -> List[ClaimRecord]:
+    if not text_lower:
+        return []
+    if facts.get("creates_immediate_threat") is not True:
+        return []
+    for phrase in _TACTICAL_DEFENSIVE_PHRASES:
+        if phrase in text_lower:
+            return [ClaimRecord(
+                claim_type="tactical_move_defensive_framing",
+                claim_status=ClaimStatus.CONTRADICTED,
+                claim_verifiability=ClaimVerifiability.FULLY_VERIFIABLE,
+                seed_risk_type=None,
+                hallucination_type=HallucinationType.FACTUAL_CONTRADICTION,
+                matched_phrase=phrase,
+                matched_seed=None,
+                source="tactical_framing_mismatch",
+            )]
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -657,16 +1578,41 @@ def verify_all(
 
     raw_claims = extract_claims(reasoning_text, reasoning_seeds=seeds_in, facts=fact_dict)
     legacy = verify_claims(raw_claims, fact_dict, context=context)
+    legacy = _upgrade_strategic_vague(legacy, bool(seeds_in))
 
     text_lower = reasoning_text.lower()
-    numeric    = _check_numeric_claims(text_lower, fact_dict)
+    numeric    = _check_numeric_claims(text_lower, fact_dict, seeds_in)
     schema     = _check_schema_leaks(reasoning_text, fact_dict)
     forbidden  = _check_forbidden_vocab(reasoning_text, text_lower, seeds_in)
     mob_red    = _check_mobility_reduction_claim(text_lower, fact_dict)
     safe_reply = _check_safe_reply_count(text_lower, fact_dict)
     absence    = _check_absence_claims(text_lower, seeds_in)
+    opp_jump   = _check_opponent_jump_count(text_lower, fact_dict)
+    single_leg = _check_single_legal_move_superlatives(text_lower, seeds_in)
+    ctr_board  = _check_center_of_board_strategic(text_lower, fact_dict, seeds_in)
+    mob_over   = _check_mobility_disadvantage_overclaim(text_lower, fact_dict)
+    mob_dec    = _check_mobility_decrease_omission(text_lower, seeds_in)
+    any_iso    = _check_any_piece_isolated_vulnerability(text_lower, fact_dict)
+    narrow_gap = _check_narrowing_gap_direction(text_lower, fact_dict)
+    mob_dir    = _check_mobility_direction_phrases(reasoning_text, fact_dict)
+    comp_recap  = _check_comparative_recapture_fabrication(text_lower, fact_dict)
+    rev_recap   = _check_reverse_recapture_fabrication(text_lower, fact_dict)
+    false_force = _check_false_forced_opp_reply(text_lower, fact_dict)
+    tradeoff_ng = _check_outweighs_numeric_grounding(text_lower)
+    neg_score   = _check_negative_score_advantage(text_lower, fact_dict)
+    forced_mv   = _check_forced_move_framing(text_lower, seeds_in)
+    geo_imp     = _check_geometric_impossibility(text_lower)
+    our_mob_dir = _check_our_mobility_direction(text_lower, fact_dict)
+    tact_frame  = _check_tactical_move_framing(text_lower, fact_dict)
 
-    return legacy + numeric + schema + forbidden + mob_red + safe_reply + absence
+    return (
+        legacy + numeric + schema + forbidden
+        + mob_red + safe_reply + absence + opp_jump
+        + single_leg + ctr_board + mob_over
+        + mob_dec + any_iso + narrow_gap + mob_dir
+        + comp_recap + rev_recap + false_force + tradeoff_ng + neg_score
+        + forced_mv + geo_imp + our_mob_dir + tact_frame
+    )
 
 
 def contradictions_only(
@@ -721,6 +1667,132 @@ def contradiction_strings(
             out.append(
                 f"REASONING_CONTRADICTION: specific safe-reply count not "
                 f"matched by opponent_safe_reply_count (phrase='{phrase}')"
+            )
+        elif ct == "numeric_opponent_jump_count":
+            fact_dict_local = dict(facts) if isinstance(facts, dict) else {}
+            opp_jc = fact_dict_local.get("opponent_jump_count")
+            out.append(
+                f"REASONING_CONTRADICTION: claims single opponent jump but "
+                f"opponent_jump_count={opp_jc} (factual_contradiction)"
+            )
+        elif ct == "single_legal_move_superlative":
+            out.append(
+                f"REASONING_CONTRADICTION: '{phrase}' used but this is the only "
+                f"legal move (single_legal_move_context)"
+            )
+        elif ct == "center_of_board_strategic":
+            out.append(
+                "REASONING_CONTRADICTION: 'center of the board' used as strategic "
+                "claim but center_control=false and phrase not in seeds "
+                "(factual_contradiction)"
+            )
+        elif ct == "mobility_disadvantage_overclaim":
+            fact_dict_local = dict(facts) if isinstance(facts, dict) else {}
+            opp_after = fact_dict_local.get("opponent_mobility_after")
+            our_after = fact_dict_local.get("our_mobility_after")
+            out.append(
+                f"REASONING_CONTRADICTION: '{phrase}' overclaims mobility "
+                f"resolution but opponent_mobility_after={opp_after} > "
+                f"our_mobility_after={our_after} (mobility disadvantage persists)"
+            )
+        elif ct == "mobility_decrease_omission":
+            out.append(
+                "REASONING_CONTRADICTION: our-mobility decrease seeded but "
+                "omitted from reasoning (negative_fact_omission)"
+            )
+        elif ct == "any_piece_isolated_vulnerability":
+            out.append(
+                f"REASONING_CONTRADICTION: 'any_piece_isolated=true' contradicts "
+                f"'{phrase}' claim (factual_contradiction)"
+            )
+        elif ct == "narrowing_gap_direction":
+            fact_dict_local = dict(facts) if isinstance(facts, dict) else {}
+            our_af = fact_dict_local.get("our_mobility_after")
+            opp_af = fact_dict_local.get("opponent_mobility_after")
+            out.append(
+                f"REASONING_CONTRADICTION: 'narrowing the gap' is wrong when "
+                f"our_mobility_after={our_af} >= "
+                f"opponent_mobility_after={opp_af} "
+                f"(gap was matched or reversed, not narrowed)"
+            )
+        elif ct == "mobility_unchanged_misclaim":
+            fl = dict(facts) if isinstance(facts, dict) else {}
+            out.append(
+                f"REASONING_CONTRADICTION: claims mobility unchanged but "
+                f"our_mobility={fl.get('our_mobility_before')}"
+                f"->{fl.get('our_mobility_after')} and "
+                f"opponent_mobility={fl.get('opponent_mobility_before')}"
+                f"->{fl.get('opponent_mobility_after')} "
+                f"(mobility_unchanged_misclaim)"
+            )
+        elif ct == "gap_did_not_narrow":
+            fl = dict(facts) if isinstance(facts, dict) else {}
+            ub = fl.get('our_mobility_before'); ua = fl.get('our_mobility_after')
+            ob = fl.get('opponent_mobility_before'); oa = fl.get('opponent_mobility_after')
+            try:
+                gb = abs(int(ub) - int(ob)); ga = abs(int(ua) - int(oa))
+            except Exception:
+                gb = ga = None
+            out.append(
+                f"REASONING_CONTRADICTION: claims 'gap narrowed' but "
+                f"|gap_before|={gb} and |gap_after|={ga} "
+                f"(gap_did_not_narrow)"
+            )
+        elif ct == "gap_did_not_widen":
+            fl = dict(facts) if isinstance(facts, dict) else {}
+            ub = fl.get('our_mobility_before'); ua = fl.get('our_mobility_after')
+            ob = fl.get('opponent_mobility_before'); oa = fl.get('opponent_mobility_after')
+            try:
+                gb = abs(int(ub) - int(ob)); ga = abs(int(ua) - int(oa))
+            except Exception:
+                gb = ga = None
+            out.append(
+                f"REASONING_CONTRADICTION: claims 'gap widened' but "
+                f"|gap_before|={gb} and |gap_after|={ga} "
+                f"(gap_did_not_widen)"
+            )
+        elif ct == "comparative_recapture_fabrication":
+            out.append(
+                f"COMPARATIVE_CONTRADICTION: '{phrase}' claimed but "
+                f"opponent_can_recapture=true (fabricated_claim)"
+            )
+        elif ct == "tradeoff_without_numeric_grounding":
+            out.append(
+                f"COMPARATIVE_CONTRADICTION: '{phrase}' used without numeric "
+                f"grounding in same sentence (tradeoff_without_evidence)"
+            )
+        elif ct == "negative_score_advantage_claim":
+            fact_dict_local = dict(facts) if isinstance(facts, dict) else {}
+            mm_val = fact_dict_local.get("minimax_score")
+            mm_str = f"{float(mm_val):.1f}" if isinstance(mm_val, (int, float)) else str(mm_val)
+            out.append(
+                f"COMPARATIVE_CONTRADICTION: '{phrase}' used when "
+                f"minimax_score={mm_str} < 0 without relative "
+                f"framing (misleading_advantage_claim)"
+            )
+        elif ct == "forced_move_deliberate_framing":
+            out.append(
+                f"REASONING_CONTRADICTION: '{phrase}' deliberate-choice framing "
+                f"in forced-move context (forced_move_deliberate_framing)"
+            )
+        elif ct == "geometric_impossibility":
+            out.append(
+                f"REASONING_CONTRADICTION: '{phrase}' is geometrically impossible "
+                f"for a legal move (geometric_impossibility)"
+            )
+        elif ct == "our_mobility_direction":
+            fact_dict_local = dict(facts) if isinstance(facts, dict) else {}
+            our_mb = fact_dict_local.get("our_mobility_before")
+            our_ma = fact_dict_local.get("our_mobility_after")
+            out.append(
+                f"REASONING_CONTRADICTION: claims our-mobility increase but "
+                f"our_mobility_after={int(our_ma)} <= "
+                f"our_mobility_before={int(our_mb)} (our_mobility_direction)"
+            )
+        elif ct == "tactical_move_defensive_framing":
+            out.append(
+                f"REASONING_CONTRADICTION: '{phrase}' framing contradicts "
+                f"creates_immediate_threat=true (tactical_move_defensive_framing)"
             )
         elif ct.startswith("numeric_"):
             field = ct[len("numeric_"):]

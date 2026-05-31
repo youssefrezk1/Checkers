@@ -121,36 +121,26 @@ class TestFix5OntologyImportDirection:
 # ---------------------------------------------------------------------------
 
 class TestFix1FirstPlyScoreStateDefault:
-    """_resolve_score_state_for_seeds must return a safe "EQUAL" default when
-    strategic_context is missing, falsy, or has no score_state key."""
+    """_resolve_score_state_for_seeds must read state.score_state directly.
+    The default is "EQUAL" (Pydantic default), adversity seeds are suppressed."""
 
-    def _state(self, ctx):
+    def _state(self, score_state: str = "EQUAL"):
         from checkers.state.state import CheckersState
         return CheckersState(
             board=[[0] * 8 for _ in range(8)],
             current_player=1,
             turn_number=1,
-            strategic_context=ctx,
+            score_state=score_state,
         )
 
-    def test_returns_equal_when_strategic_context_is_none(self):
+    def test_returns_equal_by_default(self):
         from checkers.agents.ranker_agent import _resolve_score_state_for_seeds
-        assert _resolve_score_state_for_seeds(self._state(None)) == "EQUAL"
+        assert _resolve_score_state_for_seeds(self._state()) == "EQUAL"
 
-    def test_returns_equal_when_strategic_context_is_empty_dict(self):
+    def test_returns_equal_when_score_state_is_empty_string(self):
         from checkers.agents.ranker_agent import _resolve_score_state_for_seeds
-        assert _resolve_score_state_for_seeds(self._state({})) == "EQUAL"
-
-    def test_returns_equal_when_score_state_key_missing(self):
-        from checkers.agents.ranker_agent import _resolve_score_state_for_seeds
-        ctx = {"game_phase": "OPENING"}
-        assert _resolve_score_state_for_seeds(self._state(ctx)) == "EQUAL"
-
-    def test_returns_equal_when_score_state_value_is_empty_string(self):
-        from checkers.agents.ranker_agent import _resolve_score_state_for_seeds
-        assert _resolve_score_state_for_seeds(
-            self._state({"score_state": ""}),
-        ) == "EQUAL"
+        # Empty string falls back to "EQUAL" (conservative default)
+        assert _resolve_score_state_for_seeds(self._state("")) == "EQUAL"
 
     def test_passes_through_real_value(self):
         from checkers.agents.ranker_agent import _resolve_score_state_for_seeds
@@ -158,9 +148,7 @@ class TestFix1FirstPlyScoreStateDefault:
             "EQUAL", "CLEARLY_LOSING", "SLIGHTLY_LOSING",
             "CLEARLY_WINNING", "SLIGHTLY_WINNING",
         ):
-            assert _resolve_score_state_for_seeds(
-                self._state({"score_state": ss}),
-            ) == ss
+            assert _resolve_score_state_for_seeds(self._state(ss)) == ss
 
     def test_default_suppresses_adversity_in_seed_builder(self):
         """End-to-end behavioural guard: when the resolved score_state is

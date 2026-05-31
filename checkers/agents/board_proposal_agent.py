@@ -1963,8 +1963,7 @@ def board_proposal_agent(state: CheckersState) -> dict[str, Any]:
     """
     LLM-based board-grounded move proposal node.
 
-    Reads:   state.board, state.current_player,
-             state.strategic_context (game_phase + score_state only).
+    Reads:   state.board, state.current_player, state.score_state.
     Writes:  board_proposal_moves, board_proposal_raw, board_proposal_diagnostics.
     """
     player_label = "RED" if state.current_player == RED else "BLACK"
@@ -1972,7 +1971,7 @@ def board_proposal_agent(state: CheckersState) -> dict[str, Any]:
     system, user = build_board_proposal_prompt(
         board=state.board,
         current_player=state.current_player,
-        strategic_context=state.strategic_context,
+        strategic_context={"score_state": state.score_state},
     )
 
     _base_url = _provider_base_url()

@@ -193,7 +193,14 @@ def evaluate_pre_post_repair(
     if isinstance(nb, (int, float)):
         ctx["next_best_minimax_score"] = nb
 
-    post_text = record.get("last_move_reasoning") or ""
+    # Prefer chosen_reasoning (chosen paragraph only, no comparative append) so
+    # that comparative-paragraph claims are never scored against chosen_move_facts.
+    # Falls back to last_move_reasoning for records produced before Fix 1.
+    _chosen_only = diag.get("chosen_reasoning")
+    if isinstance(_chosen_only, str) and _chosen_only.strip():
+        post_text = _chosen_only
+    else:
+        post_text = record.get("last_move_reasoning") or ""
     if not isinstance(post_text, str):
         post_text = ""
 

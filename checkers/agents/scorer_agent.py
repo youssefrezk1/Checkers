@@ -32,8 +32,8 @@ import logging
 import os
 from typing import Any
 
-from checkers.engine.board import RED, BLACK
-from checkers.engine.rules import get_all_legal_moves, apply_move
+from checkers.engine.board import RED, BLACK, RED_KING, BLACK_KING, BOARD_SIZE, is_own_piece
+from checkers.engine.rules import get_all_legal_moves, apply_move, get_all_moves_unfiltered
 from checkers.engine.evaluation import LOSS_SCORE
 from checkers.engine.zobrist import compute_hash
 from checkers.engine.move_facts import compute_move_facts
@@ -58,6 +58,67 @@ REPETITION_PENALTY = 60
 SCORER_DEPTH = MINIMAX_DEPTH
 
 logger = logging.getLogger(__name__)
+
+
+def compute_score_state(board: list[list[int]], player: int) -> str:
+    """
+    Classify the current board position into one of five score-state buckets.
+
+    Formula (identical to inter_turn_memory.winning_score):
+        winning_score = 3 * material_advantage
+                      + 2 * king_advantage
+                      + clamp(mobility_advantage, -3, 3)
+                      + center_control_advantage
+
+    Thresholds:
+        >= 12  → CLEARLY_WINNING
+        >= 4   → SLIGHTLY_WINNING
+        <= -12 → CLEARLY_LOSING
+        <= -4  → SLIGHTLY_LOSING
+        else   → EQUAL
+
+    Inputs: board and current_player only.  No turn history, no prior state.
+    Called by scorer_node on every ply so state.score_state is always fresh.
+    """
+    opp = BLACK if player == RED else RED
+
+    our_men = our_kings = opp_men = opp_kings = 0
+    our_center = opp_center = 0
+
+    for r in range(BOARD_SIZE):
+        for c in range(BOARD_SIZE):
+            p = board[r][c]
+            if player == RED:
+                if p == RED:          our_men   += 1
+                elif p == RED_KING:   our_kings += 1
+                elif p == BLACK:      opp_men   += 1
+                elif p == BLACK_KING: opp_kings += 1
+            else:
+                if p == BLACK:        our_men   += 1
+                elif p == BLACK_KING: our_kings += 1
+                elif p == RED:        opp_men   += 1
+                elif p == RED_KING:   opp_kings += 1
+            if 3 <= r <= 4 and 2 <= c <= 5:
+                if is_own_piece(p, player): our_center += 1
+                elif is_own_piece(p, opp):  opp_center += 1
+
+    material_advantage = (our_men + 2 * our_kings) - (opp_men + 2 * opp_kings)
+    king_advantage     = our_kings - opp_kings
+    our_mobility       = len(get_all_moves_unfiltered(board, player))
+    opp_mobility       = len(get_all_moves_unfiltered(board, opp))
+    clamped_mob        = max(-3, min(3, our_mobility - opp_mobility))
+    center_adv         = our_center - opp_center
+
+    winning_score = (3 * material_advantage
+                     + 2 * king_advantage
+                     + clamped_mob
+                     + center_adv)
+
+    if   winning_score >= 12:  return "CLEARLY_WINNING"
+    elif winning_score >= 4:   return "SLIGHTLY_WINNING"
+    elif winning_score <= -12: return "CLEARLY_LOSING"
+    elif winning_score <= -4:  return "SLIGHTLY_LOSING"
+    else:                      return "EQUAL"
 
 
 def score_all_legal_moves(

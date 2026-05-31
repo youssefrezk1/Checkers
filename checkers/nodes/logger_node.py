@@ -39,16 +39,6 @@ def _winner_line(state: CheckersState) -> str:
     return "N/A"
 
 
-def _strategic_excerpt(ctx: dict[str, Any]) -> tuple[list[Any], Any, Any]:
-    priorities = ctx.get("strategic_priorities")
-    if priorities is None:
-        priorities = []
-    material = ctx.get("material_advantage")
-    winning_score = ctx.get("winning_score")
-    winning = f"score={winning_score}" if winning_score is not None else None
-    return priorities, material, winning
-
-
 def _piece_summary_line(label: str, counts: dict[str, int]) -> str:
     return (
         f"  {label}: {counts['total']} pieces "
@@ -131,10 +121,6 @@ def logger_node(state: CheckersState) -> dict:
     reasoning = (last_entry or {}).get("last_move_reasoning")
     promotion = bool((last_entry or {}).get("promotion", False))
 
-    ctx = state.strategic_context or {}
-    priorities, material_adv, winning_asm = _strategic_excerpt(ctx)
-    archive_summary = ctx.get("archive_summary")
-
     # ── Terminal ─────────────────────────────────────────────
     if PRINT_TO_TERMINAL:
         bar = "═" * 35
@@ -157,12 +143,6 @@ def logger_node(state: CheckersState) -> dict:
         print("Piece counts:")
         print(_piece_summary_line("RED", rc))
         print(_piece_summary_line("BLACK", bc))
-        print("\nStrategic priorities:")
-        if priorities:
-            for i, p in enumerate(priorities, 1):
-                print(f"  {i}. {p}")
-        else:
-            print("  (none)")
         print("\nMetrics:")
         print(
             f"  format_errors={state.format_error_count}  "
@@ -196,58 +176,27 @@ def logger_node(state: CheckersState) -> dict:
                 "ranker_failure_count": state.ranker_failure_count,
                 "ranker_fallback_count": state.ranker_fallback_count,
             },
-            "strategic_priorities": priorities,
-            "material_advantage": material_adv,
-            "winning_assessment": winning_asm,
-            # ── Proposal-authoritative pipeline fields (simplified mode) ───
-            # Additive: absent in old logs, present in simplified-pipeline logs.
             "chosen_move_score": state.chosen_move_score,
             "proposal_diagnostics": state.proposal_diagnostics,
         }
-        # game_log_id is already "game_YYYYMMDD_HHMMSS"; avoid "game_game_..." in path
         _append_jsonl(os.path.join(LOG_DIR, f"{game_log_id}.jsonl"), jsonl_record)
 
-        # ── Evaluation-source export ────────────────────────────────────────────
-        # Written to a SEPARATE file so replay_evaluator.py can consume it
-        # without touching the existing game log schema.
-        #
-        # Field sources:
-        #   last_move_reasoning  ← move_history[-1]["last_move_reasoning"]
-        #                          (state.last_move_reasoning is cleared by
-        #                          state_manager BEFORE logger_node runs)
-        #   ranker_diagnostics   ← state.ranker_diagnostics (not cleared until
-        #                          next ranker_agent call)
-        #   chosen_move_facts    ← state.chosen_move_facts (set by ranker_agent,
-        #                          cleared by state_manager; null for human moves)
-        #   turn_id              ← "{game_log_id}_t{turn_number}"
-        # ──────────────────────────────────────────────────────────────────────
+        # ── Evaluation-source export ──────────────────────────────────────────
         _diag = state.ranker_diagnostics or {}
-        # ── Ablation tag propagation ────────────────────────────────────────
-        # Default is "seed_on" so legacy logs / non-ablation runs keep a
-        # stable, valid value. The ranker writes the same tag into its
-        # diagnostics; we mirror it here as a top-level eval-source field so
-        # downstream readers don't have to dig into ranker_diagnostics.
         _run_tag = _diag.get("run_tag")
         if not isinstance(_run_tag, str) or not _run_tag:
             _run_tag = "seed_on"
 
         eval_source_record = {
             "turn_id":            f"{game_log_id}_t{state.turn_number}",
-            "last_move_reasoning": reasoning,          # from move_history[-1]
+            "last_move_reasoning": reasoning,
             "ranker_diagnostics": state.ranker_diagnostics,
-            "chosen_move_facts":  state.chosen_move_facts,  # None for human moves
-            # ── Proposal-authoritative pipeline fields ─────────────────────
-            # Additive: absent in old logs, always present in simplified-pipeline logs.
+            "chosen_move_facts":  state.chosen_move_facts,
             "final_choice_source":  _diag.get("final_choice_source"),
             "chosen_move_score":    state.chosen_move_score,
             "proposal_diagnostics": state.proposal_diagnostics,
-            # ── Ablation provenance (top-level for easy pairing) ───────────
             "run_tag":              _run_tag,
         }
-        # Nest eval_source by run_tag whenever an ablation harness has
-        # explicitly tagged the run via RANKER_RUN_TAG (or implicitly via
-        # RANKER_SEEDS_DISABLED). Without an explicit tag we keep the legacy
-        # flat path so existing log readers continue to work.
         _tag_explicit = bool(
             os.environ.get("RANKER_RUN_TAG")
             or os.environ.get("RANKER_SEEDS_DISABLED")
@@ -273,7 +222,6 @@ def logger_node(state: CheckersState) -> dict:
             "final_board": state.board,
             "move_history": state.move_history,
             "final_metrics": _compute_final_metrics(state),
-            "archive_summary": archive_summary,
         }
         _write_summary(
             os.path.join(LOG_DIR, f"summary_{game_log_id}.json"),

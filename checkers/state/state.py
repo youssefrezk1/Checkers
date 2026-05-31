@@ -86,8 +86,12 @@ class CheckersState(BaseModel):
     insufficient_proposals: bool = Field(default=False)
 
 
-    # ── Inter turn memory ─────────────────────────────────
-    strategic_context: Optional[dict[str, Any]] = Field(default=None)
+    # ── Score-state (written by scorer_node each turn) ────
+    # Whole-position balance classification used by ranker_agent for adversity-
+    # seed gating.  Computed from board facts only; no sliding-window history.
+    # Values: "CLEARLY_WINNING" | "SLIGHTLY_WINNING" | "EQUAL" |
+    #         "SLIGHTLY_LOSING" | "CLEARLY_LOSING"
+    score_state: str = Field(default="EQUAL")
 
     # ── Move history ──────────────────────────────────────
     move_history: list[dict[str, Any]] = Field(default_factory=list)

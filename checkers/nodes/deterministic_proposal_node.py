@@ -29,7 +29,7 @@ from checkers.agents.deterministic_proposal import select_best_move
 def deterministic_proposal_node(state: CheckersState) -> dict:
     chosen, score, unchosen, meta = select_best_move(
         state.legal_moves,
-        strategic_context=state.strategic_context,
+        score_state=state.score_state,
     )
 
     return {

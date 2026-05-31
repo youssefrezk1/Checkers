@@ -67,6 +67,9 @@ ABSOLUTE_FORBIDDEN_VOCAB: list[str] = [
     "piece activity",            # broader "piece activity" variants
     "more active position",      # directional claim without numeric grounding
     "maintains pressure",        # strategic claim — no fact field exists
+    # BUG-9 hollow strategic filler — evaluative labels with no measurable grounding
+    "tangible positional advantage",
+    "strong positional edge",
 ]
 
 # Terms that are only forbidden when NOT present verbatim in the seed list.

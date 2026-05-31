@@ -378,6 +378,45 @@ def classify_proposal(
     }
 
 
+def classify_proposal_single(
+    proposed_moves: list[dict],
+    legal_moves: list[dict],
+) -> dict[str, Any]:
+    """
+    Classify a single-move proposal against ground truth legal moves.
+
+    Unlike classify_proposal(), producing exactly ONE legal move is "perfect"
+    — the task is to produce one legal move, not to enumerate all of them.
+    "missing_legal" is only meaningful when the move is illegal (task failed).
+
+    Caller guarantee: proposed_moves has exactly 1 entry (enforced by the
+    is_violation gate in evaluate_position before this is called).
+    """
+    if not proposed_moves:
+        return {
+            "classification": "empty_proposal",
+            "legal_count": len(legal_moves),
+            "proposed_count": 0,
+            "legal_proposed": 0,
+            "illegal_proposed": 0,
+            "missing_legal": len(legal_moves),
+        }
+
+    legal_keys = {_move_key(m) for m in legal_moves}
+    move = proposed_moves[0]
+    is_legal = _move_key(move) in legal_keys
+
+    return {
+        "classification": "perfect" if is_legal else "proposal_illegal",
+        "legal_count": len(legal_moves),
+        "proposed_count": 1,
+        "legal_proposed": 1 if is_legal else 0,
+        "illegal_proposed": 0 if is_legal else 1,
+        # 0 when legal (task succeeded); full count when illegal (task failed).
+        "missing_legal": 0 if is_legal else len(legal_moves),
+    }
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SCANNER EVALUATION
 # ══════════════════════════════════════════════════════════════════════════════
@@ -587,10 +626,6 @@ def evaluate_position(
     # When branch_mismatch=True, proposal_source is the gt-routed call.
     proposed_moves = proposal_source["proposal_moves"]
 
-    if single_best:
-        parsed_moves = proposed_moves
-        print(len(parsed_moves) if parsed_moves else 0, parsed_moves)
-
     # Strict single_best validation
     is_violation = False
     original_len = proposal_source.get("original_proposal_moves_len", len(proposed_moves) if proposed_moves is not None else 0)
@@ -611,38 +646,50 @@ def evaluate_position(
             "partial_jump_sequences": 0,
             "illegal_geometry_moves": 0,
             "out_of_bounds_coordinates": 0,
-            "missing_legal_moves": len(legal_moves),
+            # In single-best mode "missing legal moves" is not a meaningful metric;
+            # the task is to produce one legal move, not to enumerate all of them.
+            "missing_legal_moves": 0 if single_best else len(legal_moves),
             "parse_failures": 1,
             "wrong_branch_called": 1 if branch_mismatch else 0,
             "api_failures": 0,
         }
     elif is_violation:
+        # is_violation is only ever True in single-best mode.
         proposal_class = {
             "classification": "single_best_violation",
             "legal_count": len(legal_moves),
             "proposed_count": original_len,
             "legal_proposed": sum(1 for m in proposed_moves if _norm_move(m) in legal_norm),
             "illegal_proposed": sum(1 for m in proposed_moves if _norm_move(m) not in legal_norm),
-            "missing_legal": len(legal_moves),
+            "missing_legal": 0,
         }
         failure_taxonomy = {
             "duplicate_moves_generated": _check_duplicate_moves(proposed_moves),
             "partial_jump_sequences": _check_partial_jumps(proposed_moves, legal_norm),
             "illegal_geometry_moves": _check_illegal_geometry(proposed_moves),
             "out_of_bounds_coordinates": _check_out_of_bounds(proposed_moves),
-            "missing_legal_moves": len(legal_moves),
+            "missing_legal_moves": 0,  # single-best only; exhaustive recall is irrelevant
             "parse_failures": 0,
             "wrong_branch_called": 1 if branch_mismatch else 0,
             "api_failures": 0,
         }
     else:
-        proposal_class = classify_proposal(proposed_moves, legal_norm)
+        if single_best:
+            # Single-move semantics: exactly 1 legal move = "perfect".
+            # classify_proposal() would always return "legal_but_incomplete"
+            # here because missing_legal = N-1 > 0, making proposal_correct
+            # permanently False for any correctly behaving LLM.
+            proposal_class = classify_proposal_single(proposed_moves, legal_norm)
+        else:
+            proposal_class = classify_proposal(proposed_moves, legal_norm)
         failure_taxonomy = {
             "duplicate_moves_generated": _check_duplicate_moves(proposed_moves),
             "partial_jump_sequences": _check_partial_jumps(proposed_moves, legal_norm),
             "illegal_geometry_moves": _check_illegal_geometry(proposed_moves),
             "out_of_bounds_coordinates": _check_out_of_bounds(proposed_moves),
-            "missing_legal_moves": proposal_class["missing_legal"],
+            # 0 in single-best mode: producing one legal move = task complete; exhaustive
+            # recall is meaningless. Use proposal_class["missing_legal"] in multi-move mode.
+            "missing_legal_moves": 0 if single_best else proposal_class["missing_legal"],
             "parse_failures": 0,
             "wrong_branch_called": 1 if branch_mismatch else 0,
             "api_failures": 0,
@@ -696,12 +743,15 @@ def evaluate_position(
         # Timing
         "elapsed_s": elapsed,
         # Best-move coverage (evaluation reporting only — does not affect proposal)
+        # Violations are excluded (set to None) because the "first move" in a
+        # violation is an artifact of truncation, not a real single-move selection.
+        # Including it would credit the LLM for a move it wasn't asked to pick alone.
         "engine_best_move": engine_best_path,
         "kingsrow_best_move": kr_best_path,
-        "contains_engine_best": _path_in_proposals(engine_best_path, proposed_moves),
-        "contains_kingsrow_best": _path_in_proposals(kr_best_path, proposed_moves),
-        "top1_engine_match": _is_top1_match(engine_best_path, proposed_moves),
-        "top1_kingsrow_match": _is_top1_match(kr_best_path, proposed_moves),
+        "contains_engine_best": None if is_violation else _path_in_proposals(engine_best_path, proposed_moves),
+        "contains_kingsrow_best": None if is_violation else _path_in_proposals(kr_best_path, proposed_moves),
+        "top1_engine_match": None if is_violation else _is_top1_match(engine_best_path, proposed_moves),
+        "top1_kingsrow_match": None if is_violation else _is_top1_match(kr_best_path, proposed_moves),
     }
 
 
@@ -831,7 +881,11 @@ def filter_by_mode(
         return [e for e in dataset if e.get("difficulty") == "hard"]
 
     if mode == "medium_hard":
-        return [e for e in dataset if e.get("difficulty") in ("medium", "hard")]
+        # Hard positions come first so that --limit always preserves them fully.
+        # Within each group the original dataset order is kept (deterministic, no RNG).
+        hard   = [e for e in dataset if e.get("difficulty") == "hard"]
+        medium = [e for e in dataset if e.get("difficulty") == "medium"]
+        return hard + medium
 
     if mode == "jump_only":
         return [e for e in dataset if _has_captures(e)]
@@ -866,9 +920,14 @@ def filter_by_mode(
 # AGGREGATE SUMMARY
 # ══════════════════════════════════════════════════════════════════════════════
 
-def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
+def summarize_results(results: list[dict[str, Any]], single_best: bool = False) -> dict[str, Any]:
     """
     Aggregate evaluation results into a summary report.
+
+    single_best=True selects single-move reporting semantics:
+      - missing_legal_moves and missing_legal_moves_avg are excluded from
+        the failure taxonomy (exhaustive recall is irrelevant for single-best).
+      - All other counters and metrics are unchanged.
     """
     total = len(results)
     if total == 0:
@@ -900,17 +959,20 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         c = r.get("classification", "unknown")
         classifications[c] = classifications.get(c, 0) + 1
 
-    # Failure taxonomy totals
-    taxonomy_totals = {
+    # Failure taxonomy totals.
+    # missing_legal_moves is excluded in single-best mode: exhaustive recall
+    # is not a valid quality signal when the task is to produce one legal move.
+    taxonomy_totals: dict[str, int | float] = {
         "duplicate_moves_generated": 0,
         "partial_jump_sequences": 0,
         "illegal_geometry_moves": 0,
         "out_of_bounds_coordinates": 0,
-        "missing_legal_moves": 0,
         "parse_failures": 0,
         "wrong_branch_called": 0,
         "api_failures": 0,
     }
+    if not single_best:
+        taxonomy_totals["missing_legal_moves"] = 0
     for r in results:
         ft = r.get("failure_taxonomy", {})
         for key in taxonomy_totals:
@@ -918,12 +980,12 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     # Count API failures from results level too
     taxonomy_totals["api_failures"] = quadrants.get("api_failure", 0)
 
-    # Average missing legal moves per evaluated position
-    # (across all non-api-failure positions, including parse failures)
+    # Average missing legal moves per evaluated position — multi-move mode only.
     evaluated_count = sum(1 for r in results if not r.get("api_failure"))
-    taxonomy_totals["missing_legal_moves_avg"] = round(
-        taxonomy_totals["missing_legal_moves"] / evaluated_count, 2
-    ) if evaluated_count else 0.0
+    if not single_best:
+        taxonomy_totals["missing_legal_moves_avg"] = round(
+            taxonomy_totals["missing_legal_moves"] / evaluated_count, 2  # type: ignore[arg-type]
+        ) if evaluated_count else 0.0
 
     # Scanner accuracy
     scanner_results = [r for r in results if not r.get("api_failure")]
@@ -1366,10 +1428,6 @@ def main(argv: list[str] | None = None) -> int:
         dataset = filter_by_mode(dataset, args.mode)
         post_filter_count = len(dataset)
 
-    # Apply limit
-    if args.limit is not None:
-        dataset = dataset[:args.limit]
-
     # ── Branching-factor filter (--min/max-legal-moves) ──────────────────────────
     # Applied AFTER mode filter and --limit so the limit is on the mode-filtered
     # pool, not the legal-move-filtered subset (consistent with all other filters).
@@ -1422,13 +1480,18 @@ def main(argv: list[str] | None = None) -> int:
 
     # Print header
     print("=" * 74)
-    print("PROPOSAL SEPARATION EVAL — Pure Raw LLM Baseline")
+    _eval_mode_label = "SINGLE-BEST MODE" if args.single_best else "MULTI-MOVE (EXHAUSTIVE) MODE"
+    print(f"PROPOSAL SEPARATION EVAL — Pure Raw LLM Baseline  [{_eval_mode_label}]")
     print(f"  Dataset   : {dataset_path}")
     print(f"  Mode      : {args.mode}")
     if not args.scenario_id:
         print(f"  Filtered  : {post_filter_count}/{pre_filter_count} scenarios")
     if args.limit is not None:
         print(f"  Limit     : {args.limit}")
+    if args.mode == "medium_hard" and args.limit is not None:
+        _hard_in_result = sum(1 for e in dataset if e.get("difficulty") == "hard")
+        _med_in_result  = len(dataset) - _hard_in_result
+        print(f"  Hard-first: {_hard_in_result} hard + {_med_in_result} medium (hard preserved first)")
     print(f"  Positions : {len(dataset)}")
     print(f"  Scanner   : {SCANNER_MODEL}")
     print(f"  Proposal  : {PROPOSAL_MODEL}")
@@ -1483,7 +1546,7 @@ def main(argv: list[str] | None = None) -> int:
             time.sleep(args.inter_test_delay)
 
     # Summary
-    summary = summarize_results(results)
+    summary = summarize_results(results, single_best=args.single_best)
     summary["filtering"] = _filtering_meta
     summary["sampling"]  = _sampling_meta
 
@@ -1537,13 +1600,22 @@ def main(argv: list[str] | None = None) -> int:
     print(f"    Correct branch called : {br['branch_correct']}/{br['total']} ({100-br['mismatch_pct']:.1f}%)")
     print(f"    Wrong branch called   : {br['branch_mismatch']}/{br['total']} ({br['mismatch_pct']:.1f}%)  ← scanner mismatch")
     print()
-    print("  ── Proposal Accuracy (all, excl. api/parse failures) ──")
-    pa = summary["proposal_accuracy"]
-    print(f"    {pa['perfect']}/{pa['total']} perfect ({pa['perfect_pct']}%)  [includes wrong-branch positions]")
-    print()
-    print("  ── Proposal Accuracy — Isolated (right branch only) ──")
-    pi = summary["proposal_accuracy_isolated"]
-    print(f"    {pi['perfect']}/{pi['total']} perfect ({pi['perfect_pct']}%)  ← true proposer quality")
+    if args.single_best:
+        print("  ── Single-Best Legality (excl. api/parse failures) ──")
+        pa = summary["proposal_accuracy"]
+        print(f"    {pa['perfect']}/{pa['total']} legal ({pa['perfect_pct']}%)  [includes wrong-branch positions]")
+        print()
+        print("  ── Single-Best Legality — Isolated (right branch only) ──")
+        pi = summary["proposal_accuracy_isolated"]
+        print(f"    {pi['perfect']}/{pi['total']} legal ({pi['perfect_pct']}%)  ← true proposer quality")
+    else:
+        print("  ── Proposal Accuracy (all, excl. api/parse failures) ──")
+        pa = summary["proposal_accuracy"]
+        print(f"    {pa['perfect']}/{pa['total']} perfect ({pa['perfect_pct']}%)  [includes wrong-branch positions]")
+        print()
+        print("  ── Proposal Accuracy — Isolated (right branch only) ──")
+        pi = summary["proposal_accuracy_isolated"]
+        print(f"    {pi['perfect']}/{pi['total']} perfect ({pi['perfect_pct']}%)  ← true proposer quality")
     print()
     print("  ── Failure Taxonomy ──")
     ft = summary["failure_taxonomy"]
@@ -1552,6 +1624,8 @@ def main(argv: list[str] | None = None) -> int:
         if tax_name == "missing_legal_moves_avg":
             continue  # printed inline with missing_legal_moves
         if tax_name == "missing_legal_moves":
+            if args.single_best:
+                continue  # not a meaningful metric in single-best mode
             marker = f"  (avg {avg_missing:.2f} per position)"
         elif tax_name == "wrong_branch_called" and tax_count > 0:
             marker = "  ← cascading (scanner error)"
@@ -1592,7 +1666,10 @@ def main(argv: list[str] | None = None) -> int:
     _kr  = cov.get("kingsrow", {})
     if _eng.get("evaluated", 0) > 0 or _kr.get("evaluated", 0) > 0:
         print("  ── Best-Move Coverage ──")
-        print("  (% of positions where the LLM's proposal list included the best move)")
+        if args.single_best:
+            print("  (% of positions where the LLM's single selected move matches the best move)")
+        else:
+            print("  (% of positions where the LLM's proposal list included the best move)")
         print()
 
         def _cov_line(label: str, block: dict) -> None:

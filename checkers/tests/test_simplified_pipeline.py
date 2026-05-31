@@ -28,7 +28,6 @@ What IS tested:
 
   Group 4 — Pre-ranker pipeline (no LLM)
     - scorer_node → deterministic_proposal_node produces ranker-ready legal_moves
-    - _apply_safety_filter runs without error on the output
     - No format_checker or validator node is ever reached in simplified routing
 
   Group 5 — Graph compilation
@@ -49,7 +48,7 @@ from checkers.engine.rules import get_all_legal_moves
 from checkers.graph.graph import _update_agent_routing
 from checkers.nodes.scorer_node import scorer_node
 from checkers.nodes.deterministic_proposal_node import deterministic_proposal_node
-from checkers.agents.ranker_agent import _apply_safety_filter, _get_minimax_score
+from checkers.agents.ranker_agent import _get_minimax_score
 from checkers.state.state import CheckersState
 
 
@@ -419,10 +418,10 @@ class TestDeterministicProposalNode:
 
 class TestPreRankerPipeline:
 
-    def _run_simplified_turn_prep(self, board=None, player=RED, ctx=None):
+    def _run_simplified_turn_prep(self, board=None, player=RED):
         """Run scorer_node → deterministic_proposal_node, return final state."""
         b = board or _start_board()
-        s0 = CheckersState(board=b, current_player=player, strategic_context=ctx)
+        s0 = CheckersState(board=b, current_player=player)
         r1 = scorer_node(s0)
         s1 = s0.model_copy(update=r1)
         r2 = deterministic_proposal_node(s1)
@@ -436,12 +435,6 @@ class TestPreRankerPipeline:
     def test_legal_moves_at_most_five(self):
         state = self._run_simplified_turn_prep()
         assert len(state.legal_moves) <= 5
-
-    def test_safety_filter_runs_on_prep_output(self):
-        state = self._run_simplified_turn_prep()
-        filtered, index_map = _apply_safety_filter(state.legal_moves)
-        assert filtered, "safety filter must keep at least one move"
-        assert isinstance(index_map, list)
 
     def test_minimax_scores_finite_after_prep(self):
         state = self._run_simplified_turn_prep()
@@ -468,15 +461,13 @@ class TestPreRankerPipeline:
         # validator writes feedback on failure; it must stay None.
         assert state.feedback is None
 
-    def test_pipeline_with_strategic_context(self):
-        ctx = {
-            "score_state": "SLIGHTLY_WINNING",
-            "game_phase": "MIDGAME",
-            "strategic_priorities": ["CONVERT_ADVANTAGE"],
-        }
-        state = self._run_simplified_turn_prep(ctx=ctx)
-        assert state.legal_moves, "non-empty legal_moves with strategic context"
-        assert len(state.legal_moves) <= 5
+    def test_score_state_written_by_scorer_node(self):
+        """scorer_node must write a valid score_state to state."""
+        state = self._run_simplified_turn_prep()
+        assert state.score_state in (
+            "CLEARLY_WINNING", "SLIGHTLY_WINNING", "EQUAL",
+            "SLIGHTLY_LOSING", "CLEARLY_LOSING",
+        ), f"unexpected score_state: {state.score_state!r}"
 
     def test_pipeline_with_black_player(self):
         state = self._run_simplified_turn_prep(player=BLACK)

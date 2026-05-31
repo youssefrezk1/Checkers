@@ -14,8 +14,11 @@ import unittest
 from unittest.mock import patch, MagicMock
 from checkers.engine.board import RED, BLACK
 from checkers.agents.proposal_seperation import (
-    quiet_single_best_prompt,
+    JUMP_SINGLE_SYSTEM_PROMPT,
+    QUIET_SINGLE_SYSTEM_PROMPT,
+    # backward-compat aliases kept for other callers
     jump_single_best_prompt,
+    quiet_single_best_prompt,
     build_quiet_single_best_prompt,
     build_jump_single_best_prompt,
     run_proposal_seperation,
@@ -33,23 +36,36 @@ class TestSingleBestProposerPrompts(unittest.TestCase):
         self.board[6][1] = 2  # BLACK man
 
     def test_single_best_prompt_content(self):
-        # Verify the prompt texts contain instruction for single strategically best move
-        self.assertIn("output ONLY the SINGLE STRONGEST legal capture sequence", jump_single_best_prompt)
-        self.assertIn("Choose the single strategically best legal capture sequence", jump_single_best_prompt)
-        self.assertIn("output ONLY the SINGLE STRONGEST legal simple move", quiet_single_best_prompt)
-        self.assertIn("Choose the single strategically best legal simple move", quiet_single_best_prompt)
+        # Constants and aliases must point to the same object
+        self.assertIs(JUMP_SINGLE_SYSTEM_PROMPT, jump_single_best_prompt)
+        self.assertIs(QUIET_SINGLE_SYSTEM_PROMPT, quiet_single_best_prompt)
+        # Task line must express "exactly ONE" (not "STRONGEST" which adds competing objective)
+        self.assertIn("output exactly ONE complete legal capture sequence", JUMP_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("Output exactly ONE move in the", JUMP_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("output exactly ONE complete legal simple move", QUIET_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("Output exactly ONE move in the", QUIET_SINGLE_SYSTEM_PROMPT)
+        # Jump single: Phase 1/2/3 structure with GATE-1/2/3
+        self.assertIn("PHASE 1", JUMP_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("GATE-1", JUMP_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("GATE-2", JUMP_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("GATE-3", JUMP_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("Do not stop early", JUMP_SINGLE_SYSTEM_PROMPT)
+        # Quiet single: PROCEDURE structure with GATE-A/GATE-B (no phases)
+        self.assertIn("GATE-A", QUIET_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("GATE-B", QUIET_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("Do NOT stop after finding the first valid direction", QUIET_SINGLE_SYSTEM_PROMPT)
 
     def test_build_jump_single_best_prompt(self):
         sys_p, usr_p = build_jump_single_best_prompt(self.board, RED)
-        self.assertEqual(sys_p, jump_single_best_prompt)
+        self.assertEqual(sys_p, JUMP_SINGLE_SYSTEM_PROMPT)
         self.assertIn("Current player: RED", usr_p)
-        self.assertIn("Choose the single strategically best legal capture sequence", usr_p)
+        self.assertIn("Generate exactly one legal capture sequence", usr_p)
 
     def test_build_quiet_single_best_prompt(self):
         sys_p, usr_p = build_quiet_single_best_prompt(self.board, RED)
-        self.assertEqual(sys_p, quiet_single_best_prompt)
+        self.assertEqual(sys_p, QUIET_SINGLE_SYSTEM_PROMPT)
         self.assertIn("Current player: RED", usr_p)
-        self.assertIn("Choose the single strategically best legal non-capturing (simple) move", usr_p)
+        self.assertIn("Generate exactly one legal non-capturing (simple) move", usr_p)
 
     @patch("checkers.agents.proposal_seperation._call_with_infra_retry")
     def test_run_proposal_seperation_single_best_true(self, mock_call):
@@ -67,10 +83,10 @@ class TestSingleBestProposerPrompts(unittest.TestCase):
         scanner_args = mock_call.call_args_list[0]
         self.assertIn("capture_available", scanner_args.kwargs["system"])
 
-        # Check quiet single best proposer call arguments
+        # Check quiet single-move proposer call arguments
         proposer_args = mock_call.call_args_list[1]
-        self.assertEqual(proposer_args.kwargs["system"], quiet_single_best_prompt)
-        self.assertIn("Choose the single strategically best", proposer_args.kwargs["user"])
+        self.assertEqual(proposer_args.kwargs["system"], QUIET_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("Generate exactly one legal non-capturing", proposer_args.kwargs["user"])
 
         self.assertIsNotNone(result["proposal_moves"])
         self.assertEqual(len(result["proposal_moves"]), 1)
@@ -87,8 +103,8 @@ class TestSingleBestProposerPrompts(unittest.TestCase):
 
         self.assertEqual(mock_call.call_count, 1)
         proposer_args = mock_call.call_args_list[0]
-        self.assertEqual(proposer_args.kwargs["system"], jump_single_best_prompt)
-        self.assertIn("Choose the single strategically best", proposer_args.kwargs["user"])
+        self.assertEqual(proposer_args.kwargs["system"], JUMP_SINGLE_SYSTEM_PROMPT)
+        self.assertIn("Generate exactly one legal capture sequence", proposer_args.kwargs["user"])
 
         self.assertIsNotNone(result["proposal_moves"])
         self.assertEqual(len(result["proposal_moves"]), 1)

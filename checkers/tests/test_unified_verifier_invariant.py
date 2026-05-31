@@ -100,8 +100,9 @@ SYNTHETIC_CASES = [
         [],
         {"creates_immediate_threat": False, "shot_sequence_available": False},
     ),
-    # E.4 schema-leak with agreement — instruction violation only (no
-    # contradiction).  Neither side should report a contradiction.
+    # E.4 schema-leak with agreement — raw schema string is an instruction
+    # violation regardless of whether the value agrees with the fact.
+    # Both runtime and evaluator must report a contradiction.
     (
         "e4_schema_leak_agree",
         "The fact opponent_can_recapture=false implies safety.",

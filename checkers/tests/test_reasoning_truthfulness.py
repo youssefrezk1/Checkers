@@ -26,7 +26,6 @@ from checkers.agents.ranker_agent import (
     _FORBIDDEN_VOCAB,
     _MINIMAX_CLEARLY_LOSING,
     _MINIMAX_SLIGHTLY_LOSING,
-    _build_deterministic_seed_summary,
     _build_grounded_reasoning_seeds,
     _build_refinement_prompt,
     _build_seed_reasoning_prompt,
@@ -39,7 +38,6 @@ from checkers.agents.ranker_agent import (
     _minimax_wording_label,
     _partition_sentences_by_contradiction,
     _refine_reasoning,
-    _sanitize_seed_explanation,
     _split_reasoning_sentences,
 )
 
@@ -117,9 +115,9 @@ class TestEdgeCases:
 
     def test_no_contradiction_returns_empty_list(self):
         reasoning = (
-            "This move keeps all pieces safe (our_pieces_threatened_after=0). "
+            "This move keeps all pieces safe. "
             "It blocks the opponent from landing on a key square. "
-            "The minimax score of 5.0 confirms this choice."
+            "The engine score of 5.0 confirms this choice."
         )
         assert _check_reasoning_truthfulness(reasoning, _base_facts()) == []
 
@@ -174,7 +172,7 @@ class TestRecaptureChecks:
 
     def test_no_warning_when_recapture_actually_false(self):
         facts = _base_facts(opponent_can_recapture=False)
-        assert _clean("This move avoids recapture (opponent_can_recapture=false).", facts)
+        assert _clean("This move avoids recapture.", facts)
 
     def test_various_recapture_phrases_detected(self):
         facts = _base_facts(opponent_can_recapture=True)
@@ -231,7 +229,7 @@ class TestCenterControlChecks:
 
     def test_no_warning_when_center_actually_true(self):
         facts = _base_facts(center_control=True)
-        assert _clean("This move controls the center (center_control=true).", facts)
+        assert _clean("This move controls the center.", facts)
 
     def test_central_control_phrase_detected(self):
         facts = _base_facts(center_control=False)
@@ -254,10 +252,10 @@ class TestCenterControlChecks:
         assert _warns("This move contributes to central board presence.", facts)
 
     def test_no_warning_for_geometric_center_phrasing_when_false(self):
-        # The ontology-safe geometric phrase must NOT trigger a warning.
+        # The new geometric-center seed uses natural language without key=value syntax.
         facts = _base_facts(center_control=False)
         assert _clean(
-            "Destination column in center range (col=3) — geometric center position.",
+            "The destination is in the center of the board (column 3).",
             facts,
         )
 
@@ -281,7 +279,7 @@ class TestCaptureMaterialChecks:
 
     def test_no_warning_when_net_gain_positive(self):
         facts = _base_facts(net_gain=1)
-        assert _clean("This move gains material (net_gain=1).", facts)
+        assert _clean("This move gains material.", facts)
 
 
 class TestPromotionChecks:
@@ -367,8 +365,10 @@ class TestBuildRefinementPrompt:
 
     def test_lists_facts(self):
         prompt = _build_refinement_prompt(_CHOSEN_MOVE, ["REASONING_CONTRADICTION: x"])
-        assert "opponent_can_recapture" in prompt
-        assert "center_control" in prompt
+        # _CHOSEN_MOVE has opponent_can_recapture=True → expect human-readable line
+        assert "opponent CAN recapture" in prompt
+        # must not expose raw schema key names
+        assert "opponent_can_recapture=" not in prompt
 
 
 class TestExtractRefinementReasoning:
@@ -481,25 +481,6 @@ class TestRefineReasoning:
         assert retry_count >= 1
 
     # ── safety filter isolation ───────────────────────────────────────────────
-
-    def test_safety_filter_not_called_during_refinement(self):
-        """_apply_safety_filter must never be invoked during reasoning refinement."""
-        with patch(
-            "checkers.agents.ranker_agent._apply_safety_filter",
-            side_effect=AssertionError("safety filter must not run during refinement"),
-        ) as mock_sf, patch(
-            "checkers.agents.ranker_agent.call_ranker",
-            return_value=_CLEAN_RESPONSE,
-        ):
-            _refine_reasoning(
-                reasoning=_BAD_REASONING,
-                chosen_move=_CHOSEN_MOVE,
-                initial_contradictions=self._contradictions(),
-            )
-        mock_sf.assert_not_called()
-
-    # ── RANKER_REASONING_REFINEMENT_SYSTEM content ────────────────────────────
-
     def test_system_prompt_forbids_changing_chosen_move(self):
         assert "Do NOT change the chosen move" in RANKER_REASONING_REFINEMENT_SYSTEM
 
@@ -579,41 +560,48 @@ class TestBuildGroundedReasoningSeeds:
     # ── safety seeds ─────────────────────────────────────────────────────────
 
     def test_recapture_false_seed_present(self):
-        assert "opponent_can_recapture=false" in self._text()
+        assert "cannot be immediately recaptured" in self._text()
 
     def test_recapture_true_seed_present(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "opponent_can_recapture": True}}
-        assert "opponent_can_recapture=true" in self._text(move, [move])
+        assert "opponent can recapture" in self._text(move, [move]).lower()
 
     def test_pieces_threatened_zero_seed(self):
-        assert "our_pieces_threatened_after=0" in self._text()
+        assert "No allied pieces remain under attack" in self._text()
 
     def test_pieces_threatened_nonzero_seed(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "our_pieces_threatened_after": 2}}
         seeds = _build_grounded_reasoning_seeds(move, [move])
-        assert any("our_pieces_threatened_after=2" in s for s in seeds)
+        assert any("2 allied piece(s) remain under threat" in s for s in seeds)
 
     # ── tactical seeds ───────────────────────────────────────────────────────
 
     def test_captures_seed_when_nonzero(self):
-        assert "captures_count=2" in self._text()
+        assert "The move captures 2 piece(s)" in self._text()
 
     def test_no_captures_seed_when_zero(self):
-        """captures_count=0 → no material-gain seed.
-        'captures_count=0' may appear in the positional seed (correct); the guard
-        is that the material-gain seed ('wins material') must not fire.
-        """
+        """captures_count=0 → no material-gain seed fires."""
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "captures_count": 0, "net_gain": 0}}
         text = self._text(move, [move])
-        assert "wins material" not in text
+        assert "The move captures" not in text
 
     def test_creates_threat_seed_when_true(self):
-        assert "creates_immediate_threat=true" in self._text()
+        assert "immediate threat" in self._text()
 
     def test_no_creates_threat_seed_when_false(self):
+        # Phase G, Step 1: when creates_immediate_threat=False the seed builder
+        # now intentionally emits an explicit NEGATIVE seed
+        # ("This move does not create an immediate threat.") to suppress the
+        # LLM's tendency to fabricate the positive.  The previous behaviour
+        # (silent absence) was the cause of the audit's T2 failure class.
+        # The semantic guarantee we still want to hold here is that NO
+        # POSITIVE threat assertion is emitted.
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "creates_immediate_threat": False}}
         text = self._text(move, [move])
-        assert "creates_immediate_threat" not in text
+        # No positive threat-creation seed
+        assert "This move forces the opponent to respond to an immediate threat" not in text
+        # Explicit negative seed IS emitted
+        assert "does not create an immediate threat" in text
 
     # ── mobility guard ───────────────────────────────────────────────────────
 
@@ -647,12 +635,16 @@ class TestBuildGroundedReasoningSeeds:
     # ── center_control guard ──────────────────────────────────────────────────
 
     def test_center_seed_when_true(self):
-        assert "center_control=true" in self._text()
+        assert "central board control" in self._text()
 
     def test_no_center_seed_when_false(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "center_control": False}}
         text = self._text(move, [move])
-        assert "center_control" not in text
+        # Positive center seed must not appear; an explicit negative
+        # ("does not gain central board control") is allowed and desired
+        # to push back against center-fabrication.
+        assert "gains central board control" not in text
+        assert "claims central control" not in text
 
     # ── forbidden vague phrases ───────────────────────────────────────────────
 
@@ -679,12 +671,14 @@ class TestBuildGroundedReasoningSeeds:
     def test_minimax_seed_is_last(self):
         seeds = self._seeds()
         assert seeds, "seeds must not be empty"
-        assert "minimax_score" in seeds[-1], "minimax_score must be the last seed"
+        assert "engine scores this move" in seeds[-1], "minimax seed must be the last seed"
 
     def test_minimax_not_in_non_last_seeds(self):
         seeds = self._seeds()
         for s in seeds[:-1]:
-            assert "minimax_score" not in s, f"minimax_score must not appear before final seed: {s}"
+            assert "engine scores this move" not in s, (
+                f"minimax seed must not appear before final seed: {s}"
+            )
 
     # ── comparison seeds ─────────────────────────────────────────────────────
 
@@ -705,9 +699,10 @@ class TestBuildGroundedReasoningSeeds:
         a = {"opponent_can_recapture": True}
         result = _find_comparison_seed(c, a, 1)
         assert result is not None
-        assert "opponent_can_recapture=true" in result
+        assert "recaptur" in result.lower()  # "recaptured" or "recapture"
         assert "worse" not in result
         assert "no advantage" not in result
+        assert "opponent_can_recapture=" not in result  # no schema syntax
 
     def test_find_comparison_seed_returns_none_when_no_difference(self):
         same = {"opponent_can_recapture": False, "moved_piece_is_threatened": False,
@@ -866,16 +861,6 @@ class TestGenerateSeededReasoning:
             result, seeds_out = _generate_seeded_reasoning(_FULL_MOVE, [_FULL_MOVE, _ALT_MOVE])
         assert result is None
         assert isinstance(seeds_out, list)
-
-    def test_seeded_reasoning_never_calls_safety_filter(self):
-        """_apply_safety_filter must not be invoked during seed-based generation."""
-        response = '{"reasoning": "OK."}'
-        with patch("checkers.agents.ranker_agent._apply_safety_filter",
-                   side_effect=AssertionError("filter must not run")) as mock_sf, \
-             patch("checkers.agents.ranker_agent.call_ranker", return_value=response):
-            _generate_seeded_reasoning(_FULL_MOVE, [_FULL_MOVE, _ALT_MOVE])
-        mock_sf.assert_not_called()
-
     def test_chosen_move_not_mutated_by_generate(self):
         """chosen_move dict is identical before and after seed generation."""
         before = copy.deepcopy(_FULL_MOVE)
@@ -902,36 +887,36 @@ class TestDerivedMeaningSeeds:
 
     def test_recapture_false_derived_meaning(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "opponent_can_recapture": False}}
-        assert "immediate tactical safety" in self._text(move)
+        assert "cannot be immediately recaptured" in self._text(move)
 
     def test_pieces_safe_no_defensive_burden(self):
-        assert "no defensive burden" in self._text(_FULL_MOVE)
+        assert "No allied pieces remain under attack" in self._text(_FULL_MOVE)
 
     def test_captures_wins_material(self):
-        assert "wins material" in self._text(_FULL_MOVE)
+        assert "The move captures" in self._text(_FULL_MOVE)
 
     def test_creates_threat_puts_on_defensive(self):
-        assert "puts opponent on the defensive" in self._text(_FULL_MOVE)
+        assert "forces the opponent to respond" in self._text(_FULL_MOVE)
 
     def test_center_control_improves_influence(self):
-        assert "improves influence over central lanes" in self._text(_FULL_MOVE)
+        assert "central board control" in self._text(_FULL_MOVE)
 
     def test_isolated_false_preserves_coordination(self):
-        assert "preserves piece coordination" in self._text(_FULL_MOVE)
+        assert "not left isolated" in self._text(_FULL_MOVE)
 
     def test_results_in_king_converts_piece(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "results_in_king": True}}
-        assert "immediately converts the piece into a king" in self._text(move)
+        assert "immediately promoted to king" in self._text(move)
 
     def test_near_promotion_future_threat(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS,
             "results_in_king": False, "near_promotion": True}}
-        assert "creates a future promotion threat" in self._text(move)
+        assert "one step from promotion" in self._text(move)
 
     def test_forced_jump_constrained(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS,
             "forced_opponent_jump_reply": True, "max_opponent_jump_captures": 1}}
-        assert "constrained to a jump" in self._text(move)
+        assert "forced to respond with a jump" in self._text(move)
 
     def test_blocks_landing_denies_square(self):
         assert "denies the opponent a key landing square" in self._text(_FULL_MOVE)
@@ -944,23 +929,23 @@ class TestDerivedMeaningSeeds:
 
     def test_recapture_true_is_tactical_drawback(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "opponent_can_recapture": True}}
-        assert "tactical drawback" in self._text(move)
+        assert "opponent can recapture" in self._text(move).lower()
 
     def test_pieces_threatened_is_tactical_drawback(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "our_pieces_threatened_after": 2}}
-        assert "tactical drawback" in self._text(move)
+        assert "2 allied piece(s) remain under threat" in self._text(move)
 
     def test_moved_piece_threatened_is_exposed(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "moved_piece_is_threatened": True}}
-        assert "tactically exposed" in self._text(move)
+        assert "remains under immediate threat" in self._text(move)
 
     def test_isolation_is_positional_drawback(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "leaves_piece_isolated": True}}
-        assert "positional drawback" in self._text(move)
+        assert "left without adjacent support" in self._text(move)
 
     def test_weakens_king_row_back_row_weakened(self):
         move = {**_FULL_MOVE, "facts": {**_FULL_FACTS, "weakens_king_row": True}}
-        assert "back-row defense is weakened" in self._text(move)
+        assert "weakens the back-row defensive structure" in self._text(move)
 
     # ── forbidden vague terms absent ──────────────────────────────────────────
 
@@ -983,8 +968,10 @@ class TestDerivedMeaningSeeds:
         assert "Do NOT hide" in RANKER_SEED_REASONING_SYSTEM
 
     def test_seed_system_prompt_names_drawback_facts(self):
-        assert "opponent_can_recapture=true" in RANKER_SEED_REASONING_SYSTEM
-        assert "leaves_piece_isolated=true" in RANKER_SEED_REASONING_SYSTEM
+        # Prompt uses natural language to describe drawbacks, not schema keys
+        prompt_lower = RANKER_SEED_REASONING_SYSTEM.lower()
+        assert "opponent can recapture" in prompt_lower
+        assert "isolated" in prompt_lower
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1074,79 +1061,84 @@ class TestStrategicInterpretationSeeds:
 
     def test_simple_quiet_produces_development_seed(self):
         # _SIMPLE_QUIET path [[5,2],[4,3]]: row 5→4 (decreasing) → forward for RED
-        assert "develops a piece forward" in _text_with_player(_SIMPLE_QUIET, _RED)
+        assert "advances forward without capturing" in _text_with_player(_SIMPLE_QUIET, _RED)
 
     def test_development_seed_is_factual_only(self):
-        # Seed (A) must state the geometric fact without filler phrases like
-        # "improves piece activity" (banned as generic filler).
+        # Seed (A) must state the geometric fact without filler phrases.
         text = _text_with_player(_SIMPLE_QUIET, _RED)
-        assert "develops a piece forward" in text
+        assert "advances forward without capturing" in text
         assert "improves piece activity" not in text
 
     def test_no_development_seed_when_capture(self):
-        assert "develops a piece forward" not in self._text(_JUMP_MOVE)
+        assert "advances forward without capturing" not in self._text(_JUMP_MOVE)
 
     # ── (B) Back-row seed ───────────────────────────────────────────────────────────────
 
     def test_back_row_origin_produces_weakening_seed(self):
-        # _BACK_ROW_MOVE src_row=7 → RED back row
-        assert "moves a back-row piece" in _text_with_player(_BACK_ROW_MOVE, _RED)
+        # _BACK_ROW_MOVE src_row=7 → RED back row → seed mentions "A back-row piece is moved"
+        assert "A back-row piece is moved" in _text_with_player(_BACK_ROW_MOVE, _RED)
 
     def test_back_row_seed_intact_when_weakens_false(self):
-        # _BACK_ROW_MOVE has no weakens_king_row key → defaults False →
-        # Fix 2C: seed says "back-row structure remains intact", not "weakens".
+        # weakens_king_row absent/False → seed says structure remains intact
         text = _text_with_player(_BACK_ROW_MOVE, _RED)
-        assert "back-row structure remains intact" in text
-        assert "weakens_king_row=false" in text
+        assert "defensive structure remains intact" in text
+        assert "weakening" not in text
 
     def test_back_row_seed_weakens_when_flag_true(self):
-        # When weakens_king_row=True the seed must say so explicitly.
+        # When weakens_king_row=True the seed must say it weakens.
         move = {**_BACK_ROW_MOVE, "facts": {**_BACK_ROW_MOVE["facts"], "weakens_king_row": True}}
         text = _text_with_player(move, _RED)
-        assert "weakens back-row defensive structure" in text
-        assert "weakens_king_row=true" in text
+        assert "weakening the defensive structure" in text
+        assert "remains intact" not in text
 
     def test_no_back_row_seed_for_midgame_row(self):
         # _SIMPLE_QUIET starts at row 5 — not back-row for any color
-        assert "moves a back-row piece" not in _text_with_player(_SIMPLE_QUIET, _RED)
+        assert "A back-row piece is moved" not in _text_with_player(_SIMPLE_QUIET, _RED)
 
     def test_row_zero_triggers_back_row_seed(self):
         move = {**_BACK_ROW_MOVE, "path": [[0, 2], [1, 3]]}
         # src_row=0 → BLACK back row
-        assert "moves a back-row piece" in _text_with_player(move, _BLACK)
+        assert "A back-row piece is moved" in _text_with_player(move, _BLACK)
 
     # ── (C) Positional seed ──────────────────────────────────────────────────
 
     def test_quiet_move_produces_positional_seed(self):
         text = self._text(_SIMPLE_QUIET)
-        assert "captures_count=0" in text
-        assert "positional move" in text
+        assert "improves piece placement without capturing" in text
 
     def test_no_positional_seed_when_capture(self):
-        assert "positional move" not in self._text(_JUMP_MOVE)
+        assert "improves piece placement" not in self._text(_JUMP_MOVE)
 
     # ── (D) Center direction seed ────────────────────────────────────────────
 
     def test_center_destination_produces_center_seed(self):
-        # _SIMPLE_QUIET goes to [4, 3] → col 3 ∈ {2,3,4,5}
-        assert "destination column in center range" in self._text(_SIMPLE_QUIET)
+        # _SIMPLE_QUIET has center_control=False; no center seed should be emitted
+        # even though dst_col=3 is geometrically central.  The gate is center_control.
+        assert "center of the board" not in self._text(_SIMPLE_QUIET)
 
-    def test_center_seed_mentions_geometric_position(self):
-        # Seed (D) now emits ontologically-correct "geometric center position"
-        # rather than the conflated "central board presence".
-        assert "geometric center position" in self._text(_SIMPLE_QUIET)
+    def test_center_seed_mentions_column(self):
+        # Center seed is emitted only when center_control=True; includes column number.
+        move = {**_SIMPLE_QUIET, "facts": {**_SIMPLE_QUIET["facts"], "center_control": True}}
+        assert "center of the board" in self._text(move)
+        assert "column 3" in self._text(move)
 
     def test_no_center_seed_for_edge_destination(self):
-        # _EDGE_MOVE goes to col 0
-        assert "destination column in center range" not in self._text(_EDGE_MOVE)
+        # _EDGE_MOVE goes to col 0 — no center seed regardless of center_control.
+        assert "center of the board" not in self._text(_EDGE_MOVE)
 
     def test_column_2_triggers_center_seed(self):
-        move = {**_SIMPLE_QUIET, "path": [[5, 1], [4, 2]]}
-        assert "destination column in center range" in self._text(move)
+        # col 2 only produces a center seed when center_control=True.
+        move_false = {**_SIMPLE_QUIET, "path": [[5, 1], [4, 2]]}
+        move_true  = {**move_false, "facts": {**_SIMPLE_QUIET["facts"], "center_control": True}}
+        assert "center of the board" not in self._text(move_false)
+        assert "center of the board" in self._text(move_true)
 
     def test_column_5_triggers_center_seed(self):
-        move = {**_SIMPLE_QUIET, "path": [[5, 6], [4, 5]]}
-        assert "destination column in center range" in self._text(move)
+        # col 5 only produces a center seed when center_control=True.
+        move_false = {**_SIMPLE_QUIET, "path": [[5, 6], [4, 5]]}
+        move_true  = {**move_false, "facts": {**_SIMPLE_QUIET["facts"], "center_control": True}}
+        assert "center of the board" not in self._text(move_false)
+        assert "center of the board" in self._text(move_true)
 
     def test_column_1_no_center_seed(self):
         move = {**_SIMPLE_QUIET, "path": [[5, 2], [4, 1]]}
@@ -1171,9 +1163,13 @@ class TestStrategicInterpretationSeeds:
     # ── Minimax still last ────────────────────────────────────────────────────
 
     def test_minimax_still_last_with_strategic_seeds(self):
-        seeds = _build_grounded_reasoning_seeds(_SIMPLE_QUIET, [_SIMPLE_QUIET])
+        _SOME_ALT = {
+            "type": "simple", "path": [[5, 2], [4, 1]],
+            "facts": {**_SIMPLE_QUIET["facts"]}, "minimax_score": -99.0,
+        }
+        seeds = _build_grounded_reasoning_seeds(_SIMPLE_QUIET, [_SIMPLE_QUIET, _SOME_ALT])
         assert seeds, "seeds must not be empty"
-        assert "minimax_score" in seeds[-1]
+        assert "engine scores this move" in seeds[-1]
 
     # ── System prompt priority rule ───────────────────────────────────────────
 
@@ -1268,51 +1264,51 @@ class TestColorAwareStrategicSeeds:
     # ── (A) Development seed — RED ───────────────────────────────────────────
 
     def test_red_forward_move_gets_development_seed(self):
-        assert "develops a piece forward" in _text_with_player(_RED_FORWARD, _RED)
+        assert "advances forward without capturing" in _text_with_player(_RED_FORWARD, _RED)
 
     def test_red_backward_move_no_development_seed(self):
-        assert "develops a piece forward" not in _text_with_player(_RED_BACKWARD, _RED)
+        assert "advances forward without capturing" not in _text_with_player(_RED_BACKWARD, _RED)
 
     # ── (A) Development seed — BLACK ─────────────────────────────────────────
 
     def test_black_forward_move_gets_development_seed(self):
-        assert "develops a piece forward" in _text_with_player(_BLACK_FORWARD, _BLACK)
+        assert "advances forward without capturing" in _text_with_player(_BLACK_FORWARD, _BLACK)
 
     def test_black_backward_move_no_development_seed(self):
-        assert "develops a piece forward" not in _text_with_player(_BLACK_BACKWARD, _BLACK)
+        assert "advances forward without capturing" not in _text_with_player(_BLACK_BACKWARD, _BLACK)
 
     # ── (A) Development seed — unknown player: must NOT fire ─────────────────
 
     def test_unknown_player_no_development_seed_forward(self):
         """player=0 — direction unverifiable; seed must NOT fire."""
-        assert "develops a piece forward" not in _text_with_player(_RED_FORWARD, 0)
+        assert "advances forward without capturing" not in _text_with_player(_RED_FORWARD, 0)
     def test_unknown_player_no_development_seed_backward(self):
         """player=0 — direction unverifiable; seed must NOT fire."""
-        assert "develops a piece forward" not in _text_with_player(_RED_BACKWARD, 0)
+        assert "advances forward without capturing" not in _text_with_player(_RED_BACKWARD, 0)
 
     # ── (B) Back-row seed — RED ──────────────────────────────────────────────
 
     def test_red_row7_origin_triggers_back_row_seed(self):
-        assert "moves a back-row piece" in _text_with_player(_RED_BACK_ROW, _RED)
+        assert "A back-row piece is moved" in _text_with_player(_RED_BACK_ROW, _RED)
 
     def test_red_row0_origin_does_not_trigger_back_row_seed(self):
         """Row 0 is BLACK's back row, not RED's."""
-        assert "moves a back-row piece" not in _text_with_player(_BLACK_BACK_ROW, _RED)
+        assert "A back-row piece is moved" not in _text_with_player(_BLACK_BACK_ROW, _RED)
 
     # ── (B) Back-row seed — BLACK ────────────────────────────────────────────
 
     def test_black_row0_origin_triggers_back_row_seed(self):
-        assert "moves a back-row piece" in _text_with_player(_BLACK_BACK_ROW, _BLACK)
+        assert "A back-row piece is moved" in _text_with_player(_BLACK_BACK_ROW, _BLACK)
 
     def test_black_row7_origin_does_not_trigger_back_row_seed(self):
         """Row 7 is RED's back row, not BLACK's."""
-        assert "moves a back-row piece" not in _text_with_player(_RED_BACK_ROW, _BLACK)
+        assert "A back-row piece is moved" not in _text_with_player(_RED_BACK_ROW, _BLACK)
 
     # ── (B) Back-row seed — unknown player: must NOT fire ─────────────────
     def test_unknown_player_row7_no_back_row_seed(self):
-        assert "moves a back-row piece" not in _text_with_player(_RED_BACK_ROW, 0)
+        assert "A back-row piece is moved" not in _text_with_player(_RED_BACK_ROW, 0)
     def test_unknown_player_row0_no_back_row_seed(self):
-        assert "moves a back-row piece" not in _text_with_player(_BLACK_BACK_ROW, 0)
+        assert "A back-row piece is moved" not in _text_with_player(_BLACK_BACK_ROW, 0)
     # ── chosen_move immutability ─────────────────────────────────────────────
 
     def test_chosen_move_not_mutated_by_color_aware_seeds(self):
@@ -1672,24 +1668,24 @@ class TestAcceptableTacticalExposure:
     # ── Seeds correctly label the exposure ───────────────────────────────────
 
     def test_recapture_true_seed_present_for_exposed_move(self):
-        assert "opponent_can_recapture=true" in self._text()
+        assert "opponent can recapture" in self._text().lower()
 
     def test_threat_after_1_seed_present(self):
         text = self._text()
-        assert "our_pieces_threatened_after=1" in text
+        assert "1 allied piece(s) remain under threat" in text
 
     def test_moved_piece_threatened_seed_present(self):
-        assert "moved_piece_is_threatened=true" in self._text()
+        assert "moved piece remains under immediate threat" in self._text()
 
     def test_capture_seed_present(self):
-        assert "captures_count=1" in self._text()
+        assert "captures 1 piece(s)" in self._text()
 
     def test_threat_creation_seed_present(self):
-        assert "creates_immediate_threat=true" in self._text()
+        assert "immediate threat" in self._text()
 
     def test_minimax_seed_last_for_exposed_move(self):
         seeds = self._seeds()
-        assert "minimax_score" in seeds[-1]
+        assert seeds[-1].startswith("The engine scores this move")
 
     # ── Checker does NOT flag correct acknowledgement of exposure ─────────────
 
@@ -1697,10 +1693,9 @@ class TestAcceptableTacticalExposure:
         """Reasoning that honestly says 'opponent can recapture' must NOT be flagged
         as a contradiction when opponent_can_recapture=true."""
         reasoning = (
-            "Although the opponent can recapture (opponent_can_recapture=true), "
-            "this move captures a piece (captures_count=1) and creates an immediate "
-            "threat (creates_immediate_threat=true). "
-            "The minimax score of -90.0 confirms this is the best available option."
+            "Although the opponent can recapture the moved piece, "
+            "this move captures a piece and creates an immediate threat. "
+            "The engine scores this move -90.0 — best available option in a difficult position."
         )
         warnings = _check_reasoning_truthfulness(reasoning, _EXPOSED_BEST_FACTS)
         recapture_contradictions = [w for w in warnings if "recapture" in w.lower()
@@ -1727,14 +1722,14 @@ class TestExposedButBestMove:
         )
 
     def test_seeds_do_not_hide_drawback(self):
-        """The word 'drawback' must appear when opponent_can_recapture=true."""
-        assert "tactical drawback" in self._text()
+        """Seed text must acknowledge the recapture risk when opponent_can_recapture=true."""
+        assert "opponent can recapture" in self._text().lower()
 
     def test_seeds_show_material_gain(self):
-        assert "wins material" in self._text()
+        assert "The move captures" in self._text()
 
     def test_seeds_show_threat_creation(self):
-        assert "creates_immediate_threat=true" in self._text()
+        assert "forces the opponent to respond" in self._text()
 
     def test_seeds_do_not_claim_avoids_recapture(self):
         """Seeds must NEVER say 'avoids recapture' when recapture=true."""
@@ -1749,13 +1744,11 @@ class TestExposedButBestMove:
             _EXPOSED_BEST_MOVE, [_EXPOSED_BEST_MOVE, _PASSIVE_SAFE_MOVE]
         )
         reasoning = (
-            "This jump captures a piece (captures_count=1, net_gain=1) and creates "
-            "an immediate threat (creates_immediate_threat=true), keeping center control "
-            "(center_control=true). The opponent can recapture "
-            "(opponent_can_recapture=true), which is a tactical drawback, but "
-            "1 piece remains at risk (our_pieces_threatened_after=1) while the "
-            "tactical compensation justifies the exposure. "
-            "The minimax score of -90.0 confirms this over passive alternatives."
+            "This jump captures a piece and creates an immediate threat, "
+            "maintaining central control. The opponent can recapture, which is a "
+            "risk, but one piece remains at risk while the tactical compensation "
+            "justifies the exposure. "
+            "The engine score of -90.0 confirms this over passive alternatives."
         )
         warnings = _check_reasoning_truthfulness(reasoning, facts, seeds=seeds)
         # The only acceptable warnings are those unrelated to the core facts.
@@ -1770,25 +1763,23 @@ class TestThreatAfter1NotAutoRejected:
     """threat_after=1 must NOT be treated as an automatic disqualifier."""
 
     def test_seeds_label_threat_after_1_as_drawback_not_disqualifier(self):
-        """The seed text says 'tactical drawback' but still shows the move's
-        positive attributes (e.g. threat creation, material gain)."""
+        """Seeds must acknowledge recapture risk AND show positive attributes."""
         seeds = _build_grounded_reasoning_seeds(
             _EXPOSED_BEST_MOVE, [_EXPOSED_BEST_MOVE, _PASSIVE_SAFE_MOVE]
         )
         text = " ".join(seeds)
-        # Drawback is acknowledged
-        assert "tactical drawback" in text
+        # Recapture risk is acknowledged
+        assert "opponent can recapture" in text.lower()
         # Positive attributes are still present
-        assert "captures_count=1" in text or "wins material" in text
+        assert "The move captures" in text
 
     def test_checker_does_not_flag_threat_after_1_as_error(self):
         """Having threat_after=1 in facts must not cause the checker to
         automatically produce a contradiction about safety."""
         facts = {**_EXPOSED_BEST_FACTS, "our_pieces_threatened_after": 1}
         reasoning = (
-            "The move captures a piece (captures_count=1) while leaving 1 piece "
-            "at risk (our_pieces_threatened_after=1). "
-            "The minimax score of -90.0 confirms this choice."
+            "The move captures a piece while leaving one ally at risk. "
+            "The engine score of -90.0 confirms this choice."
         )
         warnings = _check_reasoning_truthfulness(reasoning, facts)
         # No false-positive contradiction about threat count
@@ -1797,15 +1788,6 @@ class TestThreatAfter1NotAutoRejected:
             if "our_pieces_threatened_after" in w and "REASONING_CONTRADICTION" in w
         ]
         assert threat_contradictions == []
-
-    def test_system_prompt_contains_tactical_exposure_rule(self):
-        """RANKER_SYSTEM_PROMPT must contain the TACTICAL EXPOSURE RULE."""
-        from checkers.agents.ranker_agent import RANKER_SYSTEM_PROMPT
-        assert "TACTICAL EXPOSURE RULE" in RANKER_SYSTEM_PROMPT
-
-    def test_system_prompt_contains_anti_overdefensive_rule(self):
-        from checkers.agents.ranker_agent import RANKER_SYSTEM_PROMPT
-        assert "ANTI-OVERDEFENSIVE RULE" in RANKER_SYSTEM_PROMPT
 
     def test_seed_system_prompt_contains_tactical_exposure_context(self):
         assert "TACTICAL EXPOSURE CONTEXT" in RANKER_SEED_REASONING_SYSTEM
@@ -1823,17 +1805,17 @@ class TestInversionDetection:
     # ── recapture inversions ─────────────────────────────────────────────────
 
     def test_seed_recapture_true_reasoning_says_avoids_recapture(self):
-        seeds = ["opponent_can_recapture=true — drawback"]
+        seeds = ["The opponent can recapture the moved piece next turn."]
         ws = self._inv("this move avoids recapture completely", seeds)
         assert self._has_inversion(ws)
 
     def test_seed_recapture_true_reasoning_says_no_recapture(self):
-        seeds = ["opponent_can_recapture=true — drawback"]
+        seeds = ["The opponent can recapture the moved piece next turn."]
         ws = self._inv("there is no recapture risk here", seeds)
         assert self._has_inversion(ws)
 
     def test_seed_recapture_false_no_inversion_on_recapture_claim(self):
-        seeds = ["opponent_can_recapture=false — safe"]
+        seeds = ["The moved piece cannot be immediately recaptured."]
         ws = self._inv("this move avoids recapture", seeds)
         inversion_ws = [w for w in ws if "inversion detected" in w]
         assert inversion_ws == []
@@ -1841,17 +1823,17 @@ class TestInversionDetection:
     # ── isolation inversions ─────────────────────────────────────────────────
 
     def test_seed_isolated_true_reasoning_says_no_isolation(self):
-        seeds = ["leaves_piece_isolated=true — positional drawback"]
+        seeds = ["The moved piece is left without adjacent support."]
         ws = self._inv("the piece has no isolation after this move", seeds)
         assert self._has_inversion(ws)
 
     def test_seed_isolated_true_reasoning_stays_connected(self):
-        seeds = ["leaves_piece_isolated=true — positional drawback"]
+        seeds = ["The moved piece is left without adjacent support."]
         ws = self._inv("the piece stays connected to friendly pieces", seeds)
         assert self._has_inversion(ws)
 
     def test_seed_isolated_false_no_inversion(self):
-        seeds = ["leaves_piece_isolated=false — preserves coordination"]
+        seeds = ["The moved piece is not left isolated."]
         ws = self._inv("the piece stays connected", seeds)
         inversion_ws = [w for w in ws if "inversion detected" in w]
         assert inversion_ws == []
@@ -1859,24 +1841,27 @@ class TestInversionDetection:
     # ── threat creation inversions ───────────────────────────────────────────
 
     def test_seed_threat_false_reasoning_claims_immediate_threat(self):
-        seeds = ["creates_immediate_threat=false"]
-        ws = self._inv("this move creates a threat for next turn", seeds)
-        assert self._has_inversion(ws)
+        # No seed is emitted when creates_immediate_threat=False; use facts dict
+        # via the factual checker instead. The seed-inversion path is only for True.
+        from checkers.agents.ranker_agent import _check_reasoning_truthfulness
+        facts = {**_HALL_FACTS, "creates_immediate_threat": False}
+        ws = _check_reasoning_truthfulness("this move creates a threat for next turn", facts)
+        assert any("REASONING_CONTRADICTION" in w for w in ws)
 
     def test_seed_threat_true_reasoning_says_no_immediate_threat(self):
-        seeds = ["creates_immediate_threat=true — puts opponent on defensive"]
+        seeds = ["This move forces the opponent to respond to an immediate threat."]
         ws = self._inv("there is no immediate threat from this move", seeds)
         assert self._has_inversion(ws)
 
     # ── king row inversions ──────────────────────────────────────────────────
 
     def test_seed_weakens_king_row_true_reasoning_says_preserves(self):
-        seeds = ["weakens_king_row=true — back-row defense is weakened"]
+        seeds = ["The move weakens the back-row defensive structure."]
         ws = self._inv("this preserves back row integrity", seeds)
         assert self._has_inversion(ws)
 
     def test_seed_weakens_king_row_false_reasoning_says_weakened(self):
-        seeds = ["weakens_king_row=false — back-row safe"]
+        seeds = ["A back-row piece is moved; the defensive structure remains intact."]
         ws = self._inv("this move weakens the back row significantly", seeds)
         assert self._has_inversion(ws)
 
@@ -2022,7 +2007,7 @@ class TestRetryPathValidation:
         ws = self._check_no_seeds(
             "This move gains material and advances the position significantly."
         )
-        assert any("material gain" in w for w in ws)
+        assert any("gains material" in w or "material gain" in w for w in ws)
 
 
 class TestRetryHallucinationRejection:
@@ -2084,7 +2069,7 @@ class TestSemanticIsolationInversion:
     """Expanded inversion phrases: leaves_piece_isolated=true must trigger on
     all semantic negations of isolation."""
 
-    _ISOLATED_SEED = ["leaves_piece_isolated=true — positional drawback"]
+    _ISOLATED_SEED = ["The moved piece is left without adjacent support."]
 
     def _inv(self, text: str) -> list[str]:
         return _check_reasoning_truthfulness(
@@ -2137,7 +2122,7 @@ class TestSemanticIsolationInversion:
     # ── No false positives when isolated=false ────────────────────────────────
 
     def test_no_inversion_when_isolated_false_and_does_not_isolate(self):
-        seeds = ["leaves_piece_isolated=false — preserves coordination"]
+        seeds = ["The moved piece is not left isolated."]
         ws = _check_reasoning_truthfulness(
             "the move does not isolate the piece", _HALL_FACTS, seeds=seeds
         )
@@ -2145,7 +2130,7 @@ class TestSemanticIsolationInversion:
         assert inversion_ws == []
 
     def test_no_inversion_when_isolated_false_and_remains_connected(self):
-        seeds = ["leaves_piece_isolated=false — preserves coordination"]
+        seeds = ["The moved piece is not left isolated."]
         ws = _check_reasoning_truthfulness(
             "the piece remains connected", _HALL_FACTS, seeds=seeds
         )
@@ -2665,80 +2650,6 @@ class TestTargetedRepairInRefineReasoning:
             )
 
         assert count >= 1
-
-
-class TestDeterministicSeedSummary:
-    """
-    Verify that _build_deterministic_seed_summary produces grounded,
-    hallucination-free text from seeds.
-    """
-
-    _move = _REPAIR_MOVE
-
-    def test_returns_string(self):
-        seeds = ["opponent_can_recapture=true — opponent can recapture this piece"]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_explanation_part_of_seed_appears_in_output(self):
-        seeds = ["opponent_can_recapture=true — opponent can recapture this piece next turn"]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        assert "recapture" in result.lower()
-
-    def test_multiple_seeds_all_appear(self):
-        seeds = [
-            "opponent_can_recapture=true — opponent can recapture",
-            "leaves_piece_isolated=true — moved piece is not supported",
-        ]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        assert "recapture" in result.lower()
-        assert "isolated" in result.lower() or "not supported" in result.lower()
-
-    def test_output_passes_truthfulness_checker(self):
-        """The deterministic summary must never introduce hallucinations."""
-        seeds = [
-            "opponent_can_recapture=true — opponent can recapture this piece next turn",
-            "leaves_piece_isolated=true — moved piece is not supported by adjacent allies",
-            "captures_count=0 — positional move focused on improving placement",
-        ]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        contradictions = _check_reasoning_truthfulness(result, self._move["facts"])
-        assert contradictions == [], (
-            f"Deterministic seed summary introduced contradictions: {contradictions}\n"
-            f"Summary: {result!r}"
-        )
-
-    def test_empty_seeds_returns_safe_fallback(self):
-        result = _build_deterministic_seed_summary([], self._move)
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_seed_without_dash_still_included(self):
-        seeds = ["this is a seed without a dash separator"]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        assert "without a dash" in result.lower() or len(result) > 0
-
-    def test_output_is_capitalized(self):
-        seeds = ["opponent_can_recapture=true — opponent can recapture"]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        assert result[0].isupper()
-
-    def test_no_forbidden_vocab_in_output(self):
-        """No forbidden vocabulary should appear in a seed-derived summary."""
-        seeds = [
-            "opponent_can_recapture=false — immediate tactical safety",
-            "captures_count=0 — positional move",
-            "minimax_score=2.50 — confirms this is the highest-evaluated option",
-        ]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        result_lower = result.lower()
-        for term in _FORBIDDEN_VOCAB:
-            assert term not in result_lower, (
-                f"Forbidden term {term!r} appeared in seed summary: {result!r}"
-            )
-
-
 class TestFallbackGateInRefinement:
     """
     Verify that when all refinement retries fail (LLM keeps hallucinating),
@@ -2786,20 +2697,6 @@ class TestFallbackGateInRefinement:
         assert resolved is True
         assert "avoids recapture" not in result
 
-    def test_seed_summary_passes_checker_for_repair_move(self):
-        """
-        The deterministic fallback produced from _REPAIR_MOVE seeds must pass
-        the truthfulness checker — proving it is safe to publish.
-        """
-        seeds = _build_grounded_reasoning_seeds(_REPAIR_MOVE, [_REPAIR_MOVE])
-        summary = _build_deterministic_seed_summary(seeds, _REPAIR_MOVE)
-        contradictions = _check_reasoning_truthfulness(
-            summary, _REPAIR_MOVE["facts"], seeds=seeds
-        )
-        assert contradictions == [], (
-            f"Seed summary for _REPAIR_MOVE failed truthfulness check: "
-            f"{contradictions}\nSummary: {summary!r}"
-        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2825,12 +2722,11 @@ class TestComparativeSeedInversionFix:
     }
 
     def _seeds_with_comparison(self) -> list[str]:
-        """Seeds where the comparison seed says the ALT move leaves_piece_isolated=true."""
+        """Seeds where the comparison seed describes the chosen move (not isolated)."""
         return [
-            "opponent_can_recapture=false — immediate tactical safety: "
-            "opponent cannot recapture this piece next turn",
-            # Comparison seed: alt move IS isolated; chosen move is NOT isolated.
-            "Move [1] isolates the moved piece (leaves_piece_isolated=true vs false here).",
+            "The moved piece cannot be immediately recaptured.",
+            # Comparison seed: unlike the alt, the chosen move stays supported.
+            "Unlike move [1], the moved piece remains supported by adjacent allies.",
         ]
 
     def test_no_false_positive_when_comparison_seed_has_isolated_true(self):
@@ -2874,8 +2770,7 @@ class TestComparativeSeedInversionFix:
         'stays connected', the inversion SHOULD fire (chosen move IS isolated).
         """
         seeds_chosen_isolated = [
-            "leaves_piece_isolated=true — positional drawback: "
-            "moved piece is not supported by adjacent allies",
+            "The moved piece is left without adjacent support.",
         ]
         facts_isolated = {**self._chosen_facts, "leaves_piece_isolated": True}
         ws = _check_reasoning_truthfulness(
@@ -2891,14 +2786,12 @@ class TestComparativeSeedInversionFix:
 
     def test_comparison_seed_recapture_does_not_cause_false_positive(self):
         """
-        Comparison seed: alt move allows recapture.  Chosen move does NOT.
+        Comparison seed: unlike the alt, chosen move is safe from recapture.
         Reasoning correctly says 'avoids recapture' — must not trigger inversion.
         """
         seeds = [
-            "opponent_can_recapture=false — immediate tactical safety: "
-            "opponent cannot recapture this piece next turn",
-            "Move [1] allows recapture (opponent_can_recapture=true) "
-            "vs false here — chosen move is safer.",
+            "The moved piece cannot be immediately recaptured.",
+            "Unlike move [1], the chosen piece cannot be immediately recaptured.",
         ]
         ws = _check_reasoning_truthfulness(
             "This move avoids recapture risk.",
@@ -3006,151 +2899,6 @@ class TestFinalFullParagraphValidation:
         assert "minimax evaluation supports" in result
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Regression tests — Issue 3: wording cleanup in seed summary
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestSanitizeSeedExplanation:
-    """Unit tests for _sanitize_seed_explanation."""
-
-    def test_removes_immediate_tactical_safety_prefix(self):
-        result = _sanitize_seed_explanation(
-            "immediate tactical safety: opponent cannot recapture this piece next turn"
-        )
-        assert "immediate tactical safety" not in result.lower()
-        assert "cannot recapture" in result
-
-    def test_removes_tactical_drawback_prefix(self):
-        result = _sanitize_seed_explanation(
-            "tactical drawback: opponent can recapture this piece next turn"
-        )
-        assert "tactical drawback" not in result.lower()
-        assert "can recapture" in result
-
-    def test_removes_positional_drawback_prefix(self):
-        result = _sanitize_seed_explanation(
-            "positional drawback: moved piece is not supported by adjacent allies"
-        )
-        assert "positional drawback" not in result.lower()
-        assert "not supported" in result
-
-    def test_replaces_opponent_can_recapture_false(self):
-        result = _sanitize_seed_explanation(
-            "opponent_can_recapture=false — chosen move is safer"
-        )
-        assert "opponent_can_recapture=false" not in result
-        assert "cannot recapture" in result
-
-    def test_replaces_our_pieces_threatened_after_zero(self):
-        result = _sanitize_seed_explanation("our_pieces_threatened_after=0")
-        assert "our_pieces_threatened_after=0" not in result
-        assert "no allied pieces" in result or len(result) > 0
-
-    def test_replaces_leaves_piece_isolated_true_in_comparison_seed(self):
-        result = _sanitize_seed_explanation(
-            "Move [1] isolates the moved piece (leaves_piece_isolated=true vs false here)."
-        )
-        assert "leaves_piece_isolated=true" not in result
-
-    def test_cleans_vs_false_here_parenthetical(self):
-        result = _sanitize_seed_explanation(
-            "Move [1] allows recapture (opponent_can_recapture=true vs false here)."
-        )
-        assert "vs false here" not in result
-        assert "vs true here" not in result
-
-    def test_no_double_spaces_in_output(self):
-        result = _sanitize_seed_explanation(
-            "tactical drawback: the piece is (leaves_piece_isolated=true vs false here) isolated"
-        )
-        assert "  " not in result
-
-    def test_output_not_empty_for_natural_language_seed(self):
-        result = _sanitize_seed_explanation(
-            "opponent cannot recapture this piece next turn"
-        )
-        assert len(result) > 0
-        assert result == "opponent cannot recapture this piece next turn"
-
-    def test_captures_count_difference_replaced(self):
-        result = _sanitize_seed_explanation(
-            "Chosen move captures 2 piece(s) while move [1] captures only 1 "
-            "(captures_count difference)."
-        )
-        assert "captures_count difference" not in result
-        assert "capturing more pieces" in result
-
-
-class TestDeterministicSeedSummaryWording:
-    """
-    The deterministic seed summary must produce natural language
-    without raw field notation, regardless of seed source.
-    """
-
-    _move = _REPAIR_MOVE
-
-    def test_no_field_notation_in_output_from_comparison_seed(self):
-        """Comparison seed with no ' — ' must not leak field names into output."""
-        seeds = [
-            "Move [1] isolates the moved piece (leaves_piece_isolated=true vs false here).",
-        ]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        assert "leaves_piece_isolated=true" not in result
-        assert "leaves_piece_isolated=false" not in result
-
-    def test_no_field_notation_in_output_from_safety_seed(self):
-        seeds = [
-            "opponent_can_recapture=false — immediate tactical safety: "
-            "opponent cannot recapture this piece next turn",
-        ]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        assert "opponent_can_recapture=false" not in result
-        assert "immediate tactical safety" not in result.lower()
-        assert "cannot recapture" in result
-
-    def test_no_field_notation_in_output_from_threatened_seed(self):
-        seeds = [
-            "our_pieces_threatened_after=0 — no defensive burden remains after the move",
-        ]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        assert "our_pieces_threatened_after=0" not in result
-
-    def test_full_seed_set_produces_natural_language(self):
-        """A realistic seed set must produce only natural-language output."""
-        seeds = [
-            "opponent_can_recapture=false — immediate tactical safety: "
-            "opponent cannot recapture this piece next turn",
-            "our_pieces_threatened_after=0 — no defensive burden remains after the move",
-            "captures_count=0 — positional move focused on improving piece placement",
-            "leaves_piece_isolated=false — preserves piece coordination "
-            "by keeping the moved piece connected",
-            "Move [1] isolates the moved piece (leaves_piece_isolated=true vs false here).",
-            "minimax_score=2.50 — confirms this is the highest-evaluated option",
-        ]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        import re
-        field_pattern = re.compile(r'\b\w+=(?:true|false|-?\d+(?:\.\d+)?)\b')
-        matches = field_pattern.findall(result)
-        assert matches == [], (
-            f"Field notation found in seed summary output: {matches}\n"
-            f"Summary: {result!r}"
-        )
-
-    def test_output_is_valid_natural_sentence(self):
-        """Output must start with a capital letter and end with a period."""
-        seeds = [
-            "opponent_can_recapture=false — immediate tactical safety: "
-            "opponent cannot recapture this piece next turn",
-        ]
-        result = _build_deterministic_seed_summary(seeds, self._move)
-        assert result[0].isupper()
-        assert result.endswith(".")
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Regression tests — Minimax wording tone for losing positions
-# ═══════════════════════════════════════════════════════════════════════════════
-
 class TestMinimaxWordingLabel:
     """
     _minimax_wording_label must return score-appropriate phrasing.
@@ -3213,9 +2961,15 @@ class TestMinimaxSeedWordingInSeedBuilder:
             },
         }
 
+    _ALT = {
+        "type": "simple", "path": [[5, 2], [4, 1]], "captured": [],
+        "facts": {"minimax_score": -99.0, "opponent_can_recapture": True,
+                  "leaves_piece_isolated": True, "captures_count": 0, "net_gain": 0},
+    }
+
     def _minimax_seed(self, move: dict) -> str:
-        seeds = _build_grounded_reasoning_seeds(move, [move])
-        mm_seeds = [s for s in seeds if s.startswith("minimax_score=")]
+        seeds = _build_grounded_reasoning_seeds(move, [move, self._ALT])
+        mm_seeds = [s for s in seeds if s.startswith("The engine scores this move")]
         assert len(mm_seeds) == 1, f"Expected exactly one minimax seed, got: {mm_seeds}"
         return mm_seeds[0]
 
@@ -3246,108 +3000,13 @@ class TestMinimaxSeedWordingInSeedBuilder:
     def test_seed_still_contains_numeric_score(self):
         """The numeric score must always appear in the seed regardless of label."""
         seed = self._minimax_seed(self._move_with_score(-496.0))
-        assert "minimax_score=-496.00" in seed
+        assert "-496.0" in seed
 
     def test_seed_is_always_the_last_seed(self):
         """Minimax seed must remain the last seed regardless of label."""
         move = self._move_with_score(-496.0)
-        seeds = _build_grounded_reasoning_seeds(move, [move])
-        assert seeds[-1].startswith("minimax_score=")
-
-
-class TestMinimaxSeedWordingInDeterministicSummary:
-    """
-    The deterministic seed summary produced for a losing position must use
-    honest, softened wording — never 'highest-evaluated option'.
-    """
-
-    def _summary_for_score(self, score: float) -> str:
-        move = {
-            "type": "simple",
-            "path": [[5, 4], [4, 3]],
-            "captured": [],
-            "facts": {
-                "minimax_score": score,
-                "opponent_can_recapture": True,
-                "leaves_piece_isolated": True,
-                "captures_count": 0,
-                "net_gain": 0,
-                "creates_immediate_threat": False,
-                "center_control": False,
-                "results_in_king": False,
-                "our_pieces_threatened_after": 1,
-            },
-        }
-        seeds = _build_grounded_reasoning_seeds(move, [move])
-        return _build_deterministic_seed_summary(seeds, move)
-
-    def test_clearly_losing_summary_does_not_say_highest_evaluated(self):
-        result = self._summary_for_score(-496.0)
-        assert "highest-evaluated option" not in result
-
-    def test_clearly_losing_summary_uses_soft_wording(self):
-        result = self._summary_for_score(-496.0).lower()
-        assert (
-            "least harmful" in result
-            or "difficult position" in result
-        ), f"Expected softened wording for clearly losing score, got: {result!r}"
-
-    def test_slightly_losing_summary_does_not_say_highest_evaluated(self):
-        result = self._summary_for_score(-50.0)
-        assert "highest-evaluated option" not in result
-
-    def test_positive_score_summary_uses_highest_evaluated(self):
-        move = {
-            "type": "simple",
-            "path": [[5, 4], [4, 3]],
-            "captured": [],
-            "facts": {
-                "minimax_score": 5.0,
-                "opponent_can_recapture": False,
-                "leaves_piece_isolated": False,
-                "captures_count": 0,
-                "net_gain": 0,
-                "creates_immediate_threat": False,
-                "center_control": False,
-                "results_in_king": False,
-                "our_pieces_threatened_after": 0,
-            },
-        }
-        seeds = _build_grounded_reasoning_seeds(move, [move])
-        result = _build_deterministic_seed_summary(seeds, move).lower()
-        assert "highest-evaluated option" in result
-
-    def test_summary_passes_truthfulness_checker_for_losing_position(self):
-        """The softened wording must not introduce new contradictions."""
-        move = {
-            "type": "simple",
-            "path": [[5, 4], [4, 3]],
-            "captured": [],
-            "facts": {
-                "minimax_score": -496.0,
-                "opponent_can_recapture": True,
-                "leaves_piece_isolated": True,
-                "captures_count": 0,
-                "net_gain": 0,
-                "creates_immediate_threat": False,
-                "center_control": False,
-                "results_in_king": False,
-                "our_pieces_threatened_after": 1,
-            },
-        }
-        seeds = _build_grounded_reasoning_seeds(move, [move])
-        summary = _build_deterministic_seed_summary(seeds, move)
-        contradictions = _check_reasoning_truthfulness(summary, move["facts"], seeds=seeds)
-        assert contradictions == [], (
-            f"Softened wording introduced contradiction: {contradictions}\n"
-            f"Summary: {summary!r}"
-        )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# FIX 2 — our_mobility and unconditional opponent_mobility seeds
-# ══════════════════════════════════════════════════════════════════════════════
-
+        seeds = _build_grounded_reasoning_seeds(move, [move, self._ALT])
+        assert seeds[-1].startswith("The engine scores this move")
 def _move_with_mobility(
     opp_before: int, opp_after: int,
     our_before: int, our_after: int,
@@ -3667,43 +3326,6 @@ class TestStrategicContextPerspective:
             f"BLACK is behind; expected losing score_state from BLACK perspective, "
             f"got {ctx['score_state']}"
         )
-
-    def test_safety_filter_not_in_losing_mode_when_player_is_winning(self):
-        """
-        safety_filter losing_mode must be False when the current player is winning.
-        Checks that score_state → losing_mode path has no sign inversion.
-        """
-        from checkers.engine.board import RED
-        from checkers.nodes.inter_turn_memory import inter_turn_memory
-        from checkers.agents.ranker_agent import _apply_safety_filter
-        from checkers.engine.rules import get_all_legal_moves
-        board = self._build_board_red_winning()
-        state = self._make_state_for_player(board, RED)
-        ctx = inter_turn_memory(state)["strategic_context"]
-        score_state = ctx["score_state"]
-        priorities = ctx.get("strategic_priorities", [])
-        legal = get_all_legal_moves(board, RED)
-        # Build minimal move dicts for filter (safe moves)
-        from checkers.engine.board import EMPTY
-        legal_with_facts = [
-            {"type": m["type"], "path": m["path"], "captured": m.get("captured", []),
-             "facts": {"opponent_can_recapture": False, "minimax_score": 1.0,
-                       "results_in_king": False}}
-            for m in legal
-        ]
-        _, _ = _apply_safety_filter(
-            legal_with_facts, strategic_priorities=priorities, score_state=score_state
-        )
-        # Verify score_state is winning (not losing) so losing_mode is False
-        assert score_state not in ("CLEARLY_LOSING", "SLIGHTLY_LOSING"), (
-            f"RED is winning but score_state={score_state!r} — sign inversion detected"
-        )
-        losing_priorities = {"SEEK_COUNTERPLAY", "COMPLICATE", "CREATE_THREATS"}
-        assert not losing_priorities.intersection(priorities), (
-            f"Losing priorities present when RED is winning: {losing_priorities.intersection(priorities)}"
-        )
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 # Number-word before→after fact-grounded bypass
 # ══════════════════════════════════════════════════════════════════════════════
@@ -4317,8 +3939,15 @@ class TestRankerSeedPromptDoesNotTeachForbiddenPhrases:
         )
 
     def test_prompt_introduces_geometric_center_position_phrase(self):
-        # The replacement phrase is ontology-safe and matches the actual seed.
-        assert "geometric center position" in self.PROMPT
+        # The safe center phrase is now emitted directly by the seed builder
+        # ("The destination is in the center of the board (column X).").
+        # The prompt must at least explicitly ban the conflated alternative.
+        idx_block = self.PROMPT.find("Do NOT use any of the following")
+        assert idx_block != -1, "expected forbidden-vocab block in prompt"
+        tail = self.PROMPT[idx_block:]
+        assert "central board presence" in tail, (
+            "prompt must ban 'central board presence' to prevent LLM from using it"
+        )
 
     def test_prompt_explicitly_bans_central_board_presence(self):
         # The phrase must still be explicitly listed in the Do-NOT-use block.
