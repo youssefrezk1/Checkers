@@ -1,4 +1,4 @@
-# checkers/agents/update_agent.py
+# checkers/agents/updater_agent.py
 #
 # Simplified-pipeline composite end-of-turn node.
 #
@@ -14,7 +14,7 @@
 # skipped (defensive guard on state.chosen_move) and win_condition is
 # invoked on the unmodified board. It correctly identifies the loser
 # because current_player has not yet been switched. chosen_move is owned
-# entirely by deterministic_proposal_node — ranker_agent never assigns it.
+# entirely by proposer_agent — explainer_agent never assigns it.
 #
 # Player perspective after Phase A
 # ─────────────────────────────────
@@ -41,7 +41,7 @@ def updater_agent(state: CheckersState) -> dict:
 
     Evaluation-field lifecycle
     ──────────────────────────
-    chosen_move_facts is captured by ranker_agent (a read-only mirror of
+    chosen_move_facts is captured by explainer_agent (a read-only mirror of
     the proposal-chosen move's facts) and CLEARED by state_manager. To
     let logger_node (Phase C) export it for the evaluation-source JSONL,
     we snapshot it here before Phase A runs, then restore it only in a

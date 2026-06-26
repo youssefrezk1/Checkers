@@ -3,10 +3,10 @@ checkers/baseline_eval/reasoning_checker.py
 
 Strengthened reasoning truthfulness checker for baseline_eval diagnostics.
 
-Wraps ranker_agent._check_reasoning_truthfulness (confirmed pure function,
+Wraps explainer_agent._check_reasoning_truthfulness (confirmed pure function,
 safe to import at 0.20 s) and adds baseline-eval-specific extensions:
 
-  1. Full ranker-agent check suite — fact-dependent contradiction checks
+  1. Full explainer-agent check suite — fact-dependent contradiction checks
      (mobility, recapture, isolation, center, capture/material, promotion,
      block-landing, forbidden vocabulary, numeric pattern detection).
      Called with seeds=None since baseline-eval LLMs never receive seeds.
@@ -56,7 +56,7 @@ import re
 from typing import Any, Optional
 
 # Safe import: pure function, no side effects, no network calls.
-from checkers.agents.ranker_agent import _check_reasoning_truthfulness
+from checkers.agents.explainer_agent import _check_reasoning_truthfulness
 
 # ── Baseline-specific forbidden metric names ──────────────────────────────────
 # Never exposed to any baseline-eval LLM prompt.

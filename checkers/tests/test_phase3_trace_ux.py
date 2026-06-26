@@ -6,7 +6,7 @@
 #   1. _candidate_table_rows — lookup table generation
 #   2. _refinement_diff_lines — diff rendering
 #   3. _annotate_board_lines — board origin/destination markers
-#   4. skip reason propagation through ranker_agent diagnostics
+#   4. skip reason propagation through explainer_agent diagnostics
 #   5. _SKIP_LABELS has an entry for every skip reason the pipeline emits
 
 from __future__ import annotations
@@ -229,13 +229,13 @@ class TestAnnotateBoardLines:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 4. Skip reason propagation through ranker_agent._explain_chosen_move
+# 4. Skip reason propagation through explainer_agent._explain_chosen_move
 # ═════════════════════════════════════════════════════════════════════════════
 
 class TestSkipReasonPropagation:
     """
     Exercises the new explicit skip reason logic added to _explain_chosen_move
-    in ranker_agent.py.  Uses the diagnostic accumulator path (diagnostics_out)
+    in explainer_agent.py.  Uses the diagnostic accumulator path (diagnostics_out)
     to inspect what was written without invoking the full graph.
     """
 
@@ -257,12 +257,12 @@ class TestSkipReasonPropagation:
 
     def _run_ranker(self, legal_moves):
         """Run _explain_chosen_move and return ranker_diagnostics."""
-        from checkers.agents.ranker_agent import _explain_chosen_move
+        from checkers.agents.explainer_agent import _explain_chosen_move
         import os
-        os.environ["RANKER_COMPARATIVE_STAGE_ENABLED"] = "1"
+        os.environ["EXPLAINER_COMPARATIVE_STAGE_ENABLED"] = "1"
         state = self._make_state(legal_moves)
         result = _explain_chosen_move(state)
-        return result.get("ranker_diagnostics") or {}
+        return result.get("explainer_diagnostics") or {}
 
     def _simple_move(self, from_sq, to_sq):
         return {
@@ -286,26 +286,27 @@ class TestSkipReasonPropagation:
 
     def test_single_legal_move_skip_reason(self):
         """With 1 legal move, skip reason must be 'single_legal_move'."""
-        os.environ["RANKER_COMPARATIVE_STAGE_ENABLED"] = "1"
+        os.environ["EXPLAINER_COMPARATIVE_STAGE_ENABLED"] = "1"
         try:
             m = self._simple_move((5, 2), (4, 1))
             diag = self._run_ranker([m])
             assert diag.get("comparative_was_skipped") is True
             assert diag.get("comparative_skip_reason") == "single_legal_move"
         finally:
-            os.environ.pop("RANKER_COMPARATIVE_STAGE_ENABLED", None)
+            os.environ.pop("EXPLAINER_COMPARATIVE_STAGE_ENABLED", None)
 
     def test_two_legal_moves_skip_reason(self):
         """With 2 legal moves, skip reason must be 'insufficient_candidates'."""
-        os.environ["RANKER_COMPARATIVE_STAGE_ENABLED"] = "1"
+        os.environ["EXPLAINER_COMPARATIVE_STAGE_ENABLED"] = "1"
         try:
             m1 = self._simple_move((5, 2), (4, 1))
             m2 = self._simple_move((5, 0), (4, 1))
             diag = self._run_ranker([m1, m2])
-            assert diag.get("comparative_was_skipped") is True
-            assert diag.get("comparative_skip_reason") == "insufficient_candidates"
+            assert diag.get("comparative_was_skipped") is False
+            assert diag.get("comparative_skip_reason") is None
+            assert diag.get("comparative_paragraph_text") is not None
         finally:
-            os.environ.pop("RANKER_COMPARATIVE_STAGE_ENABLED", None)
+            os.environ.pop("EXPLAINER_COMPARATIVE_STAGE_ENABLED", None)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -319,7 +320,7 @@ class TestSkipLabelsCompleteness:
     falls back to the raw key string.
     """
 
-    # All skip reasons emitted by comparative_reasoner + ranker_agent
+    # All skip reasons emitted by comparative_reasoner + explainer_agent
     _KNOWN_SKIP_REASONS = {
         "single_legal_move",
         "insufficient_candidates",

@@ -89,31 +89,58 @@ class TestFix5OntologyImportDirection:
         assert shim_grounding  is canonical_grounding
         assert shim_enum       is canonical_enum
 
-    def test_ranker_agent_does_not_import_from_evaluation(self):
-        """Loading the runtime ranker_agent must NOT pull
+    def test_explainer_agent_does_not_import_from_evaluation(self):
+        """Loading the runtime explainer_agent must NOT pull
         checkers.evaluation.* into sys.modules.  The neutral ontology
         package is the one allowed dependency."""
+        # Save the current module object so we can restore it after the test.
+        # Without restoration, downstream tests that patch
+        # "checkers.agents.explainer_agent.call_explainer" hit the fresh module
+        # object while already-imported function references still point to the
+        # original module's __globals__ dict.
+        _saved = {
+            name: sys.modules[name]
+            for name in list(sys.modules)
+            if name == "checkers.agents.explainer_agent"
+            or name.startswith("checkers.evaluation")
+            or name.startswith("checkers.ontology")
+        }
+
         # Force a clean reload of both packages so we observe the *true*
         # import graph rather than residue from earlier test imports.
-        for mod_name in list(sys.modules):
-            if (
-                mod_name == "checkers.agents.ranker_agent"
-                or mod_name.startswith("checkers.evaluation")
-                or mod_name.startswith("checkers.ontology")
-            ):
-                del sys.modules[mod_name]
+        for mod_name in list(_saved):
+            del sys.modules[mod_name]
 
-        before = set(sys.modules)
-        import checkers.agents.ranker_agent  # noqa: F401
-        added = set(sys.modules) - before
+        try:
+            before = set(sys.modules)
+            import checkers.agents.explainer_agent  # noqa: F401
+            added = set(sys.modules) - before
 
-        # checkers.ontology IS allowed — that is the entire point of Fix 5.
-        # checkers.evaluation is NOT allowed.
-        leaked = [m for m in added if m.startswith("checkers.evaluation")]
-        assert leaked == [], (
-            f"runtime ranker_agent pulled forbidden evaluation modules into "
-            f"sys.modules: {leaked}"
-        )
+            # checkers.ontology IS allowed — that is the entire point of Fix 5.
+            # checkers.evaluation is NOT allowed.
+            leaked = [m for m in added if m.startswith("checkers.evaluation")]
+            assert leaked == [], (
+                f"runtime explainer_agent pulled forbidden evaluation modules into "
+                f"sys.modules: {leaked}"
+            )
+        finally:
+            # Restore the original module objects so downstream tests that
+            # patch by module path continue to target the right __globals__ dict.
+            for mod_name in list(sys.modules):
+                if (
+                    mod_name == "checkers.agents.explainer_agent"
+                    or mod_name.startswith("checkers.evaluation")
+                    or mod_name.startswith("checkers.ontology")
+                ):
+                    del sys.modules[mod_name]
+            sys.modules.update(_saved)
+            # unittest.mock._importer traverses package attributes (not sys.modules)
+            # when resolving patch targets.  The fresh import set
+            # checkers.agents.explainer_agent to a new module object; restore
+            # the package attribute so downstream patches hit the right globals dict.
+            import checkers.agents as _agents_pkg
+            if "checkers.agents.explainer_agent" in _saved:
+                _agents_pkg.explainer_agent = _saved["checkers.agents.explainer_agent"]
 
 
 # ---------------------------------------------------------------------------
@@ -134,16 +161,16 @@ class TestFix1FirstPlyScoreStateDefault:
         )
 
     def test_returns_equal_by_default(self):
-        from checkers.agents.ranker_agent import _resolve_score_state_for_seeds
+        from checkers.agents.explainer_agent import _resolve_score_state_for_seeds
         assert _resolve_score_state_for_seeds(self._state()) == "EQUAL"
 
     def test_returns_equal_when_score_state_is_empty_string(self):
-        from checkers.agents.ranker_agent import _resolve_score_state_for_seeds
+        from checkers.agents.explainer_agent import _resolve_score_state_for_seeds
         # Empty string falls back to "EQUAL" (conservative default)
         assert _resolve_score_state_for_seeds(self._state("")) == "EQUAL"
 
     def test_passes_through_real_value(self):
-        from checkers.agents.ranker_agent import _resolve_score_state_for_seeds
+        from checkers.agents.explainer_agent import _resolve_score_state_for_seeds
         for ss in (
             "EQUAL", "CLEARLY_LOSING", "SLIGHTLY_LOSING",
             "CLEARLY_WINNING", "SLIGHTLY_WINNING",
@@ -154,7 +181,7 @@ class TestFix1FirstPlyScoreStateDefault:
         """End-to-end behavioural guard: when the resolved score_state is
         "EQUAL", adversity seeds must NOT fire even for a chosen move with
         a very negative minimax_score (forced-but-winning line)."""
-        from checkers.agents.ranker_agent import _build_grounded_reasoning_seeds
+        from checkers.agents.explainer_agent import _build_grounded_reasoning_seeds
         # Resolved score_state is "EQUAL" — adversity suppressed.
         move = {
             "type": "simple",
@@ -411,7 +438,7 @@ class TestFix2NextBestExposedFromRanker:
         # Re-import the private helper used internally — it's the same
         # function called by ranker_agent when building diagnostics.  We
         # exercise it directly to avoid mocking the full LLM pipeline.
-        import checkers.agents.ranker_agent as ra
+        import checkers.agents.explainer_agent as ra
         # The helper is defined inside ranker_agent() as a closure.  Mirror
         # it here using its building blocks so tests don't depend on the
         # closure being callable from outside.  Equivalent logic:
@@ -455,8 +482,10 @@ class TestFix2NextBestExposedFromRanker:
         inspect the source string directly because constructing a full
         ranker invocation requires an LLM."""
         import inspect
-        import checkers.agents.ranker_agent as ra
-        src = inspect.getsource(ra.ranker_agent)
+        import checkers.agents.explainer_agent as ra
+        # The diagnostics dict is built in _explain_chosen_move, not the
+        # thin explainer_agent entry-point wrapper.
+        src = inspect.getsource(ra._explain_chosen_move)
         assert '"next_best_minimax_score"' in src, (
             "ranker_diagnostics is missing the next_best_minimax_score key"
         )

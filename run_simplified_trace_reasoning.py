@@ -13,7 +13,7 @@ simplified pipeline. Gameplay behavior is UNCHANGED.
 
 Architecture:
   Reuses all logic from run_simplified_trace.py. Adds a rich display
-  layer that renders structured diagnostics from ranker_diagnostics.
+  layer that renders structured diagnostics from explainer_diagnostics.
 
 Usage:
   python run_simplified_trace_reasoning.py [flags]
@@ -47,7 +47,7 @@ from typing import Any, Optional
 
 from checkers.graph.graph import checkers_graph
 from checkers.state.state import CheckersState
-from checkers.agents.update_agent import update_agent as _update_agent_fn
+from checkers.agents.updater_agent import updater_agent as _update_agent_fn
 from checkers.engine.board import RED, BLACK, create_initial_board, print_board
 from checkers.engine.move_facts import count_pieces
 from checkers.engine.rules import get_all_legal_moves
@@ -61,7 +61,7 @@ except ImportError:
 
 # Optional: prompt reconstruction for --save-prompts
 try:
-    from checkers.agents.ranker_agent import _build_seed_reasoning_prompt
+    from checkers.agents.explainer_agent import _build_seed_reasoning_prompt
     _PROMPTS_AVAILABLE = True
 except ImportError:
     _PROMPTS_AVAILABLE = False
@@ -767,7 +767,7 @@ def _render_turn(acc: dict, turn_no: int, args: argparse.Namespace,
     facts   = chosen.get("facts") or {}
     board   = acc.get("board") or []
     player  = acc.get("current_player", 1)
-    diag    = acc.get("ranker_diagnostics") or {}
+    diag    = acc.get("explainer_diagnostics") or {}
 
     r_seeds = diag.get("reasoning_seeds") or []
     c_seeds = diag.get("comparative_seeds") or []
@@ -902,7 +902,7 @@ def _stream_red_ply(
         for chunk in checkers_graph.stream(
             acc,
             stream_mode="updates",
-            interrupt_after=["update_agent"],
+            interrupt_after=["updater_agent"],
             config=cfg,
         ):
             for node_name, delta in chunk.items():
@@ -913,7 +913,7 @@ def _stream_red_ply(
                 acc.update(delta)
 
                 if args.quiet:
-                    if node_name == "update_agent":
+                    if node_name == "updater_agent":
                         saw_update = True
                     continue
 
@@ -926,7 +926,7 @@ def _stream_red_ply(
                         DIM,
                     ))
 
-                elif node_name == "deterministic_proposal_node" and not args.compact:
+                elif node_name == "proposer_agent" and not args.compact:
                     cm = acc.get("chosen_move") or {}
                     pd = acc.get("proposal_diagnostics") or {}
                     _gap = pd.get("gap")
@@ -948,10 +948,10 @@ def _stream_red_ply(
                         )
                     )
 
-                elif node_name == "ranker_agent":
+                elif node_name == "explainer_agent":
                     _render_turn(acc, turn_no, args, log)
 
-                elif node_name == "update_agent":
+                elif node_name == "updater_agent":
                     saw_update = True
                     if not args.compact:
                         _render_post_update(acc, log)
@@ -973,7 +973,7 @@ def _run_red_ply(
     acc, ok = _stream_red_ply(acc, args, log)
     if not ok:
         sys.stderr.write(
-            "[run_simplified_trace_reasoning] warning: graph did not complete update_agent.\n"
+            "[run_simplified_trace_reasoning] warning: graph did not complete updater_agent.\n"
         )
     return acc
 
@@ -1116,9 +1116,9 @@ def main() -> None:
 
     # Apply comparative env override (must happen before checkers_graph import)
     if args.comparative is True:
-        os.environ["RANKER_COMPARATIVE_STAGE_ENABLED"] = "1"
+        os.environ["EXPLAINER_COMPARATIVE_STAGE_ENABLED"] = "1"
     elif args.comparative is False:
-        os.environ["RANKER_COMPARATIVE_STAGE_ENABLED"] = "0"
+        os.environ["EXPLAINER_COMPARATIVE_STAGE_ENABLED"] = "0"
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir   = Path("logs") / "manual_reasoning_trace" / timestamp
@@ -1129,7 +1129,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _signal_handler)
 
     if not args.quiet:
-        comp_state = os.environ.get("RANKER_COMPARATIVE_STAGE_ENABLED", "1")
+        comp_state = os.environ.get("EXPLAINER_COMPARATIVE_STAGE_ENABLED", "1")
         comp_label = "OFF" if comp_state.lower() in ("0", "false", "no", "off") else "ON"
         log.tee("")
         log.tee(_c(BAR, CYN + BOLD))
@@ -1139,7 +1139,7 @@ def main() -> None:
             f"  MINIMAX={os.environ.get('MINIMAX_ENABLED','?')}"
             f"  DEPTH={os.environ.get('MINIMAX_DEPTH','?')}"
             f"  COMPARATIVE={comp_label}"
-            f"  SEEDS={'OFF' if os.environ.get('RANKER_SEEDS_DISABLED','').lower() in ('1','true','yes','on') else 'ON'}",
+            f"  SEEDS={'OFF' if os.environ.get('EXPLAINER_SEEDS_DISABLED','').lower() in ('1','true','yes','on') else 'ON'}",
             DIM,
         ))
         log.tee(_c(BAR, CYN + BOLD))

@@ -536,7 +536,7 @@ def _check_schema_leaks(
 # refinement loop also treats them as contradictions.
 
 def _ctx_phrase_negated(text: str, phrase: str) -> bool:
-    """Mirror of ranker_agent._ctx_phrase_negated — kept in sync for E.1 parity.
+    """Mirror of explainer_agent._ctx_phrase_negated — kept in sync for E.1 parity.
 
     Return True if every occurrence of *phrase* in *text* is preceded by a
     negation marker within a 35-char window so the forbidden-vocab check should
@@ -586,7 +586,7 @@ def _check_forbidden_vocab(
     for phrase in CONTEXT_FORBIDDEN_VOCAB:
         p_lower = phrase.lower()
         if p_lower in text_lower and p_lower not in seeds_text and ("ctx", p_lower) not in seen:
-            # Negation-aware: mirror _ctx_phrase_negated from ranker_agent.
+            # Negation-aware: mirror _ctx_phrase_negated from explainer_agent.
             if _ctx_phrase_negated(text_lower, p_lower):
                 continue
             seen.add(("ctx", p_lower))
@@ -1190,7 +1190,7 @@ def _sentence_negated(text_lower: str, phrase: str) -> bool:
 # The negation pre-pass in claim_extractor can mis-treat "if we fail to
 # respond" as a polarity flip; this check runs on the raw text so such
 # hallucinations are still caught. Mirrors the runtime check in
-# ranker_agent._check_reasoning_truthfulness so E.1 invariant holds.
+# explainer_agent._check_reasoning_truthfulness so E.1 invariant holds.
 
 _B11B_FALSE_RECAPTURE_PHRASES: tuple = (
     "opponent can recapture",
@@ -1255,7 +1255,7 @@ def _check_reverse_recapture_fabrication(
 # the opponent is forced to respond / has no choice / must reply are
 # fabricated.  Mirrors B1.1b (reverse_recapture_fabrication) in style and
 # sentence-level negation handling.  Same E.1 invariant rationale: the
-# runtime check in ranker_agent._check_reasoning_truthfulness must have
+# runtime check in explainer_agent._check_reasoning_truthfulness must have
 # an evaluator-side equivalent so refinement-loop diagnostics and metric
 # layer stay in sync.
 

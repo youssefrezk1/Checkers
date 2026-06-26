@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from checkers.agents.ranker_agent import _check_reasoning_truthfulness
+from checkers.agents.explainer_agent import _check_reasoning_truthfulness
 from checkers.evaluation.unified_verifier import (
     _check_forced_move_framing,
     _check_geometric_impossibility,

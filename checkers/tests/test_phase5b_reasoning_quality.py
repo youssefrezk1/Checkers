@@ -14,11 +14,11 @@ from typing import Optional
 
 import pytest
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _build_grounded_reasoning_seeds,
     _build_seed_reasoning_prompt,
     _check_reasoning_truthfulness,
-    RANKER_SEED_REASONING_SYSTEM,
+    EXPLAINER_SEED_REASONING_SYSTEM as RANKER_SEED_REASONING_SYSTEM,
 )
 from checkers.evaluation.forbidden_vocab import ABSOLUTE_FORBIDDEN_VOCAB
 from checkers.evaluation.unified_verifier import (

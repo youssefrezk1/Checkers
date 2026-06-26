@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _build_grounded_reasoning_seeds,
     _check_reasoning_truthfulness,
     _mobility_gap_seed,

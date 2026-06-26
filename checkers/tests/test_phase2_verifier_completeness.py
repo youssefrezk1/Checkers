@@ -27,7 +27,7 @@ from checkers.evaluation.unified_verifier import (
     assert_runtime_evaluator_agreement,
 )
 from checkers.evaluation.reasoning_taxonomy import ClaimStatus, HallucinationType
-from checkers.agents.ranker_agent import _check_reasoning_truthfulness
+from checkers.agents.explainer_agent import _check_reasoning_truthfulness
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

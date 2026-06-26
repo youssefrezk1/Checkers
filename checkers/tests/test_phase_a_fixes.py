@@ -16,7 +16,7 @@ from typing import Optional
 
 import pytest
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _check_reasoning_truthfulness,
     _generate_binary_comparative,
 )

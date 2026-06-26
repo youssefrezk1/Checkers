@@ -1,13 +1,13 @@
 # checkers/nodes/scorer_node.py
 #
-# Simplified pipeline node — replaces symbolic_decision + minimax_scorer.
+# Scores all legal moves via minimax and writes scored/ranked results to state.
 #
 # Calls score_all_legal_moves once and writes:
 #
 #   score_state              — whole-position balance ("CLEARLY_WINNING" …
 #                              "CLEARLY_LOSING"), computed by compute_score_state
 #                              from board facts only; no history required.
-#                              Used by ranker_agent for adversity-seed gating.
+#                              Used by explainer_agent for adversity-seed gating.
 #
 #   symbolic_scored_moves    — all legal moves scored + ranked:
 #                              [{"move": slim_move, "minimax_score": float, "rank": int}]
@@ -31,7 +31,7 @@ from checkers.agents.scorer_agent import score_all_legal_moves, compute_score_st
 from checkers.engine.evaluation import LOSS_SCORE
 
 
-def scorer_node(state: CheckersState) -> dict:
+def scorer_agent(state: CheckersState) -> dict:
     # ── Score all legal moves ──────────────────────────────────────────────────
     enriched, best_score, second_best_score, gap = score_all_legal_moves(
         state.board,
@@ -82,5 +82,5 @@ def scorer_node(state: CheckersState) -> dict:
         "symbolic_second_best_score": r_second,
         "symbolic_gap": r_gap,
         "symbolic_best_move": best_move,
-        "last_completed_node": "scorer_node",
+        "last_completed_node": "scorer_agent",
     }

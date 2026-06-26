@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from checkers.agents.ranker_agent import _check_reasoning_truthfulness
+from checkers.agents.explainer_agent import _check_reasoning_truthfulness
 from checkers.evaluation.unified_verifier import (
     assert_runtime_evaluator_agreement,
     RuntimeEvaluatorDisagreement,

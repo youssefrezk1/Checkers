@@ -73,13 +73,13 @@ def _compute_final_metrics(
     )
     total_promotions = sum(1 for r in mh if r.get("promotion", False))
     tn = state.turn_number
-    fb = state.ranker_fallback_count
+    fb = state.explainer_fallback_count
     rate = (fb / tn) if tn > 0 else 0.0
     return {
         "format_error_count": state.format_error_count,
-        "ranker_failure_count": state.ranker_failure_count,
-        "ranker_fallback_count": fb,
-        "ranker_fallback_rate": rate,
+        "explainer_failure_count": state.explainer_failure_count,
+        "explainer_fallback_count": fb,
+        "explainer_fallback_rate": rate,
         "total_captures_red": total_captures_red,
         "total_captures_black": total_captures_black,
         "total_promotions": total_promotions,
@@ -146,8 +146,8 @@ def logger_node(state: CheckersState) -> dict:
         print("\nMetrics:")
         print(
             f"  format_errors={state.format_error_count}  "
-            f"ranker_failures={state.ranker_failure_count}  "
-            f"fallbacks={state.ranker_fallback_count}"
+            f"explainer_failures={state.explainer_failure_count}  "
+            f"fallbacks={state.explainer_fallback_count}"
         )
         if state.game_over:
             print()
@@ -173,16 +173,16 @@ def logger_node(state: CheckersState) -> dict:
             "draw": state.draw,
             "metrics": {
                 "format_error_count": state.format_error_count,
-                "ranker_failure_count": state.ranker_failure_count,
-                "ranker_fallback_count": state.ranker_fallback_count,
+                "explainer_failure_count": state.explainer_failure_count,
+                "explainer_fallback_count": state.explainer_fallback_count,
             },
             "chosen_move_score": state.chosen_move_score,
-            "proposal_diagnostics": state.proposal_diagnostics,
+            "proposer_diagnostics": state.proposer_diagnostics,
         }
         _append_jsonl(os.path.join(LOG_DIR, f"{game_log_id}.jsonl"), jsonl_record)
 
         # ── Evaluation-source export ──────────────────────────────────────────
-        _diag = state.ranker_diagnostics or {}
+        _diag = state.explainer_diagnostics or {}
         _run_tag = _diag.get("run_tag")
         if not isinstance(_run_tag, str) or not _run_tag:
             _run_tag = "seed_on"
@@ -190,16 +190,16 @@ def logger_node(state: CheckersState) -> dict:
         eval_source_record = {
             "turn_id":            f"{game_log_id}_t{state.turn_number}",
             "last_move_reasoning": reasoning,
-            "ranker_diagnostics": state.ranker_diagnostics,
+            "explainer_diagnostics": state.explainer_diagnostics,
             "chosen_move_facts":  state.chosen_move_facts,
             "final_choice_source":  _diag.get("final_choice_source"),
             "chosen_move_score":    state.chosen_move_score,
-            "proposal_diagnostics": state.proposal_diagnostics,
+            "proposer_diagnostics": state.proposer_diagnostics,
             "run_tag":              _run_tag,
         }
         _tag_explicit = bool(
-            os.environ.get("RANKER_RUN_TAG")
-            or os.environ.get("RANKER_SEEDS_DISABLED")
+            os.environ.get("EXPLAINER_RUN_TAG")
+            or os.environ.get("EXPLAINER_SEEDS_DISABLED")
         )
         if _tag_explicit:
             _eval_path = os.path.join(

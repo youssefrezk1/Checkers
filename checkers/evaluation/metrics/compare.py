@@ -151,7 +151,7 @@ def assert_records_paired(
 
 
 def _chosen_path(record: Mapping[str, Any]) -> Optional[List[Any]]:
-    diag = record.get("ranker_diagnostics") or {}
+    diag = record.get("explainer_diagnostics") or record.get("ranker_diagnostics") or {}
     path = diag.get("final_chosen_path")
     if path is None:
         # Pre-instrumentation logs may not carry final_chosen_path; fall back

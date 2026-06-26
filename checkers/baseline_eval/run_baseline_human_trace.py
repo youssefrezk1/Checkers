@@ -29,7 +29,7 @@ Baselines:
                             Measures whether path copying eliminates coordinate errors.
 
     full_system           — existing neuro-symbolic pipeline unchanged:
-                            scorer_node → deterministic_proposal_node → ranker_agent → update_agent
+                            scorer_node → proposer_agent → explainer_agent → updater_agent
 
 Auto-correction (minimal_raw_llm, rules_only_llm, legal_moves_index_llm, legal_moves_path_llm ONLY):
     On invalid JSON / illegal move / invalid index / mandatory capture violation /
@@ -83,7 +83,7 @@ from checkers.engine.move_facts import count_pieces
 from checkers.engine.rules import get_all_legal_moves
 from checkers.state.state import CheckersState
 from checkers.agents.scorer_agent import score_all_legal_moves
-from checkers.agents.update_agent import update_agent as _update_agent_fn
+from checkers.agents.updater_agent import updater_agent as _update_agent_fn
 
 # ── Isolated baseline LLM client ──────────────────────────────────────────────
 # Uses BASELINE_MISTRAL_* env vars exclusively.
@@ -191,6 +191,13 @@ BASELINE_FULL_SYSTEM             = "full_system"                  # B4
 # Legacy ablation constants — NOT in any active suite run.
 BASELINE_LEGAL_MOVES_INDEX_LLM = "legal_moves_index_llm"
 BASELINE_LEGAL_MOVES_PATH_LLM  = "legal_moves_path_llm"
+
+# Removed baseline constants — retained for import compatibility with existing tests.
+BASELINE_RULES_LEGAL_LLM_JSON                          = "rules_legal_llm_json"
+BASELINE_RULES_LEGAL_LLM_ARROW                         = "rules_legal_llm_arrow"
+BASELINE_RULES_LEGAL_LLM_FACTS                         = "rules_legal_llm_facts"
+BASELINE_RULES_LEGAL_LLM_STRATEGIC_FACTS               = "rules_legal_llm_strategic_facts"
+BASELINE_RULES_LEGAL_LLM_STRATEGIC_FACTS_FREEFORM_PATH = "rules_legal_llm_strategic_facts_freeform_path"
 
 # Active thesis arms in canonical order (B1 → B2 → B4).
 ALL_BASELINES = (
@@ -331,7 +338,7 @@ Contamination notes:
 #                           No rules, no scores, no facts.
 #   legal_moves_path_llm  : legal move list with explicit path coords + JSON output format;
 #                           output = move_path. No rules, no scores, no facts.
-#   full_system           : internal pipeline (ranker_agent.py builds its own prompts).
+#   full_system           : internal pipeline (explainer_agent.py builds its own prompts).
 
 _MINIMAL_RAW_LLM_SYSTEM = """\
 You are playing American Checkers (8x8) as the RED player.
@@ -698,7 +705,7 @@ def _make_empty_trace(baseline: str, turn_no: int, board: list) -> dict[str, Any
 # ── State application helper ──────────────────────────────────────────────────
 
 def _apply_move(acc: dict[str, Any], move: dict[str, Any], reasoning: str) -> dict[str, Any]:
-    """Apply a chosen move via update_agent (identical to run_simplified_trace.py BLACK path)."""
+    """Apply a chosen move via updater_agent (identical to run_simplified_trace.py BLACK path)."""
     acc["chosen_move"]         = move
     acc["last_move_reasoning"] = reasoning
     _valid  = set(CheckersState.model_fields.keys())
@@ -1209,6 +1216,53 @@ def _run_red_ply_legal_moves_path_llm(
     return acc
 
 
+# ── RED ply: removed baselines — stubs retained for import compatibility ──────
+
+def _run_red_ply_rules_legal_llm(
+    acc: dict[str, Any],
+    game_traces: list[dict],
+    quiet: bool,
+    show_prompts: bool = False,
+) -> dict[str, Any]:
+    raise NotImplementedError("rules_legal_llm baseline was removed in the simplified pipeline")
+
+
+def _run_red_ply_rules_legal_llm_arrow(
+    acc: dict[str, Any],
+    game_traces: list[dict],
+    quiet: bool,
+    show_prompts: bool = False,
+) -> dict[str, Any]:
+    raise NotImplementedError("rules_legal_llm_arrow baseline was removed in the simplified pipeline")
+
+
+def _run_red_ply_rules_legal_llm_facts(
+    acc: dict[str, Any],
+    game_traces: list[dict],
+    quiet: bool,
+    show_prompts: bool = False,
+) -> dict[str, Any]:
+    raise NotImplementedError("rules_legal_llm_facts baseline was removed in the simplified pipeline")
+
+
+def _run_red_ply_rules_legal_llm_strategic_facts(
+    acc: dict[str, Any],
+    game_traces: list[dict],
+    quiet: bool,
+    show_prompts: bool = False,
+) -> dict[str, Any]:
+    raise NotImplementedError("rules_legal_llm_strategic_facts baseline was removed in the simplified pipeline")
+
+
+def _run_red_ply_rules_legal_llm_strategic_facts_freeform_path(
+    acc: dict[str, Any],
+    game_traces: list[dict],
+    quiet: bool,
+    show_prompts: bool = False,
+) -> dict[str, Any]:
+    raise NotImplementedError("rules_legal_llm_strategic_facts_freeform_path baseline was removed in the simplified pipeline")
+
+
 # ── RED ply: full_system ──────────────────────────────────────────────────────
 
 def _run_red_ply_full_system(
@@ -1225,8 +1279,8 @@ def _run_red_ply_full_system(
         print("═" * 60)
         print("AUDIT — PROMPTS  [FULL_SYSTEM]")
         print("═" * 60)
-        print("full_system prompts are constructed internally by ranker_agent.")
-        print("See: checkers/agents/ranker_agent.py")
+        print("full_system prompts are constructed internally by explainer_agent.")
+        print("See: checkers/agents/explainer_agent.py")
         print("═" * 60)
         print()
 
@@ -1239,16 +1293,16 @@ def _run_red_ply_full_system(
         game_traces.append(trace)
         return acc
 
-    # ── Stream graph: scorer → proposal → ranker → update_agent ───────────────
+    # ── Stream graph: scorer → proposal → explainer → updater_agent ──────────
     acc["last_completed_node"] = None
     cfg = {
         "configurable": {"thread_id": str(uuid.uuid4())},
         "recursion_limit": 50,
     }
 
-    # Snapshots captured during the stream (before update_agent overwrites/clears)
+    # Snapshots captured during the stream (before updater_agent overwrites/clears)
     _sym_scored:      list[dict] = []   # from scorer_node
-    _proposal_list:   list[dict] = []   # from deterministic_proposal_node
+    _proposal_list:   list[dict] = []   # from proposer_agent
     _snap_chosen:     Optional[dict] = None
     _snap_reasoning:  str = ""
     _snap_retry_ct:   int = 0
@@ -1258,7 +1312,7 @@ def _run_red_ply_full_system(
         for chunk in checkers_graph.stream(
             acc,
             stream_mode="updates",
-            interrupt_after=["update_agent"],
+            interrupt_after=["updater_agent"],
             config=cfg,
         ):
             for node_name, delta in chunk.items():
@@ -1268,31 +1322,31 @@ def _run_red_ply_full_system(
                     continue
                 acc.update(delta)
 
-                if node_name == "scorer_node":
+                if node_name == "scorer_agent":
                     _sym_scored = list(acc.get("symbolic_scored_moves") or [])
 
-                elif node_name == "deterministic_proposal_node":
+                elif node_name == "proposer_agent":
                     _proposal_list = list(acc.get("legal_moves") or [])
 
-                elif node_name == "ranker_agent":
-                    # Capture before update_agent potentially clears these
+                elif node_name == "explainer_agent":
+                    # Capture before updater_agent potentially clears these
                     _snap_chosen    = acc.get("chosen_move")
                     _snap_reasoning = acc.get("last_move_reasoning") or ""
-                    _snap_retry_ct  = int(acc.get("ranker_retry_count") or 0)
+                    _snap_retry_ct  = int(acc.get("explainer_retry_count") or 0)
 
-                elif node_name == "update_agent":
+                elif node_name == "updater_agent":
                     saw_update_agent = True
 
     except Exception as e:
         print(f"[full_system] graph stream error: {e}", file=sys.stderr)
 
     if not saw_update_agent and not quiet:
-        print("[full_system] warning: update_agent did not complete.", file=sys.stderr)
+        print("[full_system] warning: updater_agent did not complete.", file=sys.stderr)
 
     # ── Collect diagnostics ────────────────────────────────────────────────────
     chosen_move   = _snap_chosen or acc.get("chosen_move")
     reasoning     = _snap_reasoning or acc.get("last_move_reasoning") or ""
-    ranker_diag   = acc.get("ranker_diagnostics") or {}
+    ranker_diag   = acc.get("explainer_diagnostics") or {}
     override_used   = bool(ranker_diag.get("override_branch_name"))
     override_branch = ranker_diag.get("override_branch_name")
     fallback_used   = bool(ranker_diag.get("override_fallback_applied"))
@@ -1325,7 +1379,7 @@ def _run_red_ply_full_system(
         "board_before":          board_before,
         "legal_moves_count":     len(legal_before),
         "legal_moves":           [_slim(m) for m in legal_before],
-        # ranker_agent does not expose the raw Mistral API response in state
+        # explainer_agent does not expose the raw Mistral API response in state
         "raw_model_output":      "N/A (internal)",
         "parsed_output":         None,
         "reasoning":             reasoning,

@@ -284,7 +284,7 @@ def _post_text(record: Mapping[str, Any]) -> str:
 
 
 def _pre_text(record: Mapping[str, Any]) -> Optional[str]:
-    diag = record.get("ranker_diagnostics") or {}
+    diag = record.get("explainer_diagnostics") or record.get("ranker_diagnostics") or {}
     val = diag.get("raw_llm_reasoning_pre_refinement")
     if isinstance(val, str) and val.strip():
         return val
@@ -292,7 +292,7 @@ def _pre_text(record: Mapping[str, Any]) -> Optional[str]:
 
 
 def _refinement_ran(record: Mapping[str, Any]) -> bool:
-    diag = record.get("ranker_diagnostics") or {}
+    diag = record.get("explainer_diagnostics") or record.get("ranker_diagnostics") or {}
     attempts = diag.get("reasoning_refinement_retry_count")
     if isinstance(attempts, (int, float)) and attempts > 0:
         return True

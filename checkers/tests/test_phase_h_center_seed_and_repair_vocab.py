@@ -16,7 +16,7 @@ FIX 2 — Repair prompt vague-positional-language suppression
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _build_grounded_reasoning_seeds,
     _build_refinement_prompt,
     _build_targeted_refinement_prompt,

@@ -4,11 +4,11 @@
 #
 # PURPOSE
 # -------
-# Evaluates ONE completed ranker turn by:
+# Evaluates ONE completed explainer turn by:
 #   1. Extracting claims from the reasoning text (claim_extractor).
 #   2. Verifying each claim against symbolic move facts (claim_verifier).
 #   3. Classifying the reasoning_path and trajectory_events from the
-#      ranker_diagnostics dict.
+#      explainer_diagnostics dict.
 #   4. Returning a structured TurnEvaluationRecord with aggregate counts
 #      and flags.
 #

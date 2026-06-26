@@ -3,7 +3,7 @@
 # Step 8 — Provider abstraction layer (provider split + resilience).
 #
 # This module is the ONLY place in the project that constructs a Mistral HTTP
-# request.  Both the chosen-reasoning path (ranker_agent) and the comparative-
+# request.  Both the chosen-reasoning path (explainer_agent) and the comparative-
 # reasoning path (comparative_reasoner) call call_mistral_once from here.
 # Neither path imports from the other — this module is the split boundary.
 #
@@ -11,7 +11,7 @@
 #   - Single attempt per call. Zero retry. Callers own the retry/backoff policy.
 #   - ProviderHTTPError carries the HTTP status code so callers can handle
 #     429 (rate-limit) separately from 4xx/5xx errors.
-#   - No imports from ranker_agent, comparative_reasoner, or any evaluator.
+#   - No imports from explainer_agent, comparative_reasoner, or any evaluator.
 #   - Deterministic: same inputs → same HTTP request. No randomness.
 #   - Timeout, model, temperature, and max_tokens are all caller-supplied.
 #     No module-level defaults: config is explicit at every call site.

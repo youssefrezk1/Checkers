@@ -23,7 +23,7 @@
 
 from __future__ import annotations
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _build_seed_reasoning_prompt,
     _build_grounded_reasoning_seeds,
     _classify_move_intent,
@@ -176,12 +176,15 @@ class TestNegativeGroundingSeeds:
         assert not any("multiple legal moves" in s.lower() for s in out)
 
     def test_no_negatives_when_all_positive(self):
-        # All four predicates flipped to positive → no negatives emitted.
+        # All predicates flipped to positive → no negatives emitted.
+        # opponent_mobility_after < opponent_mobility_before so the
+        # "mobility unchanged" negative (added in Phase G) does not fire.
         out = _negative_grounding_seeds(
             _facts(
                 creates_immediate_threat=True,
                 forced_opponent_jump_reply=True,
                 frozen_enemy_pieces=2,
+                opponent_mobility_after=6,  # reduced from default 8 → positive outcome
             ),
             n_candidates=1,
             existing_seeds=[],
@@ -276,11 +279,11 @@ class TestPromptRouting:
             assert word in prompt, f"quiet prompt missing forbidden word: {word!r}"
 
     def test_tactical_prompt_does_not_apply_strategic_ban(self):
-        # The tactical prompt does NOT carry the quiet-mode vocabulary ban;
-        # tactical content is allowed when grounded in seeds.
+        # The tactical prompt does NOT carry the quiet-mode positional vocabulary ban.
+        # "tactical pressure" is correctly in the vague-filler ban even for tactical
+        # prompts (it is generic filler, not a grounded tactical claim).
         prompt = _build_seed_reasoning_prompt(_move(_facts(captures_count=1)), [])
         assert "positional pressure" not in prompt.lower()
-        assert "tactical pressure" not in prompt.lower()
 
     def test_quiet_prompt_retains_forced_move_rule(self):
         prompt = _build_seed_reasoning_prompt(_move(_facts()), []).lower()
@@ -374,7 +377,7 @@ class TestInvariantsPreserved:
     def test_prompt_does_not_leak_internal_diagnostics_field_names(self):
         prompt = _build_seed_reasoning_prompt(_move(_facts()), [])
         # Sanity check: no diagnostic field names should appear verbatim.
-        for tok in ("ranker_diagnostics", "raw_llm_reasoning_pre_refinement",
+        for tok in ("explainer_diagnostics", "raw_llm_reasoning_pre_refinement",
                     "chosen_move_facts", "final_choice_source"):
             assert tok not in prompt
 

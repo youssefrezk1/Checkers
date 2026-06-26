@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _build_refinement_prompt,
     _build_seed_reasoning_prompt,
     _build_targeted_refinement_prompt,

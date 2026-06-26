@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 from checkers.agents.comparative_reasoner import (
-    RANKER_COMPARATIVE_SYSTEM,
-    RANKER_COMPARATIVE_REFINEMENT_SYSTEM,
+    EXPLAINER_COMPARATIVE_SYSTEM as RANKER_COMPARATIVE_SYSTEM,
+    EXPLAINER_COMPARATIVE_REFINEMENT_SYSTEM as RANKER_COMPARATIVE_REFINEMENT_SYSTEM,
     build_comparative_user_prompt,
     build_comparative_refinement_user_prompt,
 )
@@ -306,15 +306,15 @@ class TestNoRuntimeSideEffects:
         import checkers.agents.comparative_reasoner as cr
         importlib.reload(cr)
         # The four Step 2 names are present.
-        assert hasattr(cr, "RANKER_COMPARATIVE_SYSTEM")
-        assert hasattr(cr, "RANKER_COMPARATIVE_REFINEMENT_SYSTEM")
+        assert hasattr(cr, "EXPLAINER_COMPARATIVE_SYSTEM")
+        assert hasattr(cr, "EXPLAINER_COMPARATIVE_REFINEMENT_SYSTEM")
         assert hasattr(cr, "build_comparative_user_prompt")
         assert hasattr(cr, "build_comparative_refinement_user_prompt")
 
     def test_constants_are_strings(self):
         from checkers.agents.comparative_reasoner import (
-            RANKER_COMPARATIVE_SYSTEM,
-            RANKER_COMPARATIVE_REFINEMENT_SYSTEM,
+            EXPLAINER_COMPARATIVE_SYSTEM as RANKER_COMPARATIVE_SYSTEM,
+            EXPLAINER_COMPARATIVE_REFINEMENT_SYSTEM as RANKER_COMPARATIVE_REFINEMENT_SYSTEM,
         )
         assert isinstance(RANKER_COMPARATIVE_SYSTEM, str)
         assert isinstance(RANKER_COMPARATIVE_REFINEMENT_SYSTEM, str)

@@ -135,7 +135,7 @@ def test_chosen_path_reads_mistral_api_key_only() -> None:
     import importlib
     import sys
 
-    mod_name = "checkers.agents.ranker_agent"
+    mod_name = "checkers.agents.explainer_agent"
     if mod_name in sys.modules:
         ranker = sys.modules[mod_name]
     else:

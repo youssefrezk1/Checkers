@@ -3,7 +3,7 @@
 # Phase D regression tests.  Two targeted fixes from the 20260526_174201 audit:
 #
 #   D1 — mobility_decrease omission false positives
-#        The verifier (and its mirrored runtime check in ranker_agent) missed
+#        The verifier (and its mirrored runtime check in explainer_agent) missed
 #        valid synonym / gerund acknowledgements of our-mobility decrease
 #        ("reducing our mobility", "our mobility narrows from X to Y", etc.),
 #        causing destructive repair cascades on semantically correct reasoning.
@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _build_refinement_prompt,
     _build_targeted_refinement_prompt,
     _check_reasoning_truthfulness,

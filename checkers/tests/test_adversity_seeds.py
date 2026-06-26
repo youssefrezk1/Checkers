@@ -22,7 +22,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _build_adversity_context_seeds,
     _build_grounded_reasoning_seeds,
 )

@@ -22,7 +22,7 @@ import inspect
 import json
 
 from checkers.agents.comparative_reasoner import (
-    RANKER_COMPARATIVE_SYSTEM,
+    EXPLAINER_COMPARATIVE_SYSTEM as RANKER_COMPARATIVE_SYSTEM,
     _COMPARATIVE_DIAGNOSTICS_KEYS,
     generate_comparative_reasoning,
     verify_comparative_reasoning,
@@ -505,7 +505,7 @@ class TestIsolationAndRuntimeUnchanged:
         # ranker_agent.  The isolation invariant that matters is the
         # one-way dependency: comparative_reasoner must NOT import from
         # ranker_agent (checked above), not the reverse.
-        import checkers.agents.ranker_agent as ra
+        import checkers.agents.explainer_agent as ra
         ra_src = inspect.getsource(ra)
         assert "generate_comparative_reasoning(" in ra_src
 

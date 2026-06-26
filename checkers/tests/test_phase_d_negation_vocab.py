@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _ctx_phrase_negated,
     _check_reasoning_truthfulness,
 )

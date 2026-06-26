@@ -153,7 +153,7 @@ def evaluate_zero_claim(
     if not isinstance(reasoning, str):
         reasoning = ""
 
-    diag    = record.get("ranker_diagnostics") or {}
+    diag    = record.get("explainer_diagnostics") or record.get("ranker_diagnostics") or {}
     facts   = record.get("chosen_move_facts") or {}
     seeds   = [s for s in (diag.get("reasoning_seeds") or []) if isinstance(s, str)]
     nb      = diag.get("next_best_minimax_score")

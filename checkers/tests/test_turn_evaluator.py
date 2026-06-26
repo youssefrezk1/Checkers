@@ -1011,7 +1011,7 @@ class TestPhase2Provenance:
         """
         The Phase 2 provenance-only fields must not appear as .get() lookups in
         the decision-making files: state_manager.py, logger_node.py, graph.py.
-        They are written-only in ranker_agent.py and read-only in eval scripts.
+        They are written-only in explainer_agent.py and read-only in eval scripts.
         """
         import re
         from pathlib import Path as _Path
@@ -1042,7 +1042,7 @@ class TestPhase2Provenance:
                 pattern = rf'\.get\(\s*["\']' + re.escape(key) + r'["\']'
                 assert not re.search(pattern, text), (
                     f"Provenance field '{key}' is read via .get() in "
-                    f"{fpath.name} — it must only be written in ranker_agent.py"
+                    f"{fpath.name} — it must only be written in explainer_agent.py"
                 )
 
 
@@ -1317,14 +1317,14 @@ class TestPhase21ProvenanceNote:
     def test_provenance_note_builder_not_in_production_files(self):
         """
         _build_provenance_note must remain an evaluation-only helper.
-        It must not appear in ranker_agent.py, state_manager.py,
+        It must not appear in explainer_agent.py, state_manager.py,
         logger_node.py, or graph.py.
         """
         from pathlib import Path as _Path
 
         _root = _Path(__file__).resolve().parents[2]
         _production_files = [
-            _root / "checkers" / "agents" / "ranker_agent.py",
+            _root / "checkers" / "agents" / "explainer_agent.py",
             _root / "checkers" / "nodes"  / "state_manager.py",
             _root / "checkers" / "nodes"  / "logger_node.py",
             _root / "checkers" / "graph"  / "graph.py",

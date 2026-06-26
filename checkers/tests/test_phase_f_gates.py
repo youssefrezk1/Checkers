@@ -1,7 +1,7 @@
 # checkers/tests/test_phase_f_gates.py
 #
 # Phase F regression tests for the deterministic post-repair gates added to
-# ranker_agent._refine_reasoning:
+# explainer_agent._refine_reasoning:
 #
 #   (1) monotonicity         — strict-improvement commit; never accept equal
 #                              or worse contradiction counts.
@@ -12,13 +12,13 @@
 #   (3) king-promotion       — when facts["results_in_king"]=True, the output
 #                              must contain promotion/king/crown wording.
 #
-# All three gates live in checkers/agents/ranker_agent._validate_and_select.
+# All three gates live in checkers/agents/explainer_agent._validate_and_select.
 # They are deterministic: regex over output bytes + a numeric comparison on
 # verifier counts.  No prompt instruction, no LLM call, no schema migration.
 
 from __future__ import annotations
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _FORCED_FRAMING_RE,
     _PROMOTION_RE,
     _has_forced_seed,

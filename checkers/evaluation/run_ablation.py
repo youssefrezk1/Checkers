@@ -9,9 +9,9 @@
 # How it works
 # ------------
 # 1. The simplified pipeline is fully deterministic at the proposal level:
-#    given an identical board state, deterministic_proposal_node picks the
+#    given an identical board state, proposer_agent picks the
 #    same move every time.  The ONLY non-deterministic component is the LLM
-#    seed-prose / refinement call inside ranker_agent.
+#    seed-prose / refinement call inside explainer_agent.
 #
 # 2. The runner therefore plays N AI-vs-AI games TWICE, with the same
 #    starting boards each time, varying only RANKER_SEEDS_DISABLED.  Both
@@ -81,7 +81,7 @@ def _play_one_game(
     Configures the runtime via env vars so that:
       - logger_node writes to `log_dir` (CHECKERS_LOG_DIR)
       - the eval-source file is partitioned by run_tag
-      - the ranker honours RANKER_SEEDS_DISABLED on every turn
+      - the explainer_agent honours EXPLAINER_SEEDS_DISABLED on every turn
       - logger stdout chatter is suppressed (the runner prints its own)
     """
     # Imports deferred until env vars are in place: graph compilation reads
@@ -91,8 +91,8 @@ def _play_one_game(
 
     prev_log_dir   = _set_env("CHECKERS_LOG_DIR", str(log_dir))
     prev_logger    = _set_env("CHECKERS_LOGGER_PRINT", "false")
-    prev_seeds_dis = _set_env("RANKER_SEEDS_DISABLED", "1" if seeds_disabled else "0")
-    prev_run_tag   = _set_env("RANKER_RUN_TAG", run_tag)
+    prev_seeds_dis = _set_env("EXPLAINER_SEEDS_DISABLED", "1" if seeds_disabled else "0")
+    prev_run_tag   = _set_env("EXPLAINER_RUN_TAG", run_tag)
 
     try:
         # Import AFTER env is set so logger_node picks up CHECKERS_LOG_DIR.
@@ -127,7 +127,7 @@ def _play_one_game(
                 if not isinstance(delta, dict):
                     continue
                 final_state.update(delta)
-                if node_name == "update_agent":
+                if node_name == "updater_agent":
                     ply_count += 1
             if final_state.get("game_over"):
                 break
@@ -138,8 +138,8 @@ def _play_one_game(
     finally:
         _restore_env("CHECKERS_LOG_DIR",        prev_log_dir)
         _restore_env("CHECKERS_LOGGER_PRINT",   prev_logger)
-        _restore_env("RANKER_SEEDS_DISABLED",   prev_seeds_dis)
-        _restore_env("RANKER_RUN_TAG",          prev_run_tag)
+        _restore_env("EXPLAINER_SEEDS_DISABLED", prev_seeds_dis)
+        _restore_env("EXPLAINER_RUN_TAG",       prev_run_tag)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

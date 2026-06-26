@@ -1,4 +1,4 @@
-# checkers/agents/deterministic_proposal.py
+# checkers/agents/proposer_agent.py
 #
 # Deterministic single-move selector for the proposal-authoritative pipeline.
 # Accepts the fully-scored legal-move list from scorer_agent and returns
@@ -78,7 +78,7 @@ def select_best_move(
     }
 
     logger.info(
-        "[deterministic_proposal] select_best_move: n_legal=%d "
+        "[proposer_agent] select_best_move: n_legal=%d "
         "chosen_score=%.2f gap=%s score_state=%s path=%s",
         len(scored_moves),
         chosen_score,

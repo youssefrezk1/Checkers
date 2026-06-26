@@ -495,7 +495,7 @@ _PHRASE_TABLE: list[_PhraseEntry] = [
 
     # ── Adversity / losing-position context (Phase 6) ─────────────────────
     # These claim types correspond to seeds emitted by
-    # _build_adversity_context_seeds in ranker_agent.  Each one maps to a
+    # _build_adversity_context_seeds in explainer_agent.  Each one maps to a
     # symbolically grounded fact and can be verified deterministically.
     _PhraseEntry(
         claim_type="material_deficit",
@@ -882,7 +882,7 @@ _MATERIAL_NEGATABLE_PHRASES: frozenset[str] = frozenset({
 })
 
 # Negation sentinels for material gain suppression.
-# Mirror the sentinels used in _check_reasoning_truthfulness in ranker_agent.
+# Mirror the sentinels used in _check_reasoning_truthfulness in explainer_agent.
 # "over " covers constructions like "prioritizing piece placement over material gain"
 # where the matched phrase is the rejected alternative.
 _MATERIAL_NEGATION_SENTINELS: tuple[str, ...] = (

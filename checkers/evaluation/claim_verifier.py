@@ -358,7 +358,7 @@ def _verify_forced_opponent_jump(facts: dict[str, Any]) -> ClaimStatus:
 # Phase 6 — adversity / losing-position claim verifiers
 # ---------------------------------------------------------------------------
 # These verifiers correspond to the seeds emitted by
-# ranker_agent._build_adversity_context_seeds.  Each is purely symbolic — no
+# explainer_agent._build_adversity_context_seeds.  Each is purely symbolic — no
 # strategic interpretation — and reads only fields already produced by
 # compute_move_facts().
 

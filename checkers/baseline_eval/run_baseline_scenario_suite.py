@@ -76,10 +76,17 @@ from checkers.baseline_eval.run_baseline_human_trace import (
     BASELINE_MINIMAL_RAW_LLM,
     BASELINE_RULES_ONLY_LLM,
     BASELINE_FULL_SYSTEM,
+    BASELINE_RULES_LEGAL_LLM_FACTS,
+    BASELINE_RULES_LEGAL_LLM_STRATEGIC_FACTS,
+    BASELINE_RULES_LEGAL_LLM_STRATEGIC_FACTS_FREEFORM_PATH,
     call_baseline_llm,
     _MINIMAL_RAW_LLM_SYSTEM,
     _RULES_ONLY_LLM_SYSTEM,
+    _LEGAL_MOVES_INDEX_LLM_SYSTEM,
+    _LEGAL_MOVES_PATH_LLM_SYSTEM,
     _build_path_json_user,
+    _build_legal_moves_index_llm_user,
+    _build_legal_moves_path_llm_user,
     _parse_json_response,
     _find_move_by_path,
     _has_mandatory_capture,
@@ -1197,8 +1204,8 @@ def _run_scenario_full_system(
     show_prompts: bool,
 ) -> dict[str, Any]:
     """
-    Stream the neuro-symbolic pipeline for one position, stop after ranker_agent.
-    update_agent is never executed — no game state is modified.
+    Stream the neuro-symbolic pipeline for one position, stop after explainer_agent.
+    updater_agent is never executed — no game state is modified.
     """
     from checkers.graph.graph import checkers_graph
     from checkers.state.state import CheckersState
@@ -1208,8 +1215,8 @@ def _run_scenario_full_system(
         print("═" * 60)
         print("AUDIT — PROMPTS  [FULL_SYSTEM]")
         print("═" * 60)
-        print("full_system prompts are constructed internally by ranker_agent.")
-        print("See: checkers/agents/ranker_agent.py")
+        print("full_system prompts are constructed internally by explainer_agent.")
+        print("See: checkers/agents/explainer_agent.py")
         print("═" * 60)
         print()
 
@@ -1227,7 +1234,7 @@ def _run_scenario_full_system(
         for chunk in checkers_graph.stream(
             state,
             stream_mode="updates",
-            interrupt_after=["ranker_agent"],
+            interrupt_after=["explainer_agent"],
             config=cfg,
         ):
             for node_name, delta in chunk.items():
@@ -1236,14 +1243,14 @@ def _run_scenario_full_system(
                 if not isinstance(delta, dict):
                     continue
                 state.update(delta)
-                if node_name == "scorer_node":
+                if node_name == "scorer_agent":
                     _sym_scored = list(state.get("symbolic_scored_moves") or [])
-                elif node_name == "deterministic_proposal_node":
+                elif node_name == "proposer_agent":
                     _proposal   = list(state.get("legal_moves") or [])
-                elif node_name == "ranker_agent":
+                elif node_name == "explainer_agent":
                     _chosen   = state.get("chosen_move")
                     _reasoning = state.get("last_move_reasoning") or ""
-                    _retry_ct  = int(state.get("ranker_retry_count") or 0)
+                    _retry_ct  = int(state.get("explainer_retry_count") or 0)
     except Exception as e:
         print(f"[full_system] graph stream error: {e}", file=sys.stderr)
         llm_failed = True
@@ -1322,7 +1329,7 @@ def _run_scenario_full_system(
         "error_class":                    "llm_call_failed" if llm_failed else error_class,
         # full_system extras
         "proposal_candidates":            len(_proposal),
-        "ranker_retry_count":             _retry_ct,
+        "explainer_retry_count":          _retry_ct,
     }
 
 
@@ -1359,6 +1366,21 @@ def run_scenario_for_baseline(
 
     if baseline == BASELINE_FULL_SYSTEM:
         return _run_scenario_full_system(scenario_name, desc, board, scored, legal_all, show_prompts)
+
+    if baseline == BASELINE_RULES_LEGAL_LLM_FACTS:
+        system = _LEGAL_MOVES_INDEX_LLM_SYSTEM
+        user   = _build_legal_moves_index_llm_user(board, legal_all, 1)
+        return _run_scenario_index(scenario_name, desc, board, baseline, system, user, scored, legal_all, show_prompts)
+
+    if baseline == BASELINE_RULES_LEGAL_LLM_STRATEGIC_FACTS:
+        system = _LEGAL_MOVES_INDEX_LLM_SYSTEM
+        user   = _build_legal_moves_index_llm_user(board, legal_all, 1)
+        return _run_scenario_strategic_facts(scenario_name, desc, board, baseline, system, user, scored, legal_all, show_prompts)
+
+    if baseline == BASELINE_RULES_LEGAL_LLM_STRATEGIC_FACTS_FREEFORM_PATH:
+        system = _LEGAL_MOVES_PATH_LLM_SYSTEM
+        user   = _build_legal_moves_path_llm_user(board, legal_all, 1)
+        return _run_scenario_strategic_facts_freeform_path(scenario_name, desc, board, baseline, system, user, scored, legal_all, show_prompts)
 
     raise ValueError(f"Unknown baseline: {baseline!r}")
 

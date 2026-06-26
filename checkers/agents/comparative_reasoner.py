@@ -44,7 +44,7 @@
 #   - LLM prompts (system or user)
 #   - A comparative verifier
 #   - Refinement orchestration
-#   - Integration into ranker_agent or _explain_chosen_move
+#   - Integration into explainer_agent or _explain_chosen_move
 #   - Telemetry fields under `comparative_*`
 #   - Provider adapters
 #
@@ -68,8 +68,8 @@ __all__ = [
     "_cluster_alternatives_by_theme",
     "build_comparative_group_seeds",
     "build_comparative_tradeoff_seed",
-    "RANKER_COMPARATIVE_SYSTEM",
-    "RANKER_COMPARATIVE_REFINEMENT_SYSTEM",
+    "EXPLAINER_COMPARATIVE_SYSTEM",
+    "EXPLAINER_COMPARATIVE_REFINEMENT_SYSTEM",
     "build_comparative_user_prompt",
     "build_comparative_refinement_user_prompt",
     "ComparativeContradiction",
@@ -538,7 +538,7 @@ def build_comparative_tradeoff_seed(
 #   - No verbatim forbidden-vocabulary enumeration (categorical guidance only)
 #   - Natural-language prose
 
-RANKER_COMPARATIVE_SYSTEM: str = """\
+EXPLAINER_COMPARATIVE_SYSTEM: str = """\
 You are a checkers coach writing a SHORT comparative paragraph that
 describes the alternative moves NOT chosen and the tradeoff the chosen
 move accepted. You do NOT re-justify the chosen move; another stage has
@@ -564,7 +564,7 @@ OUTPUT FORMAT — reply with ONLY this JSON, no markdown:
 """
 
 
-RANKER_COMPARATIVE_REFINEMENT_SYSTEM: str = """\
+EXPLAINER_COMPARATIVE_REFINEMENT_SYSTEM: str = """\
 You are revising a previously-generated comparative paragraph that
 contained unsupported claims. Produce a corrected paragraph that
 preserves every sentence and clause that was NOT flagged as problematic.
@@ -723,7 +723,7 @@ def build_comparative_refinement_user_prompt(
 #   - chosen-move prose semantics
 #
 # Isolation invariant: this module imports nothing from
-# `checkers.agents.ranker_agent`, `checkers.evaluation.unified_verifier`,
+# `checkers.agents.explainer_agent`, `checkers.evaluation.unified_verifier`,
 # `checkers.evaluation.claim_extractor`, or any other chosen-move verifier
 # component. The comparative verifier is a stand-alone pure function.
 
@@ -765,7 +765,7 @@ class ComparativeContradiction:
 
 
 # Field name → semantic category. Private to this module — the chosen-move
-# verifier has its own mapping in ranker_agent.py. Keeping these separate
+# verifier has its own mapping in explainer_agent.py. Keeping these separate
 # is intentional and enforces the verifier-isolation invariant.
 _COMPARATIVE_FIELD_TO_CATEGORY: dict[str, str] = {
     "opponent_can_recapture":   "safety",
@@ -1262,9 +1262,9 @@ def sanitize_comparative_contradiction(
 #
 # RefinementCandidate and _evaluate_refinement_candidate are defined here so
 # they are importable from comparative_reasoner without any dependency on
-# ranker_agent.  Future chosen-move refactoring may import them from here.
+# explainer_agent.  Future chosen-move refactoring may import them from here.
 #
-# Isolation: no top-level or function-level import from ranker_agent, unified_verifier,
+# Isolation: no top-level or function-level import from explainer_agent, unified_verifier,
 # claim_extractor, or any other chosen-move component.
 
 
@@ -1344,7 +1344,7 @@ def _call_comparative_api(system: str, user: str) -> str:
     """
     Comparative-pipeline Mistral caller (Step 8: delegates to llm_provider).
 
-    Reads MISTRAL_COMPARATIVE_API_KEY and MISTRAL_RANKER_MODEL from the
+    Reads MISTRAL_COMPARATIVE_API_KEY and MISTRAL_EXPLAINER_MODEL from the
     environment at call time (not at import time) so ablation env-var changes
     take effect immediately without re-importing the module.
 
@@ -1365,8 +1365,8 @@ def _call_comparative_api(system: str, user: str) -> str:
             "This key is separate from MISTRAL_API_KEY (chosen-reasoning path) "
             "and must be set independently."
         )
-    model       = os.environ.get("MISTRAL_RANKER_MODEL", "mistral-small-latest")
-    temperature = float(os.environ.get("RANKER_TEMPERATURE", "0.2"))
+    model       = os.environ.get("MISTRAL_EXPLAINER_MODEL", "mistral-small-latest")
+    temperature = float(os.environ.get("EXPLAINER_TEMPERATURE", "0.2"))
     messages    = [
         {"role": "system", "content": system},
         {"role": "user",   "content": user},
@@ -1466,7 +1466,7 @@ def refine_comparative_reasoning(
     retry_count = 1
     raw: Optional[str] = None
     try:
-        raw = caller(RANKER_COMPARATIVE_REFINEMENT_SYSTEM, user_prompt)
+        raw = caller(EXPLAINER_COMPARATIVE_REFINEMENT_SYSTEM, user_prompt)
     except Exception:
         return text, retry_count, False
 
@@ -1500,8 +1500,8 @@ def refine_comparative_reasoning(
 #
 # Pipeline (invariants I1-I8 enforced):
 #   I1  chosen_move is never mutated.
-#   I2  No import from ranker_agent or any chosen-move verifier component.
-#   I3  Runtime behavior of ranker_agent/_explain_chosen_move is byte-identical.
+#   I2  No import from explainer_agent or any chosen-move verifier component.
+#   I3  Runtime behavior of explainer_agent/_explain_chosen_move is byte-identical.
 #   I4  No new env vars introduced.
 #   I5  No provider split (always "mistral").
 #   I6  Diagnostics written ONLY into comparative_* keys of diagnostics_out;
@@ -1529,7 +1529,7 @@ def generate_comparative_reasoning(
          Return None if no seeds can be built.
       3. Build the comparative user prompt (Step 2).
       4. Reject-sample loop (up to max_samples):
-           • Call LLM with RANKER_COMPARATIVE_SYSTEM.
+           • Call LLM with EXPLAINER_COMPARATIVE_SYSTEM.
            • Parse {"comparative_reasoning": "..."} from the response.
            • Verify via verify_comparative_reasoning (Step 3).
            • Short-circuit and return immediately on a zero-contradiction sample.
@@ -1628,7 +1628,7 @@ def generate_comparative_reasoning(
     for _ in range(_loop_count):
         raw: Optional[str] = None
         try:
-            raw = caller(RANKER_COMPARATIVE_SYSTEM, user_prompt)
+            raw = caller(EXPLAINER_COMPARATIVE_SYSTEM, user_prompt)
         except Exception:
             _api_error_count += 1
             continue

@@ -70,7 +70,7 @@ def _import_runtime():
 
     from checkers.graph.graph import checkers_graph
     from checkers.state.state import CheckersState
-    from checkers.agents.update_agent import update_agent as _ua
+    from checkers.agents.updater_agent import updater_agent as _ua
     from checkers.engine.board import RED, BLACK, create_initial_board
     from checkers.engine.rules import get_all_legal_moves
     from checkers.engine.move_facts import compute_move_facts
@@ -171,14 +171,14 @@ def run_single_game(
             try:
                 for chunk in checkers_graph.stream(
                     acc, stream_mode="updates",
-                    interrupt_after=["update_agent"], config=cfg,
+                    interrupt_after=["updater_agent"], config=cfg,
                 ):
                     for node_name, delta in chunk.items():
                         if node_name in ("__interrupt__", "__end__"):
                             continue
                         if isinstance(delta, dict):
                             acc.update(delta)
-                        if node_name == "update_agent":
+                        if node_name == "updater_agent":
                             ok = True
             except Exception as exc:
                 print(f"[experiment_runner] RED pipeline error: {exc}", file=sys.stderr)

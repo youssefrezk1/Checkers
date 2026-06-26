@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 import pytest
 
-from checkers.agents.ranker_agent import (
-    RANKER_REASONING_REFINEMENT_SYSTEM,
-    RANKER_SEED_REASONING_SYSTEM,
+from checkers.agents.explainer_agent import (
+    EXPLAINER_REASONING_REFINEMENT_SYSTEM as RANKER_REASONING_REFINEMENT_SYSTEM,
+    EXPLAINER_SEED_REASONING_SYSTEM as RANKER_SEED_REASONING_SYSTEM,
     _CONTEXT_FORBIDDEN_VOCAB,
     _FORBIDDEN_VOCAB,
     _MINIMAX_CLEARLY_LOSING,
@@ -396,7 +396,7 @@ class TestRefineReasoning:
 
     def test_resolves_on_first_attempt(self):
         """Clean reasoning on attempt 1 → resolved=True, retry_count=1."""
-        with patch("checkers.agents.ranker_agent.call_ranker", return_value=_CLEAN_RESPONSE):
+        with patch("checkers.agents.explainer_agent.call_explainer", return_value=_CLEAN_RESPONSE):
             final, retry_count, resolved = _refine_reasoning(
                 reasoning=_BAD_REASONING,
                 chosen_move=_CHOSEN_MOVE,
@@ -412,7 +412,7 @@ class TestRefineReasoning:
         _STILL_BAD = '{"reasoning": "This move avoids recapture."}'
         responses = iter([_STILL_BAD, _CLEAN_RESPONSE])
 
-        with patch("checkers.agents.ranker_agent.call_ranker", side_effect=lambda *a, **k: next(responses)):
+        with patch("checkers.agents.explainer_agent.call_explainer", side_effect=lambda *a, **k: next(responses)):
             final, retry_count, resolved = _refine_reasoning(
                 reasoning=_BAD_REASONING,
                 chosen_move=_CHOSEN_MOVE,
@@ -426,7 +426,7 @@ class TestRefineReasoning:
     def test_keeps_latest_after_2_failed_attempts(self):
         """Both attempts still contradict facts → resolved=False, latest kept."""
         _STILL_BAD = '{"reasoning": "This move avoids recapture."}'
-        with patch("checkers.agents.ranker_agent.call_ranker", return_value=_STILL_BAD):
+        with patch("checkers.agents.explainer_agent.call_explainer", return_value=_STILL_BAD):
             final, retry_count, resolved = _refine_reasoning(
                 reasoning=_BAD_REASONING,
                 chosen_move=_CHOSEN_MOVE,
@@ -441,7 +441,7 @@ class TestRefineReasoning:
     def test_api_failure_keeps_original_reasoning(self):
         """If every API call raises, original reasoning is preserved."""
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             side_effect=OSError("network error"),
         ):
             final, retry_count, resolved = _refine_reasoning(
@@ -459,7 +459,7 @@ class TestRefineReasoning:
     def test_chosen_move_never_mutated(self):
         """The chosen_move dict must be identical before and after refinement."""
         chosen_copy = copy.deepcopy(_CHOSEN_MOVE)
-        with patch("checkers.agents.ranker_agent.call_ranker", return_value=_CLEAN_RESPONSE):
+        with patch("checkers.agents.explainer_agent.call_explainer", return_value=_CLEAN_RESPONSE):
             _refine_reasoning(
                 reasoning=_BAD_REASONING,
                 chosen_move=_CHOSEN_MOVE,
@@ -471,7 +471,7 @@ class TestRefineReasoning:
 
     def test_retry_count_is_independent_int(self):
         """reasoning_retry_count is a plain int, independent of move retries."""
-        with patch("checkers.agents.ranker_agent.call_ranker", return_value=_CLEAN_RESPONSE):
+        with patch("checkers.agents.explainer_agent.call_explainer", return_value=_CLEAN_RESPONSE):
             _, retry_count, _ = _refine_reasoning(
                 reasoning=_BAD_REASONING,
                 chosen_move=_CHOSEN_MOVE,
@@ -849,7 +849,7 @@ class TestGenerateSeededReasoning:
     def test_seeded_reasoning_uses_call_ranker(self):
         """_generate_seeded_reasoning calls call_ranker exactly once on success."""
         response = '{"reasoning": "Clean grounded paragraph."}'
-        with patch("checkers.agents.ranker_agent.call_ranker", return_value=response) as mock:
+        with patch("checkers.agents.explainer_agent.call_explainer", return_value=response) as mock:
             result, seeds_out = _generate_seeded_reasoning(_FULL_MOVE, [_FULL_MOVE, _ALT_MOVE])
         assert result == "Clean grounded paragraph."
         assert isinstance(seeds_out, list)
@@ -857,7 +857,7 @@ class TestGenerateSeededReasoning:
 
     def test_seeded_reasoning_api_failure_returns_none(self):
         """If the API fails, returns (None, seeds) — caller keeps previous reasoning."""
-        with patch("checkers.agents.ranker_agent.call_ranker", side_effect=OSError("net")):
+        with patch("checkers.agents.explainer_agent.call_explainer", side_effect=OSError("net")):
             result, seeds_out = _generate_seeded_reasoning(_FULL_MOVE, [_FULL_MOVE, _ALT_MOVE])
         assert result is None
         assert isinstance(seeds_out, list)
@@ -865,7 +865,7 @@ class TestGenerateSeededReasoning:
         """chosen_move dict is identical before and after seed generation."""
         before = copy.deepcopy(_FULL_MOVE)
         response = '{"reasoning": "OK."}'
-        with patch("checkers.agents.ranker_agent.call_ranker", return_value=response):
+        with patch("checkers.agents.explainer_agent.call_explainer", return_value=response):
             _generate_seeded_reasoning(_FULL_MOVE, [_FULL_MOVE, _ALT_MOVE])
         assert _FULL_MOVE == before
 
@@ -1843,7 +1843,7 @@ class TestInversionDetection:
     def test_seed_threat_false_reasoning_claims_immediate_threat(self):
         # No seed is emitted when creates_immediate_threat=False; use facts dict
         # via the factual checker instead. The seed-inversion path is only for True.
-        from checkers.agents.ranker_agent import _check_reasoning_truthfulness
+        from checkers.agents.explainer_agent import _check_reasoning_truthfulness
         facts = {**_HALL_FACTS, "creates_immediate_threat": False}
         ws = _check_reasoning_truthfulness("this move creates a threat for next turn", facts)
         assert any("REASONING_CONTRADICTION" in w for w in ws)
@@ -2567,7 +2567,7 @@ class TestTargetedRepairInRefineReasoning:
         repaired_sentence = "The opponent can recapture this piece next turn."
 
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             return_value=self._mock_targeted_response(repaired_sentence),
         ):
             result, _, _ = _refine_reasoning(
@@ -2593,7 +2593,7 @@ class TestTargetedRepairInRefineReasoning:
         replacement = "This is a positional move with no material gain."
 
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             return_value=self._mock_targeted_response(replacement),
         ):
             result, _, _ = _refine_reasoning(
@@ -2619,7 +2619,7 @@ class TestTargetedRepairInRefineReasoning:
         )
 
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             return_value=mock_response,
         ):
             result, _, _ = _refine_reasoning(
@@ -2642,7 +2642,7 @@ class TestTargetedRepairInRefineReasoning:
         call_seq = iter([replacement_1, replacement_2])
 
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             side_effect=lambda *_: next(call_seq),
         ):
             _, count, _ = _refine_reasoning(
@@ -2669,7 +2669,7 @@ class TestFallbackGateInRefinement:
         still_bad = '{"replacements": ["This move also avoids recapture."]}'
 
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             return_value=still_bad,
         ):
             _, _, resolved = _refine_reasoning(
@@ -2687,7 +2687,7 @@ class TestFallbackGateInRefinement:
         good_replacement = '{"replacements": ["The opponent can take back this piece."]}'
 
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             return_value=good_replacement,
         ):
             result, _, resolved = _refine_reasoning(
@@ -2835,7 +2835,7 @@ class TestFinalFullParagraphValidation:
         good_replacement = '{"replacements": ["The opponent can take back this piece."]}'
 
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             return_value=good_replacement,
         ):
             result, count, resolved = _refine_reasoning(
@@ -2860,7 +2860,7 @@ class TestFinalFullParagraphValidation:
         still_bad = '{"replacements": ["This move also avoids recapture."]}'
 
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             return_value=still_bad,
         ):
             _, _, resolved = _refine_reasoning(
@@ -2888,7 +2888,7 @@ class TestFinalFullParagraphValidation:
         good_repl = '{"replacements": ["This is a positional move with no captures."]}'
 
         with patch(
-            "checkers.agents.ranker_agent.call_ranker",
+            "checkers.agents.explainer_agent.call_explainer",
             return_value=good_repl,
         ):
             result, _, resolved = _refine_reasoning(
@@ -3305,26 +3305,22 @@ class TestStrategicContextPerspective:
     def test_score_state_reflects_red_winning_when_red_to_move(self):
         """When RED is clearly winning and it is RED's turn, score_state == CLEARLY_WINNING."""
         from checkers.engine.board import RED
-        from checkers.nodes.inter_turn_memory import inter_turn_memory
+        from checkers.agents.scorer_agent import compute_score_state
         board = self._build_board_red_winning()
-        state = self._make_state_for_player(board, RED)
-        ctx = inter_turn_memory(state)["strategic_context"]
-        assert ctx["player_perspective"] == "RED"
-        assert ctx["score_state"] in ("SLIGHTLY_WINNING", "CLEARLY_WINNING"), (
-            f"RED has material advantage; expected winning score_state, got {ctx['score_state']}"
+        score_state = compute_score_state(board, RED)
+        assert score_state in ("SLIGHTLY_WINNING", "CLEARLY_WINNING"), (
+            f"RED has material advantage; expected winning score_state, got {score_state}"
         )
 
     def test_score_state_reflects_black_losing_when_black_to_move(self):
         """When RED is materially ahead and BLACK is to move, score_state reflects BLACK losing."""
         from checkers.engine.board import BLACK
-        from checkers.nodes.inter_turn_memory import inter_turn_memory
+        from checkers.agents.scorer_agent import compute_score_state
         board = self._build_board_red_winning()
-        state = self._make_state_for_player(board, BLACK)
-        ctx = inter_turn_memory(state)["strategic_context"]
-        assert ctx["player_perspective"] == "BLACK"
-        assert ctx["score_state"] in ("SLIGHTLY_LOSING", "CLEARLY_LOSING"), (
+        score_state = compute_score_state(board, BLACK)
+        assert score_state in ("SLIGHTLY_LOSING", "CLEARLY_LOSING"), (
             f"BLACK is behind; expected losing score_state from BLACK perspective, "
-            f"got {ctx['score_state']}"
+            f"got {score_state}"
         )
 # ══════════════════════════════════════════════════════════════════════════════
 # Number-word before→after fact-grounded bypass

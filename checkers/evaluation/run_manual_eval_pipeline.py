@@ -16,10 +16,10 @@
 #
 # ROOT CAUSE NOTE
 # ---------------
-# update_agent calls state_manager which CLEARS chosen_move,
+# updater_agent calls state_manager which CLEARS chosen_move,
 # last_move_reasoning, chosen_move_facts, ranker_diagnostics back to None
 # before returning to LangGraph.  We therefore capture these fields from
-# the *ranker_agent* stream chunk, before update_agent fires.
+# the *explainer_agent* stream chunk, before updater_agent fires.
 #
 # USAGE
 # -----
@@ -159,7 +159,7 @@ def _print_eval_record(record: Any, verbose: bool = False) -> None:
 
 def _print_diag_summary(rd: Dict[str, Any], verbose: bool) -> None:
     if not rd:
-        print(_ylw("    [WARNING] ranker_diagnostics is empty."))
+        print(_ylw("    [WARNING] explainer_diagnostics is empty."))
         return
     retry    = rd.get("reasoning_refinement_retry_count", 0) or 0
     contra   = rd.get("reasoning_contradiction_detected", False)
@@ -191,7 +191,7 @@ def _import_runtime():
     load_dotenv()
     from checkers.graph.graph              import checkers_graph
     from checkers.state.state              import CheckersState
-    from checkers.agents.update_agent      import update_agent as _ua
+    from checkers.agents.updater_agent      import updater_agent as _ua
     from checkers.engine.board             import RED, BLACK, create_initial_board, print_board
     from checkers.engine.rules             import get_all_legal_moves
     from checkers.engine.move_facts        import compute_move_facts
@@ -251,29 +251,29 @@ def run_manual_game(
         print()
 
         if player == RED:
-            # ── RED: run AI pipeline, capturing ranker_agent delta ────────────
+            # ── RED: run AI pipeline, capturing explainer_agent delta ──────────
             print(_cyn("  [AI] Running pipeline…"))
             acc["last_completed_node"] = None
             cfg = {"configurable": {"thread_id": str(uuid.uuid4())}, "recursion_limit": 60}
 
-            # These are cleared by state_manager inside update_agent.
-            # We capture them from the ranker_agent stream chunk.
+            # These are cleared by state_manager inside updater_agent.
+            # We capture them from the explainer_agent stream chunk.
             _captured: Dict[str, Any] = {}
 
             try:
                 for chunk in checkers_graph.stream(
                     acc, stream_mode="updates",
-                    interrupt_after=["update_agent"], config=cfg,
+                    interrupt_after=["updater_agent"], config=cfg,
                 ):
                     for node_name, delta in chunk.items():
                         if node_name in ("__interrupt__", "__end__"):
                             continue
                         if not isinstance(delta, dict):
                             continue
-                        # ── Capture ranker_agent fields BEFORE update_agent clears them
-                        if node_name == "ranker_agent":
+                        # ── Capture explainer_agent fields BEFORE updater_agent clears them
+                        if node_name == "explainer_agent":
                             for field in ("chosen_move", "last_move_reasoning",
-                                          "chosen_move_facts", "ranker_diagnostics"):
+                                          "chosen_move_facts", "explainer_diagnostics", "ranker_diagnostics"):
                                 if field in delta and delta[field] is not None:
                                     _captured[field] = delta[field]
                         acc.update(delta)
@@ -283,10 +283,10 @@ def run_manual_game(
                 traceback.print_exc()
                 break
 
-            # ── Use captured fields (ranker_agent values) ─────────────────────
+            # ── Use captured fields (explainer_agent values) ───────────────────
             chosen_move = _captured.get("chosen_move") or []
             reasoning   = _captured.get("last_move_reasoning") or ""
-            rd          = _captured.get("ranker_diagnostics") or {}
+            rd          = _captured.get("explainer_diagnostics") or _captured.get("ranker_diagnostics") or {}
             facts       = _captured.get("chosen_move_facts") or {}
             seeds       = rd.get("reasoning_seeds") or []
             game_log_id = acc.get("game_log_id") or session_id

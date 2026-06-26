@@ -299,7 +299,7 @@ _CLAIM_REGISTRY: dict[str, ClaimSpec] = {spec.claim_type: spec for spec in [
 
     # ── Adversity / losing-position context (Phase 6) ─────────────────────
     # Each spec mirrors one seed emitted by
-    # ranker_agent._build_adversity_context_seeds.  All four are symbolically
+    # explainer_agent._build_adversity_context_seeds.  All four are symbolically
     # grounded: a verifier exists in claim_verifier._VERIFICATION_RULES.
 
     ClaimSpec(

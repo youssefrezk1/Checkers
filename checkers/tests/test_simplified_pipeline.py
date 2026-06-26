@@ -1,16 +1,16 @@
 """
 checkers/tests/test_simplified_pipeline.py
 
-Tests for the simplified pipeline graph (scorer_node → deterministic_proposal_node →
-ranker_agent → update_agent) and its constituent nodes.
+Tests for the simplified pipeline graph (scorer_agent → proposer_agent →
+explainer_agent → updater_agent) and its constituent nodes.
 
 What is NOT tested:
-  - ranker_agent LLM call (network)
+  - explainer_agent LLM call (network)
   - full game execution (requires LLM)
 
 What IS tested:
   Group 1 — Routing (no LLM, no graph invocation)
-    - _update_agent_routing returns "end" on game_over, "scorer_node" otherwise
+    - _updater_agent_routing returns "end" on game_over, "scorer_agent" otherwise
     - No old-pipeline nodes appear in the compiled graph
 
   Group 2 — scorer_node (no LLM)
@@ -20,14 +20,14 @@ What IS tested:
     - last_completed_node set to "scorer_node"
     - Empty board returns empty legal_moves
 
-  Group 3 — deterministic_proposal_node (no LLM)
-    - Reduces legal_moves to at most 5
+  Group 3 — proposer_agent node (no LLM)
+    - Selects ONE chosen_move (proposal-authoritative); preserves legal_moves in full
     - All moves come from scorer_node output
-    - last_completed_node set to "deterministic_proposal_node"
+    - last_completed_node set to "proposer_agent"
     - Works on single-move positions
 
-  Group 4 — Pre-ranker pipeline (no LLM)
-    - scorer_node → deterministic_proposal_node produces ranker-ready legal_moves
+  Group 4 — Pre-explainer pipeline (no LLM)
+    - scorer_node → proposer_agent produces explainer-ready state with chosen_move set
     - No format_checker or validator node is ever reached in simplified routing
 
   Group 5 — Graph compilation
@@ -45,10 +45,10 @@ import pytest
 
 from checkers.engine.board import RED, BLACK, RED_KING, BLACK_KING
 from checkers.engine.rules import get_all_legal_moves
-from checkers.graph.graph import _update_agent_routing
-from checkers.nodes.scorer_node import scorer_node
-from checkers.nodes.deterministic_proposal_node import deterministic_proposal_node
-from checkers.agents.ranker_agent import _get_minimax_score
+from checkers.graph.graph import _updater_agent_routing
+from checkers.nodes.scorer_node import scorer_agent
+from checkers.nodes.proposer_node import proposer_node
+from checkers.agents.explainer_agent import _get_minimax_score
 from checkers.state.state import CheckersState
 
 
@@ -87,41 +87,41 @@ def _state_with_board(board=None, player=RED, **kwargs) -> CheckersState:
 class TestSimplifiedPipelineRouting:
     """Simplified pipeline graph routing via _update_agent_routing and graph edges."""
 
-    def test_scorer_node_to_deterministic_proposal_is_direct_edge(self):
-        """scorer_node → deterministic_proposal_node must be present in compiled graph."""
+    def test_scorer_to_proposer_is_direct_edge(self):
+        """scorer_agent → proposer_agent must be present in compiled graph."""
         from checkers.graph.graph import build_graph
         g = build_graph()
-        assert "scorer_node" in g.nodes
-        assert "deterministic_proposal_node" in g.nodes
+        assert "scorer_agent" in g.nodes
+        assert "proposer_agent" in g.nodes
 
-    def test_deterministic_proposal_to_ranker_is_direct_edge(self):
-        """deterministic_proposal_node → ranker_agent must be present in compiled graph."""
+    def test_proposer_to_explainer_is_direct_edge(self):
+        """proposer_agent → explainer_agent must be present in compiled graph."""
         from checkers.graph.graph import build_graph
         g = build_graph()
-        assert "deterministic_proposal_node" in g.nodes
-        assert "ranker_agent" in g.nodes
+        assert "proposer_agent" in g.nodes
+        assert "explainer_agent" in g.nodes
 
-    def test_ranker_and_update_agent_both_in_graph(self):
-        """ranker_agent → update_agent direct edge — both nodes present."""
+    def test_explainer_and_updater_both_in_graph(self):
+        """explainer_agent → updater_agent — both nodes present."""
         from checkers.graph.graph import build_graph
         g = build_graph()
-        assert "ranker_agent" in g.nodes
-        assert "update_agent" in g.nodes
+        assert "explainer_agent" in g.nodes
+        assert "updater_agent" in g.nodes
 
-    def test_update_agent_loops_to_scorer_node(self):
+    def test_update_agent_loops_to_scorer_agent(self):
         """Game continues: update_agent routes back to scorer_node."""
         state = _state(game_over=False)
-        assert _update_agent_routing(state) == "scorer_node"
+        assert _updater_agent_routing(state) == "scorer_agent"
 
     def test_update_agent_routes_to_end_when_game_over(self):
         state = _state(game_over=True)
-        assert _update_agent_routing(state) == "end"
+        assert _updater_agent_routing(state) == "end"
 
     def test_auto_play_env_var_ignored(self, monkeypatch):
         """AUTO_PLAY_UNTIL_GAME_OVER is not checked; game_over=False always loops."""
         monkeypatch.setenv("AUTO_PLAY_UNTIL_GAME_OVER", "false")
         state = _state(game_over=False)
-        assert _update_agent_routing(state) == "scorer_node"
+        assert _updater_agent_routing(state) == "scorer_agent"
 
     def test_old_pipeline_nodes_absent_from_graph(self):
         """No old-pipeline node must appear in the compiled simplified graph."""
@@ -141,19 +141,19 @@ class TestScorerNode:
 
     def test_produces_non_empty_legal_moves(self):
         state = _state_with_board()
-        result = scorer_node(state)
+        result = scorer_agent(state)
         assert result["legal_moves"], "scorer_node must produce non-empty legal_moves"
 
     def test_legal_moves_count_matches_engine(self):
         board = _start_board()
         state = _state_with_board(board)
-        result = scorer_node(state)
+        result = scorer_agent(state)
         expected = len(get_all_legal_moves(board, RED))
         assert len(result["legal_moves"]) == expected
 
     def test_every_move_has_type_path_captured_facts(self):
         state = _state_with_board()
-        result = scorer_node(state)
+        result = scorer_agent(state)
         for m in result["legal_moves"]:
             assert "type"     in m, f"missing 'type' on {m.get('path')}"
             assert "path"     in m, "missing 'path'"
@@ -162,7 +162,7 @@ class TestScorerNode:
 
     def test_every_move_has_minimax_score_and_rank(self):
         state = _state_with_board()
-        result = scorer_node(state)
+        result = scorer_agent(state)
         for m in result["legal_moves"]:
             facts = m["facts"]
             score = facts.get("minimax_score")
@@ -176,7 +176,7 @@ class TestScorerNode:
 
     def test_symbolic_summary_fields_set(self):
         state = _state_with_board()
-        result = scorer_node(state)
+        result = scorer_agent(state)
         assert math.isfinite(result["symbolic_best_score"])
         # second_best_score may be None only if there is exactly one legal move
         if len(result["legal_moves"]) > 1:
@@ -189,24 +189,24 @@ class TestScorerNode:
 
     def test_last_completed_node_set_correctly(self):
         state = _state_with_board()
-        result = scorer_node(state)
-        assert result["last_completed_node"] == "scorer_node"
+        result = scorer_agent(state)
+        assert result["last_completed_node"] == "scorer_agent"
 
     def test_empty_board_returns_empty_legal_moves(self):
         empty = [[0] * 8 for _ in range(8)]
         state = _state_with_board(empty)
-        result = scorer_node(state)
+        result = scorer_agent(state)
         assert result["legal_moves"] == []
         assert result["symbolic_best_move"] is None
 
     def test_single_move_board(self):
         state = _state_with_board(_single_move_board())
-        result = scorer_node(state)
+        result = scorer_agent(state)
         assert len(result["legal_moves"]) == 1
 
     def test_sorted_best_first(self):
         state = _state_with_board()
-        result = scorer_node(state)
+        result = scorer_agent(state)
         scores = [m["facts"]["minimax_score"] for m in result["legal_moves"]]
         assert scores == sorted(scores, reverse=True), (
             "legal_moves must be sorted best-first by minimax_score"
@@ -222,11 +222,11 @@ class TestScorerNodeSymbolicCompat:
 
     def _result(self, player=RED):
         state = _state_with_board(_start_board(), player)
-        return scorer_node(state)
+        return scorer_agent(state)
 
     def _result_single(self):
         state = _state_with_board(_single_move_board())
-        return scorer_node(state)
+        return scorer_agent(state)
 
     # ── symbolic_scored_moves structure ───────────────────────────────────────
 
@@ -329,7 +329,7 @@ class TestScorerNodeSymbolicCompat:
         assert best["captured"] == rank1["captured"]
 
 
-# ── Group 3: deterministic_proposal_node ─────────────────────────────────────
+# ── Group 3: proposer_agent node ─────────────────────────────────────────────
 
 class TestDeterministicProposalNode:
 
@@ -337,79 +337,68 @@ class TestDeterministicProposalNode:
         """Run scorer_node and return updated state."""
         b = board or _start_board()
         state = _state_with_board(b, player)
-        result = scorer_node(state)
+        result = scorer_agent(state)
         return state.model_copy(update=result)
-
-    def test_reduces_to_at_most_five(self):
-        state = self._run_scorer()
-        assert len(state.legal_moves) >= 5, "need >= 5 for this test"
-        result = deterministic_proposal_node(state)
-        assert len(result["legal_moves"]) <= 5
-
-    def test_produces_exactly_five_when_enough_moves(self):
-        state = self._run_scorer()
-        assert len(state.legal_moves) >= 5
-        result = deterministic_proposal_node(state)
-        assert len(result["legal_moves"]) == 5
 
     def test_all_moves_come_from_scorer_output(self):
         state = self._run_scorer()
         source_paths = {
             tuple(tuple(sq) for sq in m["path"]) for m in state.legal_moves
         }
-        result = deterministic_proposal_node(state)
+        result = proposer_node(state)
         for m in result["legal_moves"]:
             pk = tuple(tuple(sq) for sq in m["path"])
             assert pk in source_paths, (
-                f"deterministic_proposal_node returned path {m['path']} "
+                f"proposer_agent returned path {m['path']} "
                 "not in scorer_node output"
             )
 
     def test_no_duplicates_in_output(self):
         state = self._run_scorer()
-        result = deterministic_proposal_node(state)
+        result = proposer_node(state)
         paths = [tuple(tuple(sq) for sq in m["path"]) for m in result["legal_moves"]]
         assert len(paths) == len(set(paths)), "output contains duplicate moves"
 
     def test_last_completed_node_set_correctly(self):
         state = self._run_scorer()
-        result = deterministic_proposal_node(state)
-        assert result["last_completed_node"] == "deterministic_proposal_node"
+        result = proposer_node(state)
+        assert result["last_completed_node"] == "proposer_agent"
 
     def test_single_move_position(self):
         state = self._run_scorer(_single_move_board())
-        result = deterministic_proposal_node(state)
+        result = proposer_node(state)
         assert len(result["legal_moves"]) == 1
 
     def test_empty_legal_moves_returns_empty(self):
         state = _state_with_board([[0] * 8 for _ in range(8)])
-        result = deterministic_proposal_node(state)
+        result = proposer_node(state)
         assert result["legal_moves"] == []
 
     def test_output_preserves_facts(self):
         state = self._run_scorer()
-        result = deterministic_proposal_node(state)
+        result = proposer_node(state)
         for m in result["legal_moves"]:
             assert "facts" in m
             assert "minimax_score" in m["facts"]
             assert "symbolic_rank" in m["facts"]
 
-    def test_shortlist_is_in_legal_moves_not_proposed_moves(self):
+    def test_legal_moves_in_result_not_proposed_moves(self):
         """
-        deterministic_proposal_node overwrites legal_moves with the shortlist.
+        proposer_agent preserves legal_moves unchanged (full list, no truncation)
+        and writes chosen_move for the proposal-authoritative selection.
         It does NOT write to proposed_moves.
         This is the field contract that run_simplified_trace.py must read.
         The display bug (printing 0 candidates) was caused by reading
         proposed_moves instead of legal_moves after this node ran.
         """
         state = self._run_scorer()
-        result = deterministic_proposal_node(state)
-        # shortlist is in legal_moves
+        result = proposer_node(state)
+        # legal_moves is preserved from scorer output — full list, not a shortlist
         assert "legal_moves" in result
-        assert len(result["legal_moves"]) > 0, "shortlist must be non-empty"
+        assert len(result["legal_moves"]) > 0, "legal_moves must be non-empty"
         # proposed_moves is NOT set by this node
         assert "proposed_moves" not in result, (
-            "deterministic_proposal_node must not write proposed_moves; "
+            "proposer_agent must not write proposed_moves; "
             "runners that display candidates must read legal_moves"
         )
 
@@ -419,22 +408,18 @@ class TestDeterministicProposalNode:
 class TestPreRankerPipeline:
 
     def _run_simplified_turn_prep(self, board=None, player=RED):
-        """Run scorer_node → deterministic_proposal_node, return final state."""
+        """Run scorer_node → proposer_agent, return final state."""
         b = board or _start_board()
         s0 = CheckersState(board=b, current_player=player)
-        r1 = scorer_node(s0)
+        r1 = scorer_agent(s0)
         s1 = s0.model_copy(update=r1)
-        r2 = deterministic_proposal_node(s1)
+        r2 = proposer_node(s1)
         s2 = s1.model_copy(update=r2)
         return s2
 
     def test_legal_moves_non_empty_after_full_prep(self):
         state = self._run_simplified_turn_prep()
         assert state.legal_moves, "legal_moves must be non-empty after full prep"
-
-    def test_legal_moves_at_most_five(self):
-        state = self._run_simplified_turn_prep()
-        assert len(state.legal_moves) <= 5
 
     def test_minimax_scores_finite_after_prep(self):
         state = self._run_simplified_turn_prep()
@@ -444,9 +429,9 @@ class TestPreRankerPipeline:
                 f"non-finite minimax_score after prep: {score} on {m.get('path')}"
             )
 
-    def test_last_completed_node_is_deterministic_proposal(self):
+    def test_last_completed_node_is_proposer_agent(self):
         state = self._run_simplified_turn_prep()
-        assert state.last_completed_node == "deterministic_proposal_node"
+        assert state.last_completed_node == "proposer_agent"
 
     def test_format_checker_never_called_in_simplified_prep(self):
         """
@@ -461,7 +446,7 @@ class TestPreRankerPipeline:
         # validator writes feedback on failure; it must stay None.
         assert state.feedback is None
 
-    def test_score_state_written_by_scorer_node(self):
+    def test_score_state_written_by_scorer_agent(self):
         """scorer_node must write a valid score_state to state."""
         state = self._run_simplified_turn_prep()
         assert state.score_state in (
@@ -490,6 +475,6 @@ class TestGraphCompilation:
 
     def test_graph_module_imports_without_error(self):
         import checkers.graph.graph as gg
-        assert hasattr(gg, "_update_agent_routing")
+        assert hasattr(gg, "_updater_agent_routing")
         assert hasattr(gg, "build_graph")
         assert hasattr(gg, "checkers_graph")

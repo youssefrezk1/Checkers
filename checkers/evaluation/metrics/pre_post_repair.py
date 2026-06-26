@@ -1,7 +1,7 @@
 # checkers/evaluation/metrics/pre_post_repair.py
 #
 # Factuality metric — measures how much the truthfulness-refinement loop
-# inside ranker_agent reduces unsupported / contradicted claims by
+# inside explainer_agent reduces unsupported / contradicted claims by
 # comparing the reasoning BEFORE and AFTER refinement.
 #
 # Source fields consumed from each evaluation_source/*.jsonl record:
@@ -185,7 +185,7 @@ def evaluate_pre_post_repair(
         else (record.get("turn_id") if isinstance(record.get("turn_id"), str) else "unknown")
     )
 
-    diag    = record.get("ranker_diagnostics") or {}
+    diag    = record.get("explainer_diagnostics") or record.get("ranker_diagnostics") or {}
     facts   = record.get("chosen_move_facts") or {}
     seeds   = [s for s in (diag.get("reasoning_seeds") or []) if isinstance(s, str)]
     nb      = diag.get("next_best_minimax_score")

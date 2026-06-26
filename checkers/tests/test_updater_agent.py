@@ -6,10 +6,9 @@ Unit and routing tests for the simplified-pipeline update_agent node.
 What is tested
 ──────────────
   Group 1 — Routing
-    - ranker_agent → update_agent in simplified mode (with or without chosen_move)
-    - update_agent → scorer_node when game continues
-    - update_agent → end when game is over
-    - Old pipeline routing untouched (ranker → state_manager / win_condition)
+    - explainer_agent → updater_agent in simplified mode (with or without chosen_move)
+    - updater_agent → scorer_node when game continues
+    - updater_agent → end when game is over
 
   Group 2 — Normal turn (move applied)
     - Board is updated after update_agent runs
@@ -254,7 +253,7 @@ class TestSimplifiedPipelineRouting:
 
     def test_simplified_full_turn_sequence_loops_back_to_scorer_node(self):
         """update_agent → scorer_node when game continues (direct edge loop)."""
-        # scorer_node → deterministic_proposal_node → ranker_agent → update_agent
+        # scorer_node → proposer_agent → explainer_agent → updater_agent
         # are all direct edges verified by graph compilation tests.
 
         # update_agent → scorer_node (via _update_agent_routing)

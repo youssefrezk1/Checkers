@@ -31,27 +31,59 @@ def _opp(player: int) -> int:
 # ── 1. Terminal win via search_root ──────────────────────────────────────────
 
 def test_terminal_win_when_opponent_has_no_pieces():
-    """search_root for side with pieces vs empty opponent → WIN_SCORE."""
+    """search_root for side with pieces vs empty opponent → near-WIN_SCORE.
+
+    The engine uses mate-distance scoring: terminal wins return WIN_SCORE - ply_from_root
+    (not a flat WIN_SCORE) so the engine prefers faster wins.  search_root starts
+    child evaluation at ply_from_root=1, so a 1-ply forced win returns WIN_SCORE - 1.
+    The assertion accepts any score in [WIN_SCORE - depth, WIN_SCORE].
+    """
+    depth = 2
     board = _empty_board()
     board[5][2] = RED
 
-    best_move, score, _ = search_root(board=board, current_player=RED, depth=2)
+    best_move, score, _ = search_root(board=board, current_player=RED, depth=depth)
     assert best_move is not None
     child = apply_move(board, best_move)
     opp_moves = get_all_legal_moves(child, BLACK)
     assert len(opp_moves) == 0
-    assert score == float(WIN_SCORE)
+    # Mate-distance: WIN_SCORE - ply_from_root.  ply_from_root=1 at first child
+    # → score = WIN_SCORE - 1.  Allow the full depth window for robustness.
+    assert score >= float(WIN_SCORE) - depth, (
+        f"Expected near-WIN_SCORE (>= {WIN_SCORE - depth}), got {score}"
+    )
+    assert score <= float(WIN_SCORE), f"Score cannot exceed WIN_SCORE, got {score}"
 
 
 def test_terminal_win_when_opponent_is_blocked():
-    """Opponent has pieces but is completely blocked → WIN_SCORE."""
+    """Opponent has pieces but is completely blocked → near-WIN_SCORE.
+
+    Original board bug: with only RED at (1,0) and (1,2), RED's only legal
+    move is (1,2)→(0,3), which vacates (1,2) and unblocks BLACK at (0,1).
+    No terminal is reached within depth=2.
+
+    Fix: add a third RED piece at (3,4) that RED can move freely.  After
+    RED(3,4)→(2,3) or (2,5), both (1,0) and (1,2) remain occupied, keeping
+    BLACK blocked.  The terminal fires at ply_from_root=1 → WIN_SCORE - 1.
+
+    Same mate-distance adjustment as test_terminal_win_when_opponent_has_no_pieces.
+    """
+    depth = 2
     board = _empty_board()
     board[0][1] = BLACK
     board[1][0] = RED
     board[1][2] = RED
+    # Third RED piece: gives RED a move that does not vacate (1,0) or (1,2),
+    # so BLACK at (0,1) stays blocked after RED moves.
+    board[3][4] = RED
 
-    best_move, score, _ = search_root(board=board, current_player=RED, depth=2)
-    assert score == float(WIN_SCORE)
+    best_move, score, _ = search_root(board=board, current_player=RED, depth=depth)
+    assert best_move is not None
+    # Mate-distance: best line is RED(3,4)→(2,x), BLACK still blocked → WIN_SCORE - 1.
+    assert score >= float(WIN_SCORE) - depth, (
+        f"Expected near-WIN_SCORE (>= {WIN_SCORE - depth}), got {score}"
+    )
+    assert score <= float(WIN_SCORE), f"Score cannot exceed WIN_SCORE, got {score}"
 
 
 # ── 2. Multi-jump: full sequence generated and selected ──────────────────────
@@ -345,7 +377,13 @@ def test_pv_move_reduces_nodes_or_equal():
 def _per_move_exact_scores(
     board: list[list[int]], player: int, depth: int,
 ) -> list[tuple[dict, float]]:
-    """Production-style per-move full-window scoring (no TT)."""
+    """Production-style per-move full-window scoring (no TT).
+
+    ply_from_root=1 mirrors search_root_all_scores, which always starts child
+    evaluation one ply from the root.  Without it, terminal scores inside the
+    search tree are off by one (WIN_SCORE-0 vs WIN_SCORE-1) and the comparison
+    fails for any board where a terminal node is reached within `depth` plies.
+    """
     legal = get_all_legal_moves(board, player)
     opp = BLACK if player == RED else RED
     scored = []
@@ -357,6 +395,7 @@ def _per_move_exact_scores(
             alpha=float("-inf"), beta=float("inf"),
             stats=SearchStats(), use_tt=False,
             extension_depth=0, use_tactical_extension=True, use_phase7a=True,
+            ply_from_root=1,   # match search_root_all_scores: child is 1 ply from root
         ))
         scored.append((move, score))
     scored.sort(key=lambda x: -x[1])

@@ -8,7 +8,7 @@ Tests for PDN FEN utilities — verifying:
 """
 
 import pytest
-from checkers.data.pdn_importer.fen_utils import (
+from checkers.engine.fen_utils import (
     square_to_rowcol, rowcol_to_square, parse_fen, side_to_str
 )
 from checkers.engine.board import (

@@ -680,9 +680,9 @@ def run_tactical_scenario(
                     continue
                 if isinstance(delta, dict):
                     acc.update(delta)
-                if node_name == "update_agent":
+                if node_name == "updater_agent":
                     break  # one turn only
-            if acc.get("last_completed_node") == "update_agent":
+            if acc.get("last_completed_node") == "updater_agent":
                 break
     except Exception as exc:
         return {
@@ -768,12 +768,12 @@ def run_tactical_scenario(
             isinstance(r.get("chosen_move_facts"), dict) for r in ai_records
         ),
         "reasoning_path": (
-            (src_records[0].get("ranker_diagnostics") or {}).get("reasoning_path")
+            (src_records[0].get("explainer_diagnostics") or src_records[0].get("ranker_diagnostics") or {}).get("reasoning_path")
             if src_records else None
         ),
         "trajectory_events": list(
             set(k for r in src_records
-                for k, v in ((r.get("ranker_diagnostics") or {}).items())
+                for k, v in ((r.get("explainer_diagnostics") or r.get("ranker_diagnostics") or {}).items())
                 if isinstance(v, bool) and v and k != "override_applied"
             )
         ),
@@ -808,7 +808,7 @@ def _extract_run_diagnostics(result: Dict[str, Any]) -> Dict[str, Any]:
             first = fh.readline()
         if first.strip():
             rec = json.loads(first)
-            diag_raw = rec.get("ranker_diagnostics") or {}
+            diag_raw = rec.get("explainer_diagnostics") or rec.get("ranker_diagnostics") or {}
 
     return {
         "valid":                         True,

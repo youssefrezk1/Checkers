@@ -1,7 +1,7 @@
 # nodes/state_manager.py
 #
 # The state_manager is the transition node between turns.
-# It runs after the ranker_agent and before win_condition.
+# It runs after the explainer_agent and before win_condition.
 #
 # Engine responsibilities (via apply_move): full path, all captures in one ply,
 # multi-jump sequences, king promotion — already implemented in rules.apply_move.
@@ -74,8 +74,6 @@ def state_manager(state: CheckersState) -> dict:
     new_turn_number = state.turn_number + 1
 
     # Step 5 — Build the move record for this turn.
-    # This gets appended to move_history so inter_turn_memory
-    # can compute trends and detect patterns across turns.
     move_record = {
         "turn": new_turn_number,
         "player": current_player,
@@ -103,7 +101,7 @@ def state_manager(state: CheckersState) -> dict:
         "chosen_move_score": None,
         "unchosen_moves": [],
         "last_move_reasoning": None,
-        "ranker_retry_count": 0,
+        "explainer_retry_count": 0,
         "retry_count": 0,
         "insufficient_proposals": False,
         "feedback": None,
@@ -118,7 +116,7 @@ def state_manager(state: CheckersState) -> dict:
         "symbolic_bypass_reason": None,
         "llm_invoked": False,
         "llm_agreed_with_symbolic_best": None,
-        "proposal_diagnostics": None,
+        "proposer_diagnostics": None,
         # Evaluation export field — cleared each turn so stale facts
         # from a previous ply never persist into the next.
         "chosen_move_facts": None,

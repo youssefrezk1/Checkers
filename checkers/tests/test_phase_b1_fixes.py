@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from checkers.agents.ranker_agent import _check_reasoning_truthfulness
+from checkers.agents.explainer_agent import _check_reasoning_truthfulness
 from checkers.evaluation.unified_verifier import (
     _check_comparative_recapture_fabrication,
     _check_outweighs_numeric_grounding,

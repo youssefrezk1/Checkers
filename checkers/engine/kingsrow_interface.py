@@ -6,7 +6,7 @@ import time
 from typing import Optional, Dict, Any
 
 from checkers.engine.board import RED, BLACK, RED_KING, BLACK_KING, EMPTY
-from checkers.data.pdn_importer.fen_utils import square_to_rowcol
+from checkers.engine.fen_utils import square_to_rowcol
 
 # CheckerBoard Piece Values
 CB_FREE = 0

@@ -1,10 +1,10 @@
-# agents/ranker_agent.py
+# agents/explainer_agent.py
 #
 # Reasoning-only explanation node for the American Checkers
 # simplified proposal-authoritative pipeline.
 #
 # In this pipeline the move is selected ENTIRELY by
-# deterministic_proposal_node. ranker_agent receives the already-chosen
+# proposer_agent. explainer_agent receives the already-chosen
 # move plus the full candidate list and produces a grounded natural-
 # language explanation. It MUST NOT — and structurally CANNOT — modify,
 # re-score, re-rank, override, retry, or otherwise revisit the chosen
@@ -30,7 +30,7 @@ from checkers.ontology.semantic_ontology import (
     FORBIDDEN_CONFLATION_PHRASES as _ONTOLOGY_FORBIDDEN_CONFLATION,
     GENERIC_FILLER_PHRASES as _ONTOLOGY_GENERIC_FILLER,
 )
-from checkers.evaluation.forbidden_vocab import (
+from checkers.ontology.forbidden_vocab import (
     ABSOLUTE_FORBIDDEN_VOCAB as _FORBIDDEN_VOCAB,
     CONTEXT_FORBIDDEN_VOCAB as _CONTEXT_FORBIDDEN_VOCAB,
 )
@@ -3151,7 +3151,7 @@ def _generate_binary_comparative(
 
 # ── Proposal-authoritative explanation path ──────────────────────────────────
 # Sole reasoning entry point in the simplified pipeline. The move was already
-# selected by deterministic_proposal_node; this function only produces the
+# selected by proposer_agent; this function only produces the
 # natural-language explanation for it. It NEVER selects, re-scores, re-ranks,
 # overrides, retries, tie-breaks, or mutates chosen_move.
 
@@ -3411,13 +3411,13 @@ def _explain_chosen_move(state: CheckersState) -> dict:
 
 # ── Main node ─────────────────────────────────────────────────────────────────
 #
-# In the simplified proposal-authoritative pipeline, ranker_agent is a
+# In the simplified proposal-authoritative pipeline, explainer_agent is a
 # pure explanation node. It NEVER selects, re-scores, re-ranks, retries,
-# or overrides the move chosen by deterministic_proposal_node.
+# or overrides the move chosen by proposer_agent.
 #
 # Invariants (enforced below):
-#   • state.chosen_move is set by deterministic_proposal_node
-#   • state.chosen_move_score is set by deterministic_proposal_node
+#   • state.chosen_move is set by proposer_agent
+#   • state.chosen_move_score is set by proposer_agent
 #   • If either is None, the upstream graph is misconfigured and we raise
 #     immediately rather than fall back to any decision-making code path.
 #
@@ -3427,7 +3427,7 @@ def _explain_chosen_move(state: CheckersState) -> dict:
 # builders, RANKER_SYSTEM_PROMPT, build_ranker_user_prompt, …) are NOT
 # reachable from this entry point. They are retained at module scope only
 # because external evaluation scripts and regression tests import them by
-# name. None of them are invoked when ranker_agent runs inside the
+# name. None of them are invoked when explainer_agent runs inside the
 # simplified pipeline.
 
 def explainer_agent(state: CheckersState) -> dict:
@@ -3435,7 +3435,7 @@ def explainer_agent(state: CheckersState) -> dict:
     Reasoning-only node for the simplified proposal-authoritative pipeline.
 
     Responsibilities:
-      1. Read the move already chosen by deterministic_proposal_node
+      1. Read the move already chosen by proposer_agent
          (state.chosen_move + state.chosen_move_score).
       2. Generate a grounded natural-language explanation for that move,
          comparing it against state.unchosen_moves only as context for
@@ -3449,8 +3449,8 @@ def explainer_agent(state: CheckersState) -> dict:
     """
     if state.chosen_move is None or state.chosen_move_score is None:
         raise RuntimeError(
-            "ranker_agent invariant violated: deterministic_proposal_node must "
-            "set both chosen_move and chosen_move_score before ranker_agent runs. "
+            "explainer_agent invariant violated: proposer_agent must "
+            "set both chosen_move and chosen_move_score before explainer_agent runs. "
             "Got chosen_move=%r chosen_move_score=%r."
             % (state.chosen_move, state.chosen_move_score)
         )

@@ -71,7 +71,7 @@ def _extract_seeds(record: Dict[str, Any]) -> List[str]:
     Extract reasoning_seeds from ranker_diagnostics["reasoning_seeds"].
     Returns [] if absent or not a list.
     """
-    diag = record.get("ranker_diagnostics")
+    diag = record.get("explainer_diagnostics") or record.get("ranker_diagnostics")
     if not isinstance(diag, dict):
         return []
     seeds = diag.get("reasoning_seeds")
@@ -150,7 +150,7 @@ def replay_evaluate_file(
             reasoning_text   = _extract_reasoning(source_record)
             facts            = _extract_facts(source_record)
             seeds            = _extract_seeds(source_record)
-            diag             = source_record.get("ranker_diagnostics") or {}
+            diag             = source_record.get("explainer_diagnostics") or source_record.get("ranker_diagnostics") or {}
             turn_id          = _extract_turn_id(source_record, turn_index)
 
             eval_record = evaluate_turn(

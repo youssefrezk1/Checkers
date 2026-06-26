@@ -1,7 +1,7 @@
-# checkers/tests/test_ranker_agent_step6.py
+# checkers/tests/test_explainer_agent_step6.py
 #
 # Step 6 of the Comparative Reasoning v2 roadmap: integration tests for the
-# env-gated comparative stage in _explain_chosen_move / ranker_agent.
+# env-gated comparative stage in _explain_chosen_move / explainer_agent.
 #
 # Coverage matrix:
 #   - flag OFF → byte-identical output vs baseline (generate never called)

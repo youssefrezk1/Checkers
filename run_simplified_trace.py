@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 # run_simplified_trace.py — simplified pipeline runner (AI-vs-human)
-# RED: scorer_node → deterministic_proposal_node → ranker_agent → update_agent
-# BLACK: human terminal input → update_agent (AI pipeline bypassed entirely)
+# RED: scorer_node → proposer_agent → explainer_agent → updater_agent
+# BLACK: human terminal input → updater_agent (AI pipeline bypassed entirely)
 """
 Game trace using the simplified pipeline: RED = AI, BLACK = human.
 
 Architecture (proposal-authoritative):
-  - deterministic_proposal_node is the SOLE move authority.
-  - ranker_agent is a PURE reasoning/explanation node (no decision authority).
-  - chosen_move flows: proposal → ranker (unchanged) → update_agent.
+  - proposer_agent is the SOLE move authority.
+  - explainer_agent is a PURE reasoning/explanation node (no decision authority).
+  - chosen_move flows: proposal → explainer (unchanged) → updater_agent.
 
 Per-turn flow:
-  RED turn  — graph runs scorer → proposal → ranker → update_agent then
-              stops (interrupt_after update_agent).  The graph does NOT loop.
+  RED turn  — graph runs scorer → proposal → explainer → updater_agent then
+              stops (interrupt_after updater_agent).  The graph does NOT loop.
   BLACK turn — legal moves printed with indices; human enters a move index;
-              update_agent is called directly (scorer/proposal/ranker skipped).
+              updater_agent is called directly (scorer/proposal/explainer skipped).
 
 Usage:
   python run_simplified_trace.py [--max-turns N] [--quiet]
@@ -25,7 +25,7 @@ from __future__ import annotations
 # ── Force simplified pipeline BEFORE importing the graph ──────────────────────
 import os
 os.environ["USE_SIMPLIFIED_PIPELINE"] = "true"
-# Suppress logger_node stdout; logs still go to logs/ via update_agent Phase C.
+# Suppress logger_node stdout; logs still go to logs/ via updater_agent Phase C.
 os.environ.setdefault("CHECKERS_LOGGER_PRINT", "false")
 
 from dotenv import load_dotenv  # type: ignore
@@ -39,7 +39,7 @@ from typing import Any, Optional
 
 from checkers.graph.graph import checkers_graph
 from checkers.state.state import CheckersState
-from checkers.agents.update_agent import update_agent as _update_agent_fn
+from checkers.agents.updater_agent import updater_agent as _update_agent_fn
 from checkers.engine.board import RED, BLACK, create_initial_board, print_board
 from checkers.engine.move_facts import count_pieces
 from checkers.engine.rules import get_all_legal_moves
@@ -163,11 +163,11 @@ def _stream_one_ply(
 ) -> tuple[dict[str, Any], bool]:
     """
     Run exactly one RED ply through the simplified graph.
-    scorer_node → deterministic_proposal_node → ranker_agent → update_agent,
-    then the stream is interrupted (interrupt_after=["update_agent"]) so the
+    scorer_node → proposer_agent → explainer_agent → updater_agent,
+    then the stream is interrupted (interrupt_after=["updater_agent"]) so the
     graph does NOT loop back to scorer_node for BLACK.
 
-    Returns (updated_acc, success) where success means update_agent completed.
+    Returns (updated_acc, success) where success means updater_agent completed.
     """
     saw_update_agent = False
     cfg = {
@@ -179,7 +179,7 @@ def _stream_one_ply(
         for chunk in checkers_graph.stream(
             acc,
             stream_mode="updates",
-            interrupt_after=["update_agent"],
+            interrupt_after=["updater_agent"],
             config=cfg,
         ):
             for node_name, delta in chunk.items():
@@ -190,7 +190,7 @@ def _stream_one_ply(
                 acc.update(delta)
 
                 if quiet:
-                    if node_name == "update_agent":
+                    if node_name == "updater_agent":
                         saw_update_agent = True
                     continue
 
@@ -206,7 +206,7 @@ def _stream_one_ply(
                     print(f"best_score={best}  gap={gap}")
                     print()
 
-                elif node_name == "deterministic_proposal_node":
+                elif node_name == "proposer_agent":
                     # Proposal is the SOLE move authority in the simplified pipeline.
                     cm = acc.get("chosen_move")
                     cm_score = acc.get("chosen_move_score")
@@ -241,10 +241,10 @@ def _stream_one_ply(
                     print()
 
 
-                elif node_name == "ranker_agent":
+                elif node_name == "explainer_agent":
                     cm = acc.get("chosen_move")
                     lm = acc.get("legal_moves") or []
-                    _diag = acc.get("ranker_diagnostics") or {}
+                    _diag = acc.get("explainer_diagnostics") or {}
                     _source = _diag.get("final_choice_source", "unknown")
 
                     print("── RANKER (explanation only — proposal-authoritative) ──")
@@ -284,7 +284,7 @@ def _stream_one_ply(
                         print(f"  final_choice_source={_source}")
                         print(f"  seeds={len(_seeds)}  contradictions={len(_contradictions)}  seed_fallback={_fallback}")
 
-                        # ranker_agent has no decision authority in this pipeline.
+                        # explainer_agent has no decision authority in this pipeline.
                         print(f"  override/retry: INACTIVE (proposal-authoritative)")
 
                         # Move identity verification
@@ -296,7 +296,7 @@ def _stream_one_ply(
                         print("Chose index: (none — ranker failure)")
                     print()
 
-                elif node_name == "update_agent":
+                elif node_name == "updater_agent":
                     saw_update_agent = True
                     mh = acc.get("move_history") or []
                     if mh:
@@ -307,7 +307,7 @@ def _stream_one_ply(
                     else:
                         pm, mov, prom = RED, None, False
 
-                    print("── MOVE APPLIED (update_agent) ──")
+                    print("── MOVE APPLIED (updater_agent) ──")
                     if mov:
                         print(_fmt_applied_move(int(pm), mov, prom))
                     print("\n── BOARD AFTER MOVE ──")
@@ -354,14 +354,14 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
 
     if not ok and not quiet:
         print(
-            "[run_simplified_trace] warning: graph did not complete update_agent.",
+            "[run_simplified_trace] warning: graph did not complete updater_agent.",
             file=sys.stderr,
         )
 
     return acc
 
 
-# ── BLACK ply (human input, applied via update_agent) ─────────────────────────
+# ── BLACK ply (human input, applied via updater_agent) ────────────────────────
 
 def _run_black_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
     turn_no = acc.get("turn_number", 0)
@@ -405,9 +405,9 @@ def _run_black_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
         print(RULE)
         print()
 
-    # Apply the human move directly via update_agent (Phase A-D).
+    # Apply the human move directly via updater_agent (Phase A-D).
     # Calling the graph would restart from scorer_node and overwrite chosen_move
-    # with the LLM's choice.  Calling update_agent directly preserves it.
+    # with the LLM's choice.  Calling updater_agent directly preserves it.
     acc["chosen_move"]         = move
     acc["last_move_reasoning"] = "BLACK human move"
 
@@ -415,15 +415,15 @@ def _run_black_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
     _state = CheckersState(**{k: v for k, v in acc.items() if k in _valid})
     _ua_result = _update_agent_fn(_state)
     acc.update(_ua_result)
-    ok = _ua_result.get("last_completed_node") == "update_agent"
+    ok = _ua_result.get("last_completed_node") == "updater_agent"
     if not ok:
         print(
-            "[run_simplified_trace] warning: BLACK update_agent did not complete.",
+            "[run_simplified_trace] warning: BLACK updater_agent did not complete.",
             file=sys.stderr,
         )
 
     # ── Smoke test: human move was applied, not overwritten by AI pipeline ──
-    # update_agent calls state_manager which records the applied move in
+    # updater_agent calls state_manager which records the applied move in
     # move_history[-1]["move"].  Verify it matches what the human chose.
     # Paths are normalized to list-of-lists so tuple/list representation
     # differences (introduced by Pydantic validation) do not cause false fails.

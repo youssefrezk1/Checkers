@@ -20,7 +20,7 @@ from checkers.evaluation.unified_verifier import verify_all
 
 
 def extract_seeds(record: Dict[str, Any]) -> List[str]:
-    diag = record.get("ranker_diagnostics") or {}
+    diag = record.get("explainer_diagnostics") or record.get("ranker_diagnostics") or {}
     seeds = diag.get("reasoning_seeds") or []
     return [s for s in seeds if isinstance(s, str)]
 
@@ -31,7 +31,7 @@ def extract_facts(record: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def extract_verifier_context(record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    diag = record.get("ranker_diagnostics") or {}
+    diag = record.get("explainer_diagnostics") or record.get("ranker_diagnostics") or {}
     nb = diag.get("next_best_minimax_score")
     if isinstance(nb, (int, float)):
         return {"next_best_minimax_score": nb}
@@ -44,7 +44,7 @@ def post_reasoning(record: Dict[str, Any]) -> str:
 
 
 def pre_reasoning(record: Dict[str, Any]) -> Optional[str]:
-    diag = record.get("ranker_diagnostics") or {}
+    diag = record.get("explainer_diagnostics") or record.get("ranker_diagnostics") or {}
     val = diag.get("raw_llm_reasoning_pre_refinement")
     if isinstance(val, str) and val.strip():
         return val

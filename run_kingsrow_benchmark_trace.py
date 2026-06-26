@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 # Force simplified pipeline configuration
 os.environ["USE_SIMPLIFIED_PIPELINE"] = "true"
-# Suppress logger_node stdout; logs still save via update_agent logs/ integration
+# Suppress logger_node stdout; logs still save via updater_agent logs/ integration
 os.environ.setdefault("CHECKERS_LOGGER_PRINT", "false")
 
 from dotenv import load_dotenv  # type: ignore
@@ -27,7 +27,7 @@ from typing import Any, Optional
 
 from checkers.graph.graph import checkers_graph
 from checkers.state.state import CheckersState
-from checkers.agents.update_agent import update_agent as _update_agent_fn
+from checkers.agents.updater_agent import updater_agent as _update_agent_fn
 from checkers.engine.board import RED, BLACK, create_initial_board, print_board
 from checkers.engine.move_facts import count_pieces
 from checkers.engine.rules import get_all_legal_moves, apply_move
@@ -63,7 +63,7 @@ def _stream_one_ply(
         "recursion_limit": recursion_limit,
     }
 
-    # Captured data to persist diagnostics before update_agent clears them
+    # Captured data to persist diagnostics before updater_agent clears them
     captured_legal_moves = []
     captured_chosen_move = {}
     captured_chosen_score = 0.0
@@ -72,7 +72,7 @@ def _stream_one_ply(
         for chunk in checkers_graph.stream(
             acc,
             stream_mode="updates",
-            interrupt_after=["update_agent"],
+            interrupt_after=["updater_agent"],
             config=cfg,
         ):
             for node_name, delta in chunk.items():
@@ -82,14 +82,14 @@ def _stream_one_ply(
                     continue
                 
                 # Cache diagnostics from proposal node before state transitions clear it
-                if node_name == "deterministic_proposal_node":
+                if node_name == "proposer_agent":
                     captured_legal_moves = delta.get("legal_moves") or []
                     captured_chosen_move = delta.get("chosen_move") or {}
                     captured_chosen_score = delta.get("chosen_move_score") or 0.0
                 
                 acc.update(delta)
 
-                if node_name == "update_agent":
+                if node_name == "updater_agent":
                     saw_update_agent = True
                     
                     if quiet:
@@ -267,7 +267,7 @@ def _run_red_ply(acc: dict[str, Any], quiet: bool, kr_engine: Any = None, kr_tim
 
     if not ok and not quiet:
         print(
-            "[run_kingsrow_benchmark_trace] warning: graph did not complete update_agent.",
+            "[run_kingsrow_benchmark_trace] warning: graph did not complete updater_agent.",
             file=sys.stderr,
         )
 
@@ -321,7 +321,7 @@ def _run_black_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
             print(f"\nApplied: {move}")
         print()
 
-    # Apply the human move directly via update_agent
+    # Apply the human move directly via updater_agent
     acc["chosen_move"]         = move
     acc["last_move_reasoning"] = "BLACK human move"
 
@@ -329,10 +329,10 @@ def _run_black_ply(acc: dict[str, Any], quiet: bool) -> dict[str, Any]:
     _state = CheckersState(**{k: v for k, v in acc.items() if k in _valid})
     _ua_result = _update_agent_fn(_state)
     acc.update(_ua_result)
-    ok = _ua_result.get("last_completed_node") == "update_agent"
+    ok = _ua_result.get("last_completed_node") == "updater_agent"
     if not ok:
         print(
-            "[run_kingsrow_benchmark_trace] warning: BLACK update_agent did not complete.",
+            "[run_kingsrow_benchmark_trace] warning: BLACK updater_agent did not complete.",
             file=sys.stderr,
         )
 

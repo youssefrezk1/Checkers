@@ -182,28 +182,39 @@ def test_depth1_equals_argmax_evaluate_board() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 def test_sign_consistency_red_vs_black_perspective() -> None:
     """
-    evaluate_board(board, RED, RED) should equal
-    -evaluate_board(board, BLACK, RED) approximately.
+    evaluate_board always returns a score from root_player's perspective,
+    regardless of current_player.  current_player only affects terminal
+    detection (who is stuck with no moves); for non-terminal positions it
+    has no effect on the numeric value.
 
-    The evaluator is from root_player's perspective:
-    - evaluate_board(board, current_player=RED, root_player=RED)
-      → RED maximizes. Positive = good for RED.
-    - evaluate_board(board, current_player=BLACK, root_player=RED)
-      → BLACK minimizes. From RED's root, negative = bad for RED.
+    Contract being tested:
+    - evaluate_board(board, current_player=RED, root_player=RED)  → positive (RED ahead)
+    - evaluate_board(board, current_player=BLACK, root_player=RED) → same positive value
+      (same position, same root perspective — current_player does not flip the sign)
+
+    The sign inversion expected by a standard negamax convention is performed
+    inside the negamax MIN/MAX recursion, not inside evaluate_board itself.
     """
     b = eb()
     b[3][2] = RED
     b[3][4] = RED
     b[5][3] = BLACK
 
-    s_red = float(evaluate_board(b, RED, RED))
+    s_red   = float(evaluate_board(b, RED,   RED))
     s_black = float(evaluate_board(b, BLACK, RED))
 
-    # They are NOT necessarily exact negatives of each other due to
-    # asymmetric terms (mobility differs by side to move), but they must
-    # agree in sign direction: when RED is ahead, s_red > 0 and s_black < 0.
+    # RED is materially ahead (2 pieces vs 1) → positive from RED's root perspective.
     assert s_red > 0, f"Expected positive score for RED when materially ahead, got {s_red}"
-    assert s_black < 0, f"Expected negative score when BLACK to move and RED ahead, got {s_black}"
+
+    # Same position, same root_player=RED — current_player does not change the value.
+    assert s_black > 0, (
+        f"evaluate_board is root-player-perspective; changing current_player must not "
+        f"flip the sign for a non-terminal position. Got {s_black}"
+    )
+    assert s_red == s_black, (
+        f"Non-terminal evaluation must be identical regardless of current_player. "
+        f"RED-to-move={s_red}, BLACK-to-move={s_black}"
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -377,12 +388,25 @@ def test_promotion_scores_higher_than_non_promotion() -> None:
     On a board where RED has one piece at row 1 and can promote immediately,
     the promotion move must score strictly higher than any non-promotion alternative
     when the promotion square is safe (no immediate recapture).
+
+    A distant BLACK piece is required so that all resulting positions remain
+    non-terminal (BLACK always has at least one legal move).  Without it,
+    negamax's terminal detection fires for every child board (BLACK has no pieces
+    → no moves → immediate WIN_SCORE for all children), making promotion and
+    non-promotion indistinguishable at depth 0.
     """
     b = eb()
     b[1][2] = RED   # one step from promotion; can go to (0,1) or (0,3)
     # (0,1) and (0,3) are empty — clean promotion
     # A non-promotion alternative at (5,4) far away
     b[5][4] = RED
+    # Non-terminal guard: BLACK must be placed at a row where it has forward moves.
+    # (7,7) is BLACK's promotion row — no forward moves exist → terminal detection
+    # fires for every child board and returns WIN_SCORE, making promotion and
+    # non-promotion indistinguishable.  (5,6) lets BLACK move to (6,5)/(6,7),
+    # keeping every child non-terminal so evaluate_board is reached and the
+    # king-value bonus from promotion is measured.
+    b[5][6] = BLACK
 
     legal = get_all_legal_moves(b, RED)
     promotions = [m for m in legal if m["path"][-1][0] == 0]

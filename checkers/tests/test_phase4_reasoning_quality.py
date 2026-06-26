@@ -16,12 +16,12 @@ from typing import Optional
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
-from checkers.agents.ranker_agent import (
+from checkers.agents.explainer_agent import (
     _build_grounded_reasoning_seeds,
     _build_seed_reasoning_prompt,
     _build_refinement_prompt,
-    RANKER_SEED_REASONING_SYSTEM,
-    RANKER_REASONING_REFINEMENT_SYSTEM,
+    EXPLAINER_SEED_REASONING_SYSTEM as RANKER_SEED_REASONING_SYSTEM,
+    EXPLAINER_REASONING_REFINEMENT_SYSTEM as RANKER_REASONING_REFINEMENT_SYSTEM,
 )
 
 
@@ -108,7 +108,15 @@ class TestNoSchemaLeakageInSeeds:
             assert key not in text, f"Raw field name '{key}' appears in seeds: {text!r}"
 
     def test_minimax_seed_is_natural_language(self):
-        seeds = self._seeds()
+        # Must pass two candidates so the multi-candidate path is taken;
+        # single-candidate triggers an early-return with different wording.
+        alt = {
+            "type": "simple",
+            "path": [[6, 3], [5, 2]],
+            "captured": [],
+            "facts": {**_BASE_FACTS, "opponent_can_recapture": True},
+        }
+        seeds = self._seeds(candidates=[{**_BASE_MOVE, "facts": _BASE_FACTS}, alt])
         mm_seeds = [s for s in seeds if "engine scores" in s]
         assert len(mm_seeds) == 1
         assert not _KEY_VALUE_PATTERN.search(mm_seeds[0])
@@ -164,7 +172,8 @@ class TestRestrictionRoleSeeds:
         seeds = self._seeds(quiet_move_role="STRUCTURAL_RESTRICTION", frozen_enemy_pieces=1)
         restriction_seeds = [s for s in seeds if "restricted forward movement" in s]
         assert restriction_seeds
-        assert "1 opponent piece(s)" in restriction_seeds[0]
+        # Production uses proper singular ("1 opponent piece has") not "(s)" suffix.
+        assert "1 opponent piece" in restriction_seeds[0]
 
     def test_restriction_seed_is_natural_language(self):
         seeds = self._seeds(quiet_move_role="STRUCTURAL_RESTRICTION", frozen_enemy_pieces=2)
@@ -232,8 +241,11 @@ class TestRefinementPromptNoSchemaKeys:
 
     def test_no_raw_key_equals_value_in_prompt(self):
         prompt = self._prompt({**_BASE_FACTS, "opponent_can_recapture": True})
-        assert "opponent_can_recapture=" not in prompt
-        assert "center_control=" not in prompt
+        # Only the "Key facts" section must be schema-free; the anti-hallucination
+        # rules section legitimately uses key=value notation as gating conditions.
+        key_facts_section = prompt.split("Your previous reasoning")[0]
+        assert "opponent_can_recapture=" not in key_facts_section
+        assert "center_control=" not in key_facts_section
 
     def test_human_readable_recapture_line(self):
         prompt = self._prompt({**_BASE_FACTS, "opponent_can_recapture": True})

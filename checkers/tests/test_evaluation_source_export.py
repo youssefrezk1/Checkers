@@ -7,16 +7,16 @@ PURPOSE
 -------
 After Phase-5 evaluation export was added, the lifecycle of `chosen_move_facts`
 became:
-    ranker_agent  sets state.chosen_move_facts
-    state_manager clears it (Phase A)         ← happens BEFORE logger_node
-    update_agent  snapshots it and restores it on a log-only state copy
+    explainer_agent sets state.chosen_move_facts
+    state_manager   clears it (Phase A)       ← happens BEFORE logger_node
+    updater_agent   snapshots it and restores it on a log-only state copy
     logger_node   writes evaluation_source/<game_log_id>.jsonl
 
 This sequence is brittle: any reordering of state_manager → logger_node or
 any future graph rewrite that re-introduces state_manager between the
 snapshot and the logger call would silently drop the export.
 
-This test exercises one full `update_agent` invocation and asserts the
+This test exercises one full `updater_agent` invocation and asserts the
 JSONL artifact contains the required non-null fields.  It also confirms that
 the final merged dict does NOT carry `chosen_move_facts` forward into the next turn.
 """
@@ -67,9 +67,9 @@ def _pick_red_simple_move(board: list[list[int]]) -> dict:
 
 def _make_state_with_chosen(tmp_log_dir: Path) -> tuple[CheckersState, dict]:
     """
-    Build a CheckersState that imitates the post-ranker state:
+    Build a CheckersState that imitates the post-explainer state:
       - chosen_move set
-      - chosen_move_facts populated (as ranker_agent does)
+      - chosen_move_facts populated (as explainer_agent does)
       - last_move_reasoning set
       - ranker_diagnostics set with reasoning_seeds list
       - game_log_id pinned so the test knows which JSONL file to inspect
@@ -109,7 +109,7 @@ def _make_state_with_chosen(tmp_log_dir: Path) -> tuple[CheckersState, dict]:
         chosen_move=chosen,
         last_move_reasoning="Test reasoning: quiet move with no recapture risk.",
         chosen_move_facts=chosen["facts"],
-        ranker_diagnostics=diagnostics,
+        explainer_diagnostics=diagnostics,
         game_log_id="game_test_eval_export",
         strategic_context={"score_state": "EQUAL", "game_phase": "MIDGAME"},
     )
@@ -141,7 +141,7 @@ def isolated_log_dir(tmp_path, monkeypatch):
     importlib.reload(logger_node_mod)
 
     # update_agent caches the original logger_node symbol — reload it too.
-    import checkers.agents.update_agent as update_agent_mod
+    import checkers.agents.updater_agent as update_agent_mod
     importlib.reload(update_agent_mod)
 
     yield log_dir
@@ -161,7 +161,7 @@ class TestEvaluationSourceJSONLExport:
     """
 
     def _run_one_ply(self, log_dir: Path):
-        from checkers.agents.update_agent import update_agent
+        from checkers.agents.updater_agent import updater_agent as update_agent
         state, chosen = _make_state_with_chosen(log_dir)
         merged = update_agent(state)
         return state, chosen, merged
@@ -205,7 +205,7 @@ class TestEvaluationSourceJSONLExport:
         state, _, _ = self._run_one_ply(isolated_log_dir)
         records = self._read_eval_jsonl(isolated_log_dir, state.game_log_id)
         rec = records[0]
-        diag = rec.get("ranker_diagnostics") or {}
+        diag = rec.get("explainer_diagnostics") or rec.get("ranker_diagnostics") or {}
         seeds = diag.get("reasoning_seeds")
         assert isinstance(seeds, list) and len(seeds) > 0, (
             f"reasoning_seeds missing or empty in JSONL: {seeds!r}"
@@ -236,7 +236,7 @@ class TestEvaluationSourceJSONLExport:
     def test_chosen_move_facts_cleared_in_merged_dict(self, isolated_log_dir):
         """Snapshot-and-restore must be log-only.  The merged dict returned to
         LangGraph for the next turn must carry chosen_move_facts=None so the
-        next ranker_agent call starts clean."""
+        next explainer_agent call starts clean."""
         _, _, merged = self._run_one_ply(isolated_log_dir)
         assert merged.get("chosen_move_facts") is None, (
             "chosen_move_facts leaked into the merged update_agent output — "

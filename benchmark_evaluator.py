@@ -4,10 +4,10 @@ benchmark_evaluator.py
 ───────────────────────
 Evaluates the move-selection pipeline against a precomputed KingsRow dataset.
 
-Pipeline path (NO LangGraph, NO ranker_agent, NO LLM):
+Pipeline path (NO LangGraph, NO explainer_agent, NO LLM):
     board
     → score_all_legal_moves()       [= scorer_node logic]
-    → select_best_move()            [= deterministic_proposal_node logic]
+    → select_best_move()            [= proposer_agent logic]
     → chosen_move
     → compare path vs kr_path
 
@@ -53,7 +53,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from checkers.agents.scorer_agent import score_all_legal_moves
-from checkers.agents.deterministic_proposal import select_best_move
+from checkers.agents.proposer_agent import select_best_move
 from checkers.engine.board import RED, BLACK
 from checkers.engine.rules import get_all_legal_moves, apply_move
 from checkers.engine.evaluation import evaluate_board
@@ -245,7 +245,7 @@ def evaluate(
             turn_str = rec.get("turn", "RED").upper()
             side     = RED if turn_str == "RED" else BLACK
 
-            # ── run pipeline (scorer_node + deterministic_proposal_node) ──────
+            # ── run pipeline (scorer_node + proposer_agent) ─────────────────
             try:
                 t_score_start = time.perf_counter_ns()
                 if mode == "heuristic":
@@ -501,7 +501,7 @@ def main() -> None:
     else:
         pipeline_line = "[evaluator] Pipeline: score_all_legal_moves -> select_best_move (minimax)"
     print(pipeline_line)
-    print("[evaluator] NO ranker_agent  NO LangGraph  NO LLM")
+    print("[evaluator] NO explainer_agent  NO LangGraph  NO LLM")
     print(f"[evaluator] MODE     : {args.mode}")
     print(f"[evaluator] Dataset  : {args.dataset}")
     print(f"[evaluator] Filter   : phase={args.phase}  category={args.category}")

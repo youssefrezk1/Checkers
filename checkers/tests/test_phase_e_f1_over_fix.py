@@ -21,7 +21,7 @@
 
 from __future__ import annotations
 
-from checkers.agents.ranker_agent import _build_seed_reasoning_prompt
+from checkers.agents.explainer_agent import _build_seed_reasoning_prompt
 
 
 _CHOSEN_MOVE = {

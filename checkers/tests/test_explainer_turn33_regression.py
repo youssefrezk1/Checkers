@@ -3,7 +3,7 @@
 Regression test for the Turn 33 ranker blunder.
 
 Original bug:
-- Old ranker_agent (combined select + explain) could choose [(5, 0), (4, 1)]
+- Old ranker_agent (pre-migration, combined select + explain) could choose [(5, 0), (4, 1)]
   (minimax score −79.8) over [(4, 3), (3, 2)] (−79.8 → −58.3) because
   mobility_reduction heuristics overrode the minimax ranking.
 
