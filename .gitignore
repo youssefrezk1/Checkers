@@ -11,3 +11,4 @@ graph.png
 presentation_traces/
 .pytest_cache/
 .DS_Store
+.vscode/
