@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkers AI</title>
+<style>
+  :root{
+    --bg:#12141a; --panel:#1a1d26; --panel2:#20242f; --border:#2b2f3d;
+    --red:#e0524d; --red-dark:#a83a37; --black:#2b2f3d; --black-piece:#3d4356;
+    --light-sq:#e8dcc8; --dark-sq:#6a4a3a; --text:#e8e8ec; --muted:#8b8fa3;
+    --accent:#5b8def; --good:#4caf7d; --warn:#e0a83d;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  header{
+    padding:16px 24px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  header h1{font-size:18px; margin:0; font-weight:600;}
+  header .sub{color:var(--muted); font-size:13px;}
+  #newGameBtn{
+    background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    padding:8px 14px; border-radius:6px; cursor:pointer; font-size:13px;
+  }
+  #newGameBtn:hover{border-color:var(--accent);}
+  .layout{
+    display:grid; grid-template-columns:min(560px, 52vw) 1fr;
+    gap:24px; padding:24px; max-width:1400px; margin:0 auto;
+  }
+  @media (max-width: 900px){ .layout{grid-template-columns:1fr;} }
+
+  /* Board */
+  #boardWrap{display:flex; flex-direction:column; align-items:center;}
+  #status{
+    margin-bottom:12px; font-size:14px; color:var(--muted);
+    display:flex; gap:16px; flex-wrap:wrap; justify-content:center;
+  }
+  #status b{color:var(--text);}
+  #board{
+    display:grid; grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(8,1fr);
+    width:100%; aspect-ratio:1/1; border:2px solid var(--border); border-radius:6px;
+    overflow:hidden;
+  }
+  .sq{position:relative; display:flex; align-items:center; justify-content:center;}
+  .sq.light{background:var(--light-sq);}
+  .sq.dark{background:var(--dark-sq);}
+  .sq .coord{position:absolute; top:2px; left:3px; font-size:8px; color:#0004;}
+  .piece{
+    width:76%; height:76%; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-size:1.1em; font-weight:700; box-shadow:0 2px 4px #0006, inset 0 -3px 6px #0003;
+  }
+  .piece.red{background:radial-gradient(circle at 35% 30%, var(--red), var(--red-dark)); color:#fff;}
+  .piece.black{background:radial-gradient(circle at 35% 30%, var(--black-piece), var(--black)); color:#fff;}
+  #actionRow{margin-top:14px; display:flex; gap:10px; align-items:center;}
+  #runAiBtn{
+    background:var(--accent); color:#fff; border:none; padding:10px 18px;
+    border-radius:6px; cursor:pointer; font-size:14px; font-weight:600;
+  }
+  #runAiBtn:disabled{opacity:.5; cursor:default;}
+  #runAiBtn:hover:not(:disabled){filter:brightness(1.1);}
+
+  /* Side panel */
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:8px;
+    padding:16px; margin-bottom:16px;
+  }
+  .panel h2{font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 10px;}
+  .movesGrid{display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto;}
+  .moveBtn{
+    text-align:left; background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    padding:8px 10px; border-radius:6px; cursor:pointer; font-size:13px; font-family:inherit;
+  }
+  .moveBtn:hover{border-color:var(--accent);}
+  .traceBlock{margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--border);}
+  .traceBlock:last-child{border-bottom:none; margin-bottom:0; padding-bottom:0;}
+  .traceBlock h3{font-size:12px; color:var(--accent); margin:0 0 6px; text-transform:uppercase; letter-spacing:.04em;}
+  .traceBlock p{margin:3px 0; font-size:13px; line-height:1.5;}
+  .reasoning{font-size:13px; line-height:1.55; color:#d8d8e0; white-space:pre-wrap;}
+  .altList{margin:4px 0 0; padding-left:18px; font-size:12.5px; color:var(--muted);}
+  .historyList{max-height:220px; overflow-y:auto; display:flex; flex-direction:column-reverse; gap:4px;}
+  .histRow{font-size:12.5px; color:var(--muted); display:flex; gap:6px;}
+  .histRow .tag{
+    font-size:10px; font-weight:700; border-radius:4px; padding:1px 6px;
+    text-transform:uppercase; flex-shrink:0; height:fit-content;
+  }
+  .tag.red{background:var(--red-dark); color:#fff;}
+  .tag.black{background:var(--black-piece); color:#fff;}
+  .badge{display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;}
+  .badge.win{background:var(--good); color:#08130d;}
+  .empty{color:var(--muted); font-size:13px; font-style:italic;}
+  #gameOverBanner{
+    background:var(--panel2); border:1px solid var(--good); border-radius:8px;
+    padding:14px; margin-bottom:16px; text-align:center; font-weight:600; display:none;
+  }
+  .spinner{display:inline-block; width:13px; height:13px; border:2px solid #fff5; border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; margin-right:6px; vertical-align:-2px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Checkers AI</h1>
+    <div class="sub">RED = AI pipeline (Scorer → Proposer → Explainer → Updater) · BLACK = you</div>
+  </div>
+  <button id="newGameBtn">New Game</button>
+</header>
+
+<div class="layout">
+  <div id="boardWrap">
+    <div id="status"></div>
+    <div id="board"></div>
+    <div id="actionRow">
+      <button id="runAiBtn">Run AI Move (RED)</button>
+    </div>
+  </div>
+
+  <div id="sidePanel">
+    <div id="gameOverBanner"></div>
+
+    <div class="panel" id="movesPanel">
+      <h2>Your Move (BLACK)</h2>
+      <div class="movesGrid" id="movesGrid"><p class="empty">Not your turn.</p></div>
+    </div>
+
+    <div class="panel" id="tracePanel">
+      <h2>AI Reasoning Trace</h2>
+      <div id="traceContent"><p class="empty">Click "Run AI Move" to see the AI's reasoning here.</p></div>
+    </div>
+
+    <div class="panel">
+      <h2>Move History</h2>
+      <div class="historyList" id="historyList"><p class="empty">No moves yet.</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const RED = 1, BLACK = 2, RED_KING = 3, BLACK_KING = 4;
+let state = null;
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  return res.json();
+}
+
+function renderBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const sq = document.createElement('div');
+      const isDark = (r + c) % 2 === 1;
+      sq.className = 'sq ' + (isDark ? 'dark' : 'light');
+      const val = state.board[r][c];
+      if (val !== 0) {
+        const p = document.createElement('div');
+        const isRed = (val === RED || val === RED_KING);
+        p.className = 'piece ' + (isRed ? 'red' : 'black');
+        p.textContent = (val === RED_KING || val === BLACK_KING) ? '♔' : '';
+        sq.appendChild(p);
+      }
+      boardEl.appendChild(sq);
+    }
+  }
+}
+
+function renderStatus() {
+  const el = document.getElementById('status');
+  const turnLabel = state.current_player === RED ? 'RED (AI)' : 'BLACK (you)';
+  el.innerHTML = `
+    <span>Turn <b>${state.turn_number}</b></span>
+    <span>To move: <b>${turnLabel}</b></span>
+    <span>RED pieces: <b>${state.red_pieces.total}</b> (${state.red_pieces.kings} kings)</span>
+    <span>BLACK pieces: <b>${state.black_pieces.total}</b> (${state.black_pieces.kings} kings)</span>
+  `;
+}
+
+function renderGameOver() {
+  const banner = document.getElementById('gameOverBanner');
+  if (!state.game_over) { banner.style.display = 'none'; return; }
+  let text;
+  if (state.draw) text = 'Game over — Draw';
+  else if (state.winner === RED) text = 'Game over — RED (AI) wins';
+  else if (state.winner === BLACK) text = 'Game over — BLACK (you) win';
+  else text = 'Game over';
+  banner.textContent = text;
+  banner.style.display = 'block';
+  document.getElementById('runAiBtn').disabled = true;
+}
+
+function renderHistory() {
+  const el = document.getElementById('historyList');
+  const mh = state.move_history || [];
+  if (!mh.length) { el.innerHTML = '<p class="empty">No moves yet.</p>'; return; }
+  el.innerHTML = mh.map((m, i) => {
+    const tag = m.player === RED ? 'red' : 'black';
+    const tagText = m.player === RED ? 'RED' : 'BLK';
+    const prom = m.promotion ? ' · promoted' : '';
+    return `<div class="histRow"><span class="tag ${tag}">${tagText}</span><span>#${i+1} ${m.move_label}${prom}</span></div>`;
+  }).join('');
+}
+
+async function refreshLegalMoves() {
+  const grid = document.getElementById('movesGrid');
+  const btn = document.getElementById('runAiBtn');
+  if (state.game_over) {
+    grid.innerHTML = '<p class="empty">Game over.</p>';
+    btn.disabled = true;
+    return;
+  }
+  if (state.current_player !== BLACK) {
+    grid.innerHTML = '<p class="empty">Not your turn — waiting on RED (AI).</p>';
+    btn.disabled = false;
+    return;
+  }
+  btn.disabled = true;
+  const moves = await api('/api/legal_moves');
+  if (!moves.length) {
+    grid.innerHTML = '<p class="empty">No legal moves.</p>';
+    return;
+  }
+  grid.innerHTML = '';
+  moves.forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'moveBtn';
+    b.textContent = m.label;
+    b.onclick = () => playBlackMove(m.index);
+    grid.appendChild(b);
+  });
+}
+
+function renderTrace(trace) {
+  const el = document.getElementById('traceContent');
+  if (!trace) { el.innerHTML = '<p class="empty">Click "Run AI Move" to see the AI\'s reasoning here.</p>'; return; }
+  if (trace.error) { el.innerHTML = `<p class="empty">Error: ${trace.error}</p>`; return; }
+
+  let html = '';
+  if (trace.scorer) {
+    html += `<div class="traceBlock"><h3>Scorer</h3>
+      <p>${trace.scorer.moves.length} moves scored · best_score=${trace.scorer.best_score} · gap=${trace.scorer.gap}</p></div>`;
+  }
+  if (trace.proposal) {
+    const p = trace.proposal;
+    html += `<div class="traceBlock"><h3>Proposal (move authority)</h3>
+      <p><b>Chosen:</b> ${p.chosen_label || '(none)'}</p>
+      <p>score=${p.score} · gap_to_2nd=${p.gap_to_2nd} · method=${p.method}</p>`;
+    if (p.alternatives && p.alternatives.length) {
+      html += `<div class="altList">Alternatives: ${p.alternatives.map(a => `<div>${a}</div>`).join('')}</div>`;
+    }
+    html += `</div>`;
+  }
+  if (trace.explainer) {
+    const e = trace.explainer;
+    html += `<div class="traceBlock"><h3>Explainer</h3>
+      <div class="reasoning">${e.reasoning || '(no reasoning text)'}</div>
+      <p style="margin-top:8px; color:var(--muted); font-size:12px;">
+        source=${e.final_choice_source} · seeds=${e.seeds} · contradictions=${e.contradictions} · seed_fallback=${e.seed_fallback}
+      </p></div>`;
+  }
+  if (trace.applied) {
+    html += `<div class="traceBlock"><h3>Applied</h3>
+      <p>${trace.applied.move_label}${trace.applied.promotion ? ' · promoted' : ''}</p></div>`;
+  }
+  el.innerHTML = html || '<p class="empty">No trace data.</p>';
+}
+
+function renderAll() {
+  renderBoard();
+  renderStatus();
+  renderGameOver();
+  renderHistory();
+  refreshLegalMoves();
+}
+
+async function loadState() {
+  state = await api('/api/state');
+  renderAll();
+}
+
+async function newGame() {
+  state = await api('/api/new_game', { method: 'POST' });
+  document.getElementById('traceContent').innerHTML = '<p class="empty">Click "Run AI Move" to see the AI\'s reasoning here.</p>';
+  renderAll();
+}
+
+async function runAiMove() {
+  const btn = document.getElementById('runAiBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Thinking…';
+  try {
+    const res = await api('/api/red_move', { method: 'POST' });
+    state = res.state;
+    renderTrace(res.trace);
+    renderAll();
+  } finally {
+    btn.innerHTML = 'Run AI Move (RED)';
+  }
+}
+
+async function playBlackMove(index) {
+  const res = await api('/api/black_move', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ index })
+  });
+  state = res.state;
+  renderAll();
+}
+
+document.getElementById('runAiBtn').addEventListener('click', runAiMove);
+document.getElementById('newGameBtn').addEventListener('click', newGame);
+
+loadState();
+</script>
+
+</body>
+</html>
