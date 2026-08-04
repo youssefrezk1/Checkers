@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.git/
+.gitignore
+*.log
+logs/
+benchmark_*.jsonl
+benchmark_*.json
+graph.png
+presentation_traces/
+.DS_Store
+.vscode/

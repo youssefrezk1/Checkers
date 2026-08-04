@@ -14,16 +14,22 @@ For the old terminal-based trace runners, see:
   python run_simplified_trace.py --help
   python run_simplified_trace_reasoning.py --help
 """
+import os
 import threading
 import webbrowser
 
 from webapp.app import run
 
-HOST = "127.0.0.1"
+# Inside Docker, bind 0.0.0.0 so the port mapping can reach Flask, and skip
+# webbrowser.open() since there's no browser in the container.
+IN_DOCKER = os.environ.get("DOCKER") == "1"
+HOST = "0.0.0.0" if IN_DOCKER else "127.0.0.1"
 PORT = 5050
 
 if __name__ == "__main__":
-    url = f"http://{HOST}:{PORT}"
-    threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    display_host = "127.0.0.1" if IN_DOCKER else HOST
+    url = f"http://{display_host}:{PORT}"
+    if not IN_DOCKER:
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     print(f"Checkers AI \u2014 web UI running at {url}  (Ctrl+C to stop)")
     run(host=HOST, port=PORT, debug=False)
