@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -12,4 +13,3 @@ ENV DOCKER=1
 EXPOSE 5050
 
 CMD ["python", "main.py"]
-
