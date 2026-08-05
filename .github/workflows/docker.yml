@@ -96,7 +96,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build --no-cashe -t youssefrezk1/checkers:latest .
+          docker build --no-cache -t youssefrezk1/checkers:latest .
 
       - name: Push Docker image
         run: |
