@@ -183,7 +183,9 @@ def _classify(
 
 def _dedup_key(board: list[list[int]], side_to_move: int) -> str:
     flat = ",".join(str(v) for row in board for v in row)
-    return hashlib.sha1(f"{side_to_move}|{flat}".encode()).hexdigest()
+    return hashlib.sha256(
+        f"{side_to_move}|{flat}".encode("utf-8")
+    ).hexdigest()
 
 
 def _score_position_for_red(
