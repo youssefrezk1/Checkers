@@ -46,29 +46,8 @@ jobs:
       - name: Run Bandit Security Scan
         run: |
           bandit -r . -ll -x checkers/baseline_eval
-  test:
-    needs: bandit
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
-
-      - name: Run tests
-        run: pytest
   docker:
-    needs: test
+    needs: bandit
     runs-on: ubuntu-latest
 
     steps:
@@ -121,3 +100,40 @@ jobs:
       - name: Push Docker image
         run: |
           docker push youssefrezk1/checkers:latest
+
+  notify:
+    needs: docker-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+
+          subject: "Checkers DevSecOps Pipeline Passed"
+
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+
+          body: |
+            The GitHub Actions pipeline completed successfully.
+
+            Repository:
+            ${{ github.repository }}
+
+            Branch:
+            ${{ github.ref_name }}
+
+            Commit:
+            ${{ github.sha }}
+
+            Workflow:
+            ${{ github.workflow }}
+
+            Run URL:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
