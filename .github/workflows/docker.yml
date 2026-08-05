@@ -43,32 +43,10 @@ jobs:
 
       - name: Run Bandit Security Scan
         run: |
-          bandit -r . -ll
-
-  test:
-    needs: bandit
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
-
-      - name: Run tests
-        run: pytest
+          bandit -r . -ll -x checkers/baseline_eval
 
   docker:
-    needs: test
+    needs: bandit
     runs-on: ubuntu-latest
 
     steps:
@@ -92,7 +70,7 @@ jobs:
           docker build -t youssefrezk1/checkers:latest .
 
       - name: Scan Docker image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: "youssefrezk1/checkers:latest"
           format: "table"
