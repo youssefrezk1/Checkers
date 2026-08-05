@@ -45,7 +45,8 @@ jobs:
 
       - name: Run Bandit Security Scan
         run: |
-          bandit -r . -ll -x checkers/baseline_eval
+          mkdir -p reports
+          bandit -r . -ll -x checkers/baseline_eval -f txt -o reports/bandit-report.txt
   docker:
     needs: bandit
     runs-on: ubuntu-latest
@@ -69,15 +70,24 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t youssefrezk1/checkers:latest .
+      -name: Create reports directory 
+       run: mkdir -p reports
 
       - name: Scan Docker image
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: "youssefrezk1/checkers:latest"
           format: "table"
+          output:  "reports/trivy-report.txt"
           severity: "CRITICAL"
           ignore-unfixed:  true
           exit-code: "1"
+      -name: Upload Security Reports 
+       uses: actions/upload-artifact@v4
+       with:
+        name:  security-reports
+        path:  reports/
+
 
   docker-push:
     needs: trivy
