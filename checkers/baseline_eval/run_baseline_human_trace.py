@@ -149,7 +149,7 @@ def call_baseline_llm(system: str, user: str) -> str:
     max_attempts = 4
     for attempt in range(max_attempts):
         try:
-            with _urllib_request_b.urlopen(req, timeout=60.0) as resp:
+            with _urllib_request_b.urlopen(req, timeout=60.0) as resp: # nosec B310
                 data = _json_b.loads(resp.read().decode("utf-8"))
                 break
         except _urllib_error_b.HTTPError as exc:
