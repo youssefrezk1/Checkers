@@ -47,8 +47,38 @@ jobs:
         run: |
           mkdir -p reports
           bandit -r . -ll -x checkers/baseline_eval -f txt -o reports/bandit-report.txt
-  docker:
+
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: reports/bandit-report.txt
+
+  test:
     needs: bandit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run Tests
+        run: |
+          pytest
+
+  docker:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
@@ -70,24 +100,25 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t youssefrezk1/checkers:latest .
-      -name: Create reports directory 
-       run: mkdir -p reports
+
+      - name: Create reports directory
+        run: mkdir -p reports
 
       - name: Scan Docker image
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: "youssefrezk1/checkers:latest"
           format: "table"
-          output:  "reports/trivy-report.txt"
+          output: "reports/trivy-report.txt"
           severity: "CRITICAL"
-          ignore-unfixed:  true
+          ignore-unfixed: true
           exit-code: "1"
-      -name: Upload Security Reports 
-       uses: actions/upload-artifact@v4
-       with:
-        name:  security-reports
-        path:  reports/
 
+      - name: Upload Trivy Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: reports/trivy-report.txt
 
   docker-push:
     needs: trivy
@@ -116,6 +147,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Download Bandit Report
+        uses: actions/download-artifact@v4
+        with:
+          name: bandit-report
+          path: reports
+
+      - name: Download Trivy Report
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-report
+          path: reports
+
       - name: Send Email
         uses: dawidd6/action-send-mail@v3
         with:
@@ -130,8 +173,12 @@ jobs:
           to: ${{ secrets.EMAIL_TO }}
           from: ${{ secrets.EMAIL_USERNAME }}
 
+          attachments: |
+            reports/bandit-report.txt
+            reports/trivy-report.txt
+
           body: |
-            The GitHub Actions pipeline completed successfully.
+            DevSecOps Pipeline Completed Successfully
 
             Repository:
             ${{ github.repository }}
@@ -145,5 +192,15 @@ jobs:
             Workflow:
             ${{ github.workflow }}
 
-            Run URL:
+            Security Checks Completed:
+            ✔ Gitleaks
+            ✔ Bandit
+            ✔ Pytest
+            ✔ Docker Build
+            ✔ Trivy
+            ✔ Docker Push
+
+            Bandit and Trivy reports are attached.
+
+            Workflow Run:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
