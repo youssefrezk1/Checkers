@@ -2,13 +2,20 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install deps first so this layer is cached unless requirements.txt changes
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
 ENV DOCKER=1
+
 EXPOSE 5050
 
 CMD ["python", "main.py"]
