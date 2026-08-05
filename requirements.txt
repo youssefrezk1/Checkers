@@ -34,4 +34,4 @@ uuid_utils==0.14.1
 xxhash==3.6.0
 zstandard==0.25.0
 Flask==3.1.0
-
+pytest==8.4.1
