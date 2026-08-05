@@ -23,7 +23,7 @@ from webapp.app import run
 # Inside Docker, bind 0.0.0.0 so the port mapping can reach Flask, and skip
 # webbrowser.open() since there's no browser in the container.
 IN_DOCKER = os.environ.get("DOCKER") == "1"
-HOST = "0.0.0.0" if IN_DOCKER else "127.0.0.1"
+HOST = "0.0.0.0" if IN_DOCKER else "127.0.0.1"  # nosec
 PORT = 5050
 
 if __name__ == "__main__":
