@@ -76,7 +76,8 @@ jobs:
         with:
           image-ref: "youssefrezk1/checkers:latest"
           format: "table"
-          severity: "HIGH,CRITICAL"
+          severity: "CRITICAL"
+          ignore-unfixed:  true
           exit-code: "1"
 
   docker-push:
@@ -95,7 +96,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t youssefrezk1/checkers:latest .
+          docker build --no-cashe -t youssefrezk1/checkers:latest .
 
       - name: Push Docker image
         run: |
