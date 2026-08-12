@@ -1,9 +1,10 @@
+---
 - name: Deploy Checkers to EC2
   hosts: checkers
   become: true
 
   vars:
-    checkers_image: "{{ lookup('env', 'CHECKERS_IMAGE') }}"
+    checkers_image: "{{ docker_image }}:{{ image_tag }}"
     checkers_container: "checkers"
     checkers_port: 80
     checkers_app_port: 5050
