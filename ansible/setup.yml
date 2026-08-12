@@ -1,0 +1,54 @@
+- name: Deploy Checkers to EC2
+  hosts: checkers
+  become: true
+
+  vars:
+    checkers_image: "{{ lookup('env', 'CHECKERS_IMAGE') }}"
+    checkers_container: "checkers"
+    checkers_port: 80
+    checkers_app_port: 5050
+
+  tasks:
+    - name: Update Amazon Linux packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_only: true
+
+    - name: Install required packages
+      ansible.builtin.dnf:
+        name:
+          - git
+          - docker
+        state: present
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add SSM user to Docker group
+      ansible.builtin.user:
+        name: ssm-user
+        groups: docker
+        append: true
+
+    - name: Pull Checkers image
+      community.docker.docker_image:
+        name: "{{ checkers_image }}"
+        source: pull
+
+    - name: Stop old Checkers container
+      community.docker.docker_container:
+        name: "{{ checkers_container }}"
+        state: absent
+
+    - name: Start Checkers
+      community.docker.docker_container:
+        name: "{{ checkers_container }}"
+        image: "{{ checkers_image }}"
+        state: started
+        restart_policy: unless-stopped
+        published_ports:
+          - "{{ checkers_port }}:{{ checkers_app_port }}"
