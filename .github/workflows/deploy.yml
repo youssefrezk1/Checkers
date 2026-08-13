@@ -1,0 +1,93 @@
+name: Build and Deploy Checkers to EKS
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "350769147036"
+  ECR_REPOSITORY: checkers
+  EKS_CLUSTER_NAME: checkers-eks
+  K8S_DEPLOYMENT: checkers-deployment
+  K8S_CONTAINER: checkers
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::350769147036:role/GitHubActions-Checkers-Deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS identity
+        run: |
+          aws sts get-caller-identity
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: 350769147036.dkr.ecr.us-east-1.amazonaws.com
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}" \
+            -t "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest" \
+            .
+
+          docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region "${AWS_REGION}" \
+            --name "${EKS_CLUSTER_NAME}"
+
+      - name: Verify EKS access
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+          kubectl get deployment "${K8S_DEPLOYMENT}"
+
+      - name: Deploy new image to EKS
+        env:
+          ECR_REGISTRY: 350769147036.dkr.ecr.us-east-1.amazonaws.com
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          kubectl set image deployment/"${K8S_DEPLOYMENT}" \
+            "${K8S_CONTAINER}"="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status \
+            deployment/"${K8S_DEPLOYMENT}" \
+            --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          echo "===== DEPLOYMENT ====="
+          kubectl get deployment "${K8S_DEPLOYMENT}" -o wide
+
+          echo "===== PODS ====="
+          kubectl get pods -l app=checkers -o wide
+
+          echo "===== SERVICE ====="
+          kubectl get svc checkers-service
+
+          echo "===== IMAGE ====="
+          kubectl get deployment "${K8S_DEPLOYMENT}" \
+            -o jsonpath='{range .spec.template.spec.containers[*]}name={.name} image={.image}{"\n"}{end}'
