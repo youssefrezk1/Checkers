@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkers-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: checkers
+  template:
+    metadata:
+      labels:
+        app: checkers
+    spec:
+      containers:
+        - name: checkers
+          image: 350769147036.dkr.ecr.us-east-1.amazonaws.com/checkers:PLACEHOLDER
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5050
+          envFrom:
+            - secretRef:
+                name: checkers-secrets

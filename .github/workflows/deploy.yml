@@ -38,18 +38,23 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Docker image
+      - name: Build and push image to ECR
         env:
           ECR_REGISTRY: 350769147036.dkr.ecr.us-east-1.amazonaws.com
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build \
-            -t "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}" \
-            -t "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest" \
-            .
+          set -e
 
-          docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
-          docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+          IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          echo "Building:"
+          echo "${IMAGE}"
+
+          docker build -t "${IMAGE}" .
+
+          docker push "${IMAGE}"
+
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
 
       - name: Configure kubectl for EKS
         run: |
@@ -59,35 +64,110 @@ jobs:
 
       - name: Verify EKS access
         run: |
+          set -e
+
           kubectl cluster-info
           kubectl get nodes
-          kubectl get deployment "${K8S_DEPLOYMENT}"
 
-      - name: Deploy new image to EKS
+      - name: Apply Kubernetes manifests
+        run: |
+          set -e
+
+          kubectl apply -f k8s/ingressclass.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+      - name: Deploy exact Git SHA image
         env:
           ECR_REGISTRY: 350769147036.dkr.ecr.us-east-1.amazonaws.com
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          kubectl set image deployment/"${K8S_DEPLOYMENT}" \
-            "${K8S_CONTAINER}"="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          set -e
 
-      - name: Wait for rollout
+          IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          echo "Deploying image:"
+          echo "${IMAGE}"
+
+          kubectl set image \
+            deployment/"${K8S_DEPLOYMENT}" \
+            "${K8S_CONTAINER}"="${IMAGE}"
+
+      - name: Wait for deployment rollout
         run: |
+          set -e
+
           kubectl rollout status \
             deployment/"${K8S_DEPLOYMENT}" \
             --timeout=5m
 
       - name: Verify deployment
         run: |
+          set -e
+
           echo "===== DEPLOYMENT ====="
           kubectl get deployment "${K8S_DEPLOYMENT}" -o wide
 
+          echo
           echo "===== PODS ====="
           kubectl get pods -l app=checkers -o wide
 
+          echo
           echo "===== SERVICE ====="
-          kubectl get svc checkers-service
+          kubectl get svc checkers-service -o wide
 
+          echo
+          echo "===== INGRESS ====="
+          kubectl get ingress checkers-ingress -o wide
+
+          echo
           echo "===== IMAGE ====="
           kubectl get deployment "${K8S_DEPLOYMENT}" \
             -o jsonpath='{range .spec.template.spec.containers[*]}name={.name} image={.image}{"\n"}{end}'
+
+      - name: Wait for ALB address
+        run: |
+          set -e
+
+          echo "Waiting for ALB address..."
+
+          for i in {1..30}; do
+            ALB_DNS=$(kubectl get ingress checkers-ingress \
+              -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+
+            if [ -n "${ALB_DNS}" ]; then
+              echo
+              echo "======================================"
+              echo "CHECKERS URL"
+              echo "http://${ALB_DNS}/"
+              echo "======================================"
+
+              echo "CHECKERS_URL=http://${ALB_DNS}/" >> "$GITHUB_ENV"
+              exit 0
+            fi
+
+            echo "ALB not ready yet..."
+            sleep 10
+          done
+
+          echo "ERROR: ALB address was not assigned within 5 minutes."
+          kubectl describe ingress checkers-ingress
+          exit 1
+
+      - name: Final health verification
+        run: |
+          set -e
+
+          echo "===== FINAL INGRESS ====="
+          kubectl get ingress checkers-ingress -o wide
+
+          echo
+          echo "===== FINAL PODS ====="
+          kubectl get pods -l app=checkers -o wide
+
+          echo
+          echo "===== FINAL IMAGE ====="
+          kubectl get deployment "${K8S_DEPLOYMENT}" \
+            -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo
