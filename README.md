@@ -79,18 +79,26 @@ checkers/
 │   ├── reasoning_checker.py     # Baseline reasoning quality checks
 │   ├── run_baseline_human_trace.py
 │   └── run_baseline_scenario_suite.py
-└── tests/                       # 60+ unit and integration tests
+└── tests/                       # Automated unit and integration test suite
+
+webapp/                          # Flask web UI (primary interface, see main.py)
+├── app.py                       # Flask routes
+├── game_service.py              # Game-session orchestration
+└── static/index.html            # Single-page frontend
 ```
 
 ## Entry Points
 
 | Script | Purpose |
 |--------|---------|
-| `run_simplified_trace.py` | Interactive game: AI (RED) vs human (BLACK) |
-| `run_simplified_trace_reasoning.py` | Same game with deep reasoning diagnostics |
+| `main.py` | **Primary entry point.** Launches the Flask web UI (board, move history, AI reasoning trace) at `http://127.0.0.1:5050` |
+| `run_simplified_trace.py` | Legacy terminal game: AI (RED) vs human (BLACK) |
+| `run_simplified_trace_reasoning.py` | Same terminal game with deep reasoning diagnostics |
 | `run_presentation_trace.py` | Presentation-mode with colored HTML export |
 | `run_kingsrow_benchmark_trace.py` | Benchmark AI moves against KingsRow engine |
 | `benchmark_evaluator.py` | Analyse benchmark JSONL results |
+
+The web UI (`main.py`) supersedes the original terminal runner as the primary way to play; the terminal scripts remain for diagnostics, presentations, and benchmarking.
 
 ## Setup
 
@@ -104,7 +112,10 @@ cp .env.example .env   # add MISTRAL_API_KEY
 ## Running
 
 ```bash
-# Interactive: play as BLACK against the AI
+# Web UI (primary): play as BLACK against the AI in the browser
+python main.py
+
+# Legacy terminal runner
 python run_simplified_trace.py
 
 # With reasoning diagnostics
@@ -126,6 +137,17 @@ pytest checkers/tests/
 - **Unified verifier (E.1)**: `explainer_agent` calls `unified_verifier.contradiction_strings()` at runtime, ensuring runtime and evaluation see identical contradiction detection.
 - **Comparative reasoning**: `explainer_agent` calls `comparative_reasoner.generate_comparative_reasoning()` to produce a paragraph comparing the chosen move to alternatives. `comparative_reasoner` imports only `llm_provider` — zero dependency on the decision pipeline.
 - **Provider isolation**: all Mistral HTTP calls go through `llm_provider.py`. No other module makes HTTP requests directly.
+
+## Deployment (post-thesis extension)
+
+The core bachelor-thesis contribution is the agent architecture and the faithfulness-verification/evaluation pipeline above. The following files were added later to package the same app as a deployable service — they are not part of the research contribution:
+
+- `Dockerfile`, `.dockerignore` — containerizes `main.py` (the web UI)
+- `.github/workflows/deploy.yml` — CI/CD: builds/pushes the image to ECR and deploys to an EKS cluster
+- `k8s/` — Kubernetes Deployment/Service/Ingress manifests for the EKS path
+- `ansible/` — an independent deployment path: pulls the same image onto a plain EC2 host via Ansible
+
+These two deployment paths (EKS and EC2/Ansible) are alternatives, not a pipeline — either can be used independently to run the web UI outside a local machine.
 
 ## Environment Variables
 

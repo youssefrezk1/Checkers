@@ -12,3 +12,10 @@ presentation_traces/
 .pytest_cache/
 .DS_Store
 .vscode/
+.idea/
+*.swp
+*.swo
+*.egg-info/
+.coverage
+htmlcov/
+ansible/inventory.ini
