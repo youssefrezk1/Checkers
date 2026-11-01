@@ -1,6 +1,10 @@
-# LLM-Augmented Checkers — Bachelor's Project
+# An Agentic System for Reasoning in Rule-Based Games II
 
-A checkers-playing system that combines a deterministic minimax engine with an LLM reasoning layer. The engine selects moves; the LLM explains them.
+**Bachelor Project — Neuro-Symbolic Multi-Agent Checkers**
+
+This repository contains my Bachelor Project, investigating how Large Language Models behave in rule-governed environments — where they tend to propose illegal actions, lose consistency across turns, and generate explanations that don't match the actual game state. It asks whether a neuro-symbolic, multi-agent architecture can make decision-making legal by construction while keeping the accompanying natural-language reasoning grounded and verifiable.
+
+American Checkers is used as the evaluation domain because it is fully rule-specified: legality and state transitions can be checked exactly, and generated explanations can be automatically verified against that same symbolic ground truth. By design, move legality and selection are handled entirely deterministically (minimax search over a hand-written rules engine), making illegal moves structurally impossible rather than merely unlikely; an LLM is used only to **explain** the chosen move, and its explanations are grounded in the same symbolic facts and pass through an automated verification-and-repair pipeline before being shown.
 
 ## Architecture
 
@@ -20,6 +24,17 @@ scorer_agent → proposer_agent → explainer_agent → updater_agent
 | `updater_agent` | Applies the move, checks win conditions, logs the turn |
 
 The LLM only explains. The engine decides.
+
+## Key Design Ideas
+
+- **Proposal-authoritative**: `proposer_agent` writes `chosen_move`; `explainer_agent` reads it but never modifies it.
+- **Unified verifier (E.1)**: `explainer_agent` calls `unified_verifier.contradiction_strings()` at runtime, ensuring runtime and evaluation see identical contradiction detection.
+- **Comparative reasoning**: `explainer_agent` calls `comparative_reasoner.generate_comparative_reasoning()` to produce a paragraph comparing the chosen move to alternatives. `comparative_reasoner` imports only `llm_provider` — zero dependency on the decision pipeline.
+- **Provider isolation**: all Mistral HTTP calls go through `llm_provider.py`. No other module makes HTTP requests directly.
+
+## Evaluation & Research Methodology
+
+The system is evaluated across four research questions: baseline LLM reliability at move generation, whether multi-agent responsibility separation eliminates illegal moves, whether symbolic grounding improves explanation consistency, and whether verification/repair reduces contradictions without introducing new errors. The evaluation includes a baseline LLM move-generation study, a move-selection benchmark against the KingsRow engine, and a controlled ablation comparing grounded ("seeded") vs. ungrounded LLM explanations, cross-checked against a manual audit. Full methodology, statistical validation, and results are reported in the thesis; the evaluation and ablation code lives in `checkers/evaluation/` and `checkers/baseline_eval/`.
 
 ## Repository Structure
 
@@ -131,23 +146,15 @@ python run_simplified_trace.py --quiet
 pytest checkers/tests/
 ```
 
-## Key Design Invariants
+## Deployment
 
-- **Proposal-authoritative**: `proposer_agent` writes `chosen_move`; `explainer_agent` reads it but never modifies it.
-- **Unified verifier (E.1)**: `explainer_agent` calls `unified_verifier.contradiction_strings()` at runtime, ensuring runtime and evaluation see identical contradiction detection.
-- **Comparative reasoning**: `explainer_agent` calls `comparative_reasoner.generate_comparative_reasoning()` to produce a paragraph comparing the chosen move to alternatives. `comparative_reasoner` imports only `llm_provider` — zero dependency on the decision pipeline.
-- **Provider isolation**: all Mistral HTTP calls go through `llm_provider.py`. No other module makes HTTP requests directly.
+This is a later addition, separate from the bachelor research contribution above; it packages the same application as a deployable service.
 
-## Deployment (post-thesis extension)
+**Primary path:** Docker container → GitHub Actions CI/CD → Amazon ECR → Amazon EKS (Kubernetes). See `Dockerfile`, `.github/workflows/deploy.yml`, `k8s/`.
 
-The core bachelor-thesis contribution is the agent architecture and the faithfulness-verification/evaluation pipeline above. The following files were added later to package the same app as a deployable service — they are not part of the research contribution:
+**Independent alternative path:** Docker container → Ansible → Amazon EC2. See `ansible/`.
 
-- `Dockerfile`, `.dockerignore` — containerizes `main.py` (the web UI)
-- `.github/workflows/deploy.yml` — CI/CD: builds/pushes the image to ECR and deploys to an EKS cluster
-- `k8s/` — Kubernetes Deployment/Service/Ingress manifests for the EKS path
-- `ansible/` — an independent deployment path: pulls the same image onto a plain EC2 host via Ansible
-
-These two deployment paths (EKS and EC2/Ansible) are alternatives, not a pipeline — either can be used independently to run the web UI outside a local machine.
+The two paths are independent alternatives rather than stages of one pipeline — either can be used on its own to run the web UI outside a local machine.
 
 ## Environment Variables
 
@@ -159,7 +166,7 @@ The table below lists the variables you are likely to change. See `.env.example`
 | `MISTRAL_COMPARATIVE_API_KEY` | `MISTRAL_API_KEY` | Separate key for the comparative reasoning stage |
 | `MISTRAL_EXPLAINER_MODEL` | `mistral-small-latest` | Model for explainer and comparative reasoner |
 | `EXPLAINER_TEMPERATURE` | `0.2` | Sampling temperature |
-| `EXPLAINER_SEEDS_DISABLED` | `0` | Set to `1` to disable adversity-seeded reasoning |
+| `EXPLAINER_SEEDS_DISABLED` | `0` | Set to `1` to disable symbolic reasoning-seed grounding (the seed-off condition used in the seed-on/seed-off ablation) |
 | `EXPLAINER_COMPARATIVE_STAGE_ENABLED` | `1` | Set to `0` to skip the comparative reasoning paragraph |
 | `MINIMAX_DEPTH` | `6` | Negamax search depth |
 | `MINIMAX_ENABLED` | `true` | Set to `false` to disable minimax (debugging only) |
